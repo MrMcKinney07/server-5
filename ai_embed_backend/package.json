@@ -1,0 +1,8 @@
+{
+  "name": "ai-embed-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "openai": "^4.12.0"
+  }
+}
