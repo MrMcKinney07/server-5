@@ -1,54 +1,63 @@
 import { requireAuth } from "@/lib/auth"
-import { searchProperties } from "@/lib/idx/search-properties"
-import { PropertySearchForm } from "@/components/properties/property-search-form"
-import { PropertyGrid } from "@/components/properties/property-grid"
-import { SaveSearchDialog } from "@/components/properties/save-search-dialog"
-import type { PropertySearchQuery } from "@/lib/types/database"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Search, Home, ExternalLink } from "lucide-react"
+import Link from "next/link"
 
-interface PropertiesPageProps {
-  searchParams: Promise<{
-    location?: string
-    minPrice?: string
-    maxPrice?: string
-    minBeds?: string
-    maxBeds?: string
-    status?: string
-    page?: string
-  }>
-}
-
-export default async function PropertiesPage({ searchParams }: PropertiesPageProps) {
-  const agent = await requireAuth()
-  const params = await searchParams
-
-  const query: PropertySearchQuery = {}
-  if (params.location) query.location = params.location
-  if (params.minPrice) query.minPrice = Number.parseInt(params.minPrice)
-  if (params.maxPrice) query.maxPrice = Number.parseInt(params.maxPrice)
-  if (params.minBeds) query.minBeds = Number.parseInt(params.minBeds)
-  if (params.maxBeds) query.maxBeds = Number.parseInt(params.maxBeds)
-  if (params.status) query.status = params.status as PropertySearchQuery["status"]
-
-  const page = params.page ? Number.parseInt(params.page) : 1
-  const hasFilters = Object.keys(query).length > 0
-
-  const results = await searchProperties(query, page, 12)
+export default async function PropertiesPage() {
+  await requireAuth()
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Property Search</h1>
-          <p className="text-sm text-muted-foreground">
-            Search available listings {hasFilters && `• ${results.total} results`}
-          </p>
-        </div>
-        {hasFilters && <SaveSearchDialog query={query} agentId={agent.id} />}
+      <div>
+        <h1 className="text-2xl font-semibold">Properties</h1>
+        <p className="text-sm text-muted-foreground">Search and manage property listings</p>
       </div>
 
-      <PropertySearchForm initialQuery={query} />
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Search className="h-5 w-5 text-cyan-500" />
+              MLS Search
+            </CardTitle>
+            <CardDescription>Search live MLS listings powered by IDX Broker</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Access real-time property listings from the MLS. Search by location, price, beds, baths, and more.
+            </p>
+            <Button asChild>
+              <Link href="/dashboard/properties/mls-search">Search MLS Listings</Link>
+            </Button>
+          </CardContent>
+        </Card>
 
-      <PropertyGrid properties={results.properties} total={results.total} page={page} pageSize={12} />
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Home className="h-5 w-5 text-emerald-500" />
+              Full IDX Website
+            </CardTitle>
+            <CardDescription>Visit the full IDX Broker property search site</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Access all advanced search features, saved searches, and detailed property information.
+            </p>
+            <Button variant="outline" asChild>
+              <Link
+                href="https://mckinneyrealtyco.idxbroker.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2"
+              >
+                Open IDX Site <ExternalLink className="h-4 w-4" />
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
