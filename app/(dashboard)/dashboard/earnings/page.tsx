@@ -1,10 +1,10 @@
-import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/auth"
 import { redirect } from "next/navigation"
-import { AgentEarningsDashboard } from "@/components/earnings/agent-earnings-dashboard"
+import { EarningsDashboard } from "@/components/earnings/earnings-dashboard"
 
 export default async function EarningsPage() {
-  const supabase = await createServerClient()
+  const supabase = await createClient()
   const agent = await requireAuth()
 
   if (!agent) {
@@ -12,50 +12,55 @@ export default async function EarningsPage() {
   }
 
   const currentYear = new Date().getFullYear()
+  const startOfYear = `${currentYear}-01-01`
+  const endOfYear = `${currentYear}-12-31`
 
-  // Get agent's annual summary
-  const { data: annualSummary } = await supabase
-    .from("agent_annual_summaries")
+  const { data: transactions } = await supabase
+    .from("transactions")
     .select("*")
     .eq("agent_id", agent.id)
-    .eq("year", currentYear)
-    .single()
+    .gte("closing_date", startOfYear)
+    .lte("closing_date", endOfYear)
+    .order("closing_date", { ascending: false })
 
-  // Get agent's commission plan
-  const { data: agentPlan } = await supabase
-    .from("agent_commission_plans")
-    .select("*, commission_plan:commission_plans(*)")
-    .eq("agent_id", agent.id)
-    .single()
+  // Calculate YTD stats from transactions
+  const closedTransactions = (transactions || []).filter((t) => t.status === "closed")
 
-  // Get default plan if no agent-specific plan
-  let commissionPlan = agentPlan?.commission_plan
-  if (!commissionPlan) {
-    const { data: defaultPlan } = await supabase.from("commission_plans").select("*").eq("is_default", true).single()
-    commissionPlan = defaultPlan
+  const ytdStats = {
+    totalGCI: closedTransactions.reduce((sum, t) => sum + (Number(t.gross_commission) || 0), 0),
+    totalVolume: closedTransactions.reduce((sum, t) => sum + (Number(t.sale_price) || 0), 0),
+    totalDeals: closedTransactions.length,
   }
 
-  // Get last 10 closings
-  const { data: recentDeals } = await supabase
-    .from("deal_financials")
-    .select("*, transaction:transactions(*, contact:contacts(*), property:properties(*))")
-    .eq("agent_id", agent.id)
-    .order("closed_date", { ascending: false })
-    .limit(10)
+  // Default commission plan values (70/30 split, $25k cap)
+  const commissionPlan = {
+    name: "Standard Plan",
+    splitPercentage: 0.7,
+    capAmount: 25000,
+    transactionFee: 495,
+  }
+
+  // Calculate agent earnings (split applied to GCI)
+  const agentEarnings = ytdStats.totalGCI * commissionPlan.splitPercentage
+  const brokerShare = ytdStats.totalGCI * (1 - commissionPlan.splitPercentage)
+  const capProgress = Math.min((brokerShare / commissionPlan.capAmount) * 100, 100)
+  const isCapped = brokerShare >= commissionPlan.capAmount
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">My Earnings</h1>
-        <p className="text-muted-foreground">Track your commission, cap progress, and recent closings</p>
+      <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-xl p-6 text-white">
+        <h1 className="text-2xl font-bold">My Earnings</h1>
+        <p className="text-emerald-100">Track your commission, cap progress, and recent closings</p>
       </div>
 
-      <AgentEarningsDashboard
-        agent={agent}
-        annualSummary={annualSummary}
+      <EarningsDashboard
+        ytdStats={ytdStats}
+        agentEarnings={agentEarnings}
+        brokerShare={brokerShare}
         commissionPlan={commissionPlan}
-        agentPlanOverrides={agentPlan}
-        recentDeals={recentDeals || []}
+        capProgress={capProgress}
+        isCapped={isCapped}
+        recentTransactions={closedTransactions.slice(0, 10)}
         currentYear={currentYear}
       />
     </div>
