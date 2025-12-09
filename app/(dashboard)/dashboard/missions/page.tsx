@@ -35,22 +35,41 @@ export default async function MissionsPage() {
     .eq("is_active", true)
     .order("category")
 
+  const completedCount = todayMissions?.filter((m) => m.status === "completed").length || 0
+  const totalSelected = todayMissions?.length || 0
+  const hasSelectedMissions = totalSelected >= 3
+
   return (
     <div className="space-y-6">
       <div className="bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl p-6 text-white">
         <h1 className="text-2xl font-bold">Daily Missions</h1>
-        <p className="text-white/80 mt-1">Complete missions to earn points and climb the rankings</p>
+        <p className="text-white/80 mt-1">
+          {hasSelectedMissions
+            ? "Complete your 3 missions to earn points and climb the rankings"
+            : "Select 3 missions to get started today"}
+        </p>
         <div className="mt-4 flex items-center gap-4">
           <div className="bg-white/20 rounded-lg px-4 py-2">
             <p className="text-sm text-white/80">Today's Progress</p>
             <p className="text-xl font-bold">
-              {todayMissions?.filter((m) => m.status === "completed").length || 0}/{todayMissions?.length || 0}
+              {completedCount}/{totalSelected || 3}
             </p>
           </div>
           <div className="bg-white/20 rounded-lg px-4 py-2">
             <p className="text-sm text-white/80">Monthly Points</p>
             <p className="text-xl font-bold">{monthlyPoints}</p>
           </div>
+          {hasSelectedMissions ? (
+            completedCount === 3 ? (
+              <div className="bg-emerald-500 rounded-lg px-4 py-2">
+                <p className="text-sm font-medium">All Complete!</p>
+              </div>
+            ) : null
+          ) : (
+            <div className="bg-white/30 rounded-lg px-4 py-2">
+              <p className="text-sm font-medium">Select Missions</p>
+            </div>
+          )}
         </div>
       </div>
 

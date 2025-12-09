@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -17,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Target, CheckCircle2, Camera, Plus, Upload, Clock, Zap } from "lucide-react"
+import { Target, CheckCircle2, Camera, Upload, Clock, Zap, AlertCircle } from "lucide-react"
 
 interface MissionsViewProps {
   todayMissions: (AgentMission & { template?: MissionTemplate })[]
@@ -34,6 +35,8 @@ const categoryColors: Record<string, string> = {
   general: "bg-gray-100 text-gray-800 border-gray-200",
 }
 
+const REQUIRED_MISSIONS = 3
+
 export function MissionsView({ todayMissions, templates, agentId, today }: MissionsViewProps) {
   const [completingMission, setCompletingMission] = useState<(AgentMission & { template?: MissionTemplate }) | null>(
     null,
@@ -41,8 +44,12 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
   const [notes, setNotes] = useState("")
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [addMissionOpen, setAddMissionOpen] = useState(false)
+  const [selectMissionsOpen, setSelectMissionsOpen] = useState(false)
+  const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([])
   const router = useRouter()
+
+  const hasSelectedMissions = todayMissions.length >= REQUIRED_MISSIONS
+  const needsToSelectMissions = todayMissions.length === 0
 
   const handleCompleteMission = async () => {
     if (!completingMission) return
@@ -51,7 +58,6 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
     const supabase = createBrowserClient()
 
     let photoUrl = null
-    // If photo is required and provided, upload it
     if (photoFile) {
       const fileExt = photoFile.name.split(".").pop()
       const fileName = `${agentId}/${completingMission.id}-${Date.now()}.${fileExt}`
@@ -88,44 +94,78 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
     setIsLoading(false)
   }
 
-  const handleAddMission = async (templateId: string) => {
+  const toggleTemplateSelection = (templateId: string) => {
+    setSelectedTemplateIds((prev) => {
+      if (prev.includes(templateId)) {
+        return prev.filter((id) => id !== templateId)
+      }
+      if (prev.length >= REQUIRED_MISSIONS) {
+        return prev // Don't allow more than 3
+      }
+      return [...prev, templateId]
+    })
+  }
+
+  const handleSubmitMissions = async () => {
+    if (selectedTemplateIds.length !== REQUIRED_MISSIONS) return
     setIsLoading(true)
     const supabase = createBrowserClient()
 
-    const { error } = await supabase.from("agent_missions").insert({
+    const missions = selectedTemplateIds.map((templateId) => ({
       agent_id: agentId,
       template_id: templateId,
       mission_date: today,
       status: "pending",
-    })
+    }))
+
+    const { error } = await supabase.from("agent_missions").insert(missions)
 
     if (!error) {
-      setAddMissionOpen(false)
+      setSelectMissionsOpen(false)
+      setSelectedTemplateIds([])
       router.refresh()
     }
 
     setIsLoading(false)
   }
 
-  const assignedTemplateIds = todayMissions.map((m) => m.template_id)
-  const availableTemplates = templates.filter((t) => !assignedTemplateIds.includes(t.id))
-
   return (
     <div className="space-y-6">
+      {needsToSelectMissions && (
+        <Card className="border-amber-300 bg-amber-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-amber-500 text-white flex items-center justify-center">
+                <AlertCircle className="h-6 w-6" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-amber-900">Select Your Daily Missions</h3>
+                <p className="text-sm text-amber-700">
+                  Choose {REQUIRED_MISSIONS} missions to complete today. Once selected, you cannot change them.
+                </p>
+              </div>
+              <Button onClick={() => setSelectMissionsOpen(true)} className="bg-amber-500 hover:bg-amber-600">
+                Select {REQUIRED_MISSIONS} Missions
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Today's Missions */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader>
           <div>
             <CardTitle className="flex items-center gap-2">
               <Target className="h-5 w-5 text-amber-500" />
               Today's Missions
             </CardTitle>
-            <CardDescription>Complete these missions to earn points</CardDescription>
+            <CardDescription>
+              {hasSelectedMissions
+                ? "Complete these missions to earn points"
+                : `Select ${REQUIRED_MISSIONS} missions to get started`}
+            </CardDescription>
           </div>
-          <Button onClick={() => setAddMissionOpen(true)} className="bg-amber-500 hover:bg-amber-600">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Mission
-          </Button>
         </CardHeader>
         <CardContent>
           {todayMissions.length > 0 ? (
@@ -197,8 +237,8 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
           ) : (
             <div className="text-center py-12 text-muted-foreground">
               <Target className="h-16 w-16 mx-auto mb-4 opacity-30" />
-              <p className="text-lg font-medium">No missions for today</p>
-              <p className="text-sm mt-1">Click "Add Mission" to assign yourself a mission</p>
+              <p className="text-lg font-medium">No missions selected yet</p>
+              <p className="text-sm mt-1">Select {REQUIRED_MISSIONS} missions to start earning points today</p>
             </div>
           )}
         </CardContent>
@@ -272,52 +312,79 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
         </DialogContent>
       </Dialog>
 
-      {/* Add Mission Dialog */}
-      <Dialog open={addMissionOpen} onOpenChange={setAddMissionOpen}>
+      <Dialog open={selectMissionsOpen} onOpenChange={setSelectMissionsOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add Mission</DialogTitle>
-            <DialogDescription>Select a mission to add to your daily goals</DialogDescription>
+            <DialogTitle>Select Your {REQUIRED_MISSIONS} Daily Missions</DialogTitle>
+            <DialogDescription>
+              Choose exactly {REQUIRED_MISSIONS} missions to complete today. You cannot change your selection after
+              submitting.
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 py-4">
-            {availableTemplates.length > 0 ? (
-              availableTemplates.map((template) => (
-                <div
-                  key={template.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:border-amber-300 hover:bg-amber-50/50 transition-colors"
-                >
-                  <div className="flex-1">
-                    <h4 className="font-medium">{template.title}</h4>
-                    <p className="text-sm text-muted-foreground">{template.description}</p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Badge variant="outline" className={categoryColors[template.category]}>
-                        {template.category}
-                      </Badge>
-                      <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                        {template.points} pts
-                      </Badge>
-                      {template.requires_photo && (
-                        <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                          <Camera className="h-3 w-3 mr-1" />
-                          Photo
+          <div className="py-4">
+            {/* Selection counter */}
+            <div className="mb-4 p-3 bg-amber-50 rounded-lg flex items-center justify-between">
+              <span className="text-sm text-amber-800">
+                Selected: <strong>{selectedTemplateIds.length}</strong> of {REQUIRED_MISSIONS}
+              </span>
+              {selectedTemplateIds.length === REQUIRED_MISSIONS && (
+                <Badge className="bg-emerald-500">Ready to submit</Badge>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              {templates.map((template) => {
+                const isSelected = selectedTemplateIds.includes(template.id)
+                const isDisabled = !isSelected && selectedTemplateIds.length >= REQUIRED_MISSIONS
+
+                return (
+                  <div
+                    key={template.id}
+                    onClick={() => !isDisabled && toggleTemplateSelection(template.id)}
+                    className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors ${
+                      isSelected
+                        ? "border-amber-500 bg-amber-50"
+                        : isDisabled
+                          ? "border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed"
+                          : "border-gray-200 hover:border-amber-300 hover:bg-amber-50/50"
+                    }`}
+                  >
+                    <Checkbox checked={isSelected} disabled={isDisabled} className="pointer-events-none" />
+                    <div className="flex-1">
+                      <h4 className="font-medium">{template.title}</h4>
+                      <p className="text-sm text-muted-foreground">{template.description}</p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Badge variant="outline" className={categoryColors[template.category || "general"]}>
+                          {template.category}
                         </Badge>
-                      )}
+                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                          {template.points} pts
+                        </Badge>
+                        {template.requires_photo && (
+                          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                            <Camera className="h-3 w-3 mr-1" />
+                            Photo
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <Button
-                    onClick={() => handleAddMission(template.id)}
-                    disabled={isLoading}
-                    className="bg-amber-500 hover:bg-amber-600"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add
-                  </Button>
-                </div>
-              ))
-            ) : (
-              <p className="text-center text-muted-foreground py-8">All available missions have been added for today</p>
-            )}
+                )
+              })}
+            </div>
           </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelectMissionsOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmitMissions}
+              disabled={isLoading || selectedTemplateIds.length !== REQUIRED_MISSIONS}
+              className="bg-amber-500 hover:bg-amber-600"
+            >
+              {isLoading ? "Submitting..." : `Confirm ${REQUIRED_MISSIONS} Missions`}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
