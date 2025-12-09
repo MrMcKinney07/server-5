@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Home, ExternalLink, Trash2, Eye, DollarSign, Bed, Bath, Calendar } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
+import { toast } from "sonner"
 
 interface SavedProperty {
   id: string
@@ -45,6 +46,38 @@ export function SavedPropertiesList({ properties, leadId, leadName }: SavedPrope
     await supabase.from("saved_properties").delete().eq("id", propertyId)
     router.refresh()
     setIsDeleting(null)
+  }
+
+  const handleViewProperty = async (property: SavedProperty) => {
+    // Validate URL exists
+    if (!property.idx_url) {
+      toast.error("No property link available")
+      return
+    }
+
+    // Ensure URL has protocol
+    let url = property.idx_url
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+      url = "https://" + url
+    }
+
+    // Track the view
+    try {
+      await fetch("/api/property-view", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lead_id: leadId,
+          saved_property_id: property.id,
+        }),
+      })
+      router.refresh()
+    } catch (error) {
+      console.error("Failed to track view:", error)
+    }
+
+    // Open the property URL in new tab
+    window.open(url, "_blank", "noopener,noreferrer")
   }
 
   const formatPrice = (price: number | null) => {
@@ -164,11 +197,9 @@ export function SavedPropertiesList({ properties, leadId, leadName }: SavedPrope
 
             {/* Actions */}
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" asChild>
-                <a href={property.idx_url} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4 mr-1" />
-                  View
-                </a>
+              <Button variant="outline" size="sm" onClick={() => handleViewProperty(property)}>
+                <ExternalLink className="h-4 w-4 mr-1" />
+                View
               </Button>
               <Button
                 variant="ghost"
