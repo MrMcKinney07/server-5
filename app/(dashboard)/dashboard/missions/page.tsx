@@ -1,49 +1,60 @@
 import { requireAuth } from "@/lib/auth"
 import { createClient } from "@/lib/supabase/server"
-import { AgentMissionsView } from "@/components/missions/agent-missions-view"
-import type { AgentDailyMissionWithTemplates } from "@/lib/types/database"
+import { MissionsView } from "@/components/missions/missions-view"
 
 export default async function MissionsPage() {
   const agent = await requireAuth()
   const supabase = await createClient()
 
-  // Calculate "today" in America/New_York timezone
-  const nowInNY = new Date().toLocaleString("en-US", {
-    timeZone: "America/New_York",
-  })
-  const nyDate = new Date(nowInNY)
-  const today = nyDate.toISOString().split("T")[0]
+  const today = new Date().toISOString().split("T")[0]
 
-  // Fetch today's released missions for the current agent
-  const { data: todaysMission } = await supabase
-    .from("agent_daily_missions")
-    .select(
-      `
-      *,
-      mission1_template:mission_templates!agent_daily_missions_mission1_template_id_fkey(*),
-      mission2_template:mission_templates!agent_daily_missions_mission2_template_id_fkey(*),
-      mission3_template:mission_templates!agent_daily_missions_mission3_template_id_fkey(*)
-    `,
-    )
+  // Fetch today's missions for the current agent
+  const { data: todayMissions } = await supabase
+    .from("agent_missions")
+    .select("*, template:mission_templates(*)")
     .eq("agent_id", agent.id)
-    .eq("date", today)
-    .not("released_at", "is", null)
-    .single()
+    .eq("mission_date", today)
+    .order("created_at")
+
+  // Fetch total points this month
+  const startOfMonth = new Date()
+  startOfMonth.setDate(1)
+  const { data: monthMissions } = await supabase
+    .from("agent_missions")
+    .select("points_earned")
+    .eq("agent_id", agent.id)
+    .gte("mission_date", startOfMonth.toISOString().split("T")[0])
+    .eq("status", "completed")
+
+  const monthlyPoints = monthMissions?.reduce((sum, m) => sum + (m.points_earned || 0), 0) || 0
+
+  // Fetch available mission templates for self-assignment
+  const { data: templates } = await supabase
+    .from("mission_templates")
+    .select("*")
+    .eq("is_active", true)
+    .order("category")
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-foreground">Today's Missions</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Complete your daily missions to earn points and climb the rankings
-        </p>
+    <div className="space-y-6">
+      <div className="bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl p-6 text-white">
+        <h1 className="text-2xl font-bold">Daily Missions</h1>
+        <p className="text-white/80 mt-1">Complete missions to earn points and climb the rankings</p>
+        <div className="mt-4 flex items-center gap-4">
+          <div className="bg-white/20 rounded-lg px-4 py-2">
+            <p className="text-sm text-white/80">Today's Progress</p>
+            <p className="text-xl font-bold">
+              {todayMissions?.filter((m) => m.status === "completed").length || 0}/{todayMissions?.length || 0}
+            </p>
+          </div>
+          <div className="bg-white/20 rounded-lg px-4 py-2">
+            <p className="text-sm text-white/80">Monthly Points</p>
+            <p className="text-xl font-bold">{monthlyPoints}</p>
+          </div>
+        </div>
       </div>
 
-      <AgentMissionsView
-        mission={todaysMission as AgentDailyMissionWithTemplates | null}
-        agentId={agent.id}
-        today={today}
-      />
+      <MissionsView todayMissions={todayMissions || []} templates={templates || []} agentId={agent.id} today={today} />
     </div>
   )
 }

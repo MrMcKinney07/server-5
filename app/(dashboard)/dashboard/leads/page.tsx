@@ -1,11 +1,10 @@
 import { createClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/auth"
-import { LeadsTable } from "@/components/leads/leads-table"
-import { LeadsFilters } from "@/components/leads/leads-filters"
-import type { Lead, Contact, Agent } from "@/lib/types/database"
+import { LeadsView } from "@/components/leads/leads-view"
+import type { Lead } from "@/lib/types/database"
 
 interface LeadsPageProps {
-  searchParams: Promise<{ status?: string; source?: string; agent?: string }>
+  searchParams: Promise<{ status?: string; source?: string }>
 }
 
 export default async function LeadsPage({ searchParams }: LeadsPageProps) {
@@ -13,37 +12,37 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
   const agent = await requireAuth()
   const supabase = await createClient()
 
-  let query = supabase
-    .from("leads")
-    .select("*, contact:contacts(*), assigned_agent:agents(*)")
-    .order("created_at", { ascending: false })
+  let query = supabase.from("leads").select("*").eq("agent_id", agent.id).order("created_at", { ascending: false })
 
   if (params.status) {
     query = query.eq("status", params.status)
   }
-  if (params.source) {
-    query = query.eq("source", params.source)
-  }
-  if (params.agent) {
-    query = query.eq("assigned_agent_id", params.agent)
-  }
 
-  const [{ data: leads }, { data: agents }] = await Promise.all([
-    query,
-    supabase.from("agents").select("id, full_name, email").eq("is_active", true),
-  ])
+  const { data: leads } = await query
+
+  // Get leads that need follow-up (next_follow_up is today or past)
+  const today = new Date().toISOString().split("T")[0]
+  const needsFollowUp =
+    leads?.filter((lead) => lead.next_follow_up && new Date(lead.next_follow_up) <= new Date(today + "T23:59:59")) || []
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Leads</h1>
-        <p className="text-sm text-muted-foreground">Manage and track your leads pipeline</p>
+      <div className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-xl p-6 text-white">
+        <h1 className="text-2xl font-bold">Lead Pipeline</h1>
+        <p className="text-white/80 mt-1">Manage and track your leads through the sales process</p>
+        <div className="mt-4 flex items-center gap-4">
+          <div className="bg-white/20 rounded-lg px-4 py-2">
+            <p className="text-sm text-white/80">Total Leads</p>
+            <p className="text-xl font-bold">{leads?.length || 0}</p>
+          </div>
+          <div className="bg-white/20 rounded-lg px-4 py-2">
+            <p className="text-sm text-white/80">Need Follow-up</p>
+            <p className="text-xl font-bold">{needsFollowUp.length}</p>
+          </div>
+        </div>
       </div>
-      <LeadsFilters agents={(agents as Agent[]) || []} />
-      <LeadsTable
-        leads={(leads as (Lead & { contact: Contact; assigned_agent: Agent | null })[]) || []}
-        currentAgentId={agent.id}
-      />
+
+      <LeadsView leads={(leads as Lead[]) || []} agentId={agent.id} needsFollowUp={needsFollowUp as Lead[]} />
     </div>
   )
 }
