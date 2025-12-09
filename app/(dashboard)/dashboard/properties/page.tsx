@@ -1,8 +1,9 @@
 import { requireAuth } from "@/lib/auth"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Search, Home, ExternalLink } from "lucide-react"
+import { Search, Home, ExternalLink, Map } from "lucide-react"
 import Link from "next/link"
+import Script from "next/script"
 
 export default async function PropertiesPage() {
   await requireAuth()
@@ -13,6 +14,23 @@ export default async function PropertiesPage() {
         <h1 className="text-2xl font-semibold">Properties</h1>
         <p className="text-sm text-muted-foreground">Search and manage property listings</p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Map className="h-5 w-5 text-cyan-500" />
+            Map Search
+          </CardTitle>
+          <CardDescription>Search properties on an interactive map</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div id="idxStart" style={{ minHeight: "600px" }}></div>
+          <Script
+            src="https://mckinneyrealtyco.idxbroker.com/idx/map/mapsearch?apikey=kN7w3ySMUIniDtdf0qfLV"
+            strategy="afterInteractive"
+          />
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="hover:shadow-md transition-shadow">
