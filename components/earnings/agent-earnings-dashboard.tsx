@@ -150,6 +150,12 @@ export function AgentEarningsDashboard({
               from future company share.
             </p>
           )}
+          <div className="mt-3 p-3 bg-muted/50 rounded-lg">
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium">Note:</span> This threshold resets annually on January 1st. Your current
+              progress is for {currentYear}.
+            </p>
+          </div>
         </CardContent>
       </Card>
 
