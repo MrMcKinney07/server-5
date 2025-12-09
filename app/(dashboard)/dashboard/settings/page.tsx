@@ -87,7 +87,7 @@ export default async function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Account Info Card */}
+        {/* Account Info Card - removed segment field which doesn't exist in DB */}
         <Card className="border-l-4 border-l-amber-500">
           <CardHeader>
             <CardTitle className="text-amber-600">Account Information</CardTitle>
@@ -101,10 +101,6 @@ export default async function SettingsPage() {
             <div className="flex justify-between items-center py-2 border-b">
               <span className="text-muted-foreground">Role</span>
               <span className="font-medium capitalize">{agent.role}</span>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b">
-              <span className="text-muted-foreground">Segment</span>
-              <span className="font-medium capitalize">{agent.segment}</span>
             </div>
             <div className="flex justify-between items-center py-2">
               <span className="text-muted-foreground">Member Since</span>

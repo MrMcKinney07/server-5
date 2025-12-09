@@ -1,32 +1,39 @@
 "use client"
 
-import type { Lead, Contact, Agent } from "@/lib/types/database"
+import type { Lead } from "@/lib/types/database"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
 
 interface LeadsTableProps {
-  leads: (Lead & { contact: Contact; assigned_agent: Agent | null })[]
-  currentAgentId: string
+  leads: Lead[]
 }
 
-const statusColors: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  new: "default",
-  assigned: "secondary",
-  claimed: "secondary",
-  contacted: "secondary",
-  nurture: "outline",
-  closed: "default",
-  lost: "destructive",
-  unclaimed_expired: "destructive",
+const statusColors: Record<string, string> = {
+  new: "bg-blue-100 text-blue-800 border-blue-200",
+  contacted: "bg-amber-100 text-amber-800 border-amber-200",
+  qualified: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  nurturing: "bg-purple-100 text-purple-800 border-purple-200",
+  active: "bg-green-100 text-green-800 border-green-200",
+  under_contract: "bg-cyan-100 text-cyan-800 border-cyan-200",
+  closed_won: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  closed_lost: "bg-rose-100 text-rose-800 border-rose-200",
 }
 
-export function LeadsTable({ leads, currentAgentId }: LeadsTableProps) {
+const typeColors: Record<string, string> = {
+  buyer: "bg-blue-100 text-blue-800 border-blue-200",
+  seller: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  both: "bg-amber-100 text-amber-800 border-amber-200",
+  investor: "bg-purple-100 text-purple-800 border-purple-200",
+  renter: "bg-gray-100 text-gray-800 border-gray-200",
+}
+
+export function LeadsTable({ leads }: LeadsTableProps) {
   if (leads.length === 0) {
     return (
       <div className="border rounded-lg p-8 text-center text-muted-foreground">
-        No leads found. Adjust your filters or wait for new leads.
+        No leads found. Create your first lead to get started.
       </div>
     )
   }
@@ -36,10 +43,12 @@ export function LeadsTable({ leads, currentAgentId }: LeadsTableProps) {
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead>Name</TableHead>
             <TableHead>Contact</TableHead>
+            <TableHead>Type</TableHead>
             <TableHead>Source</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Assigned To</TableHead>
+            <TableHead>Next Follow-up</TableHead>
             <TableHead>Created</TableHead>
           </TableRow>
         </TableHeader>
@@ -47,29 +56,28 @@ export function LeadsTable({ leads, currentAgentId }: LeadsTableProps) {
           {leads.map((lead) => (
             <TableRow key={lead.id}>
               <TableCell>
-                <Link href={`/dashboard/leads/${lead.id}`} className="font-medium hover:underline">
-                  {lead.contact.full_name}
+                <Link href={`/dashboard/leads/${lead.id}`} className="font-medium hover:underline text-blue-600">
+                  {lead.first_name} {lead.last_name}
                 </Link>
-                {lead.contact.email && <p className="text-xs text-muted-foreground">{lead.contact.email}</p>}
               </TableCell>
+              <TableCell className="text-muted-foreground">{lead.email || lead.phone || "-"}</TableCell>
               <TableCell>
-                <Badge variant="outline" className="capitalize">
-                  {lead.source.replace("_", " ")}
+                <Badge variant="outline" className={typeColors[lead.lead_type] || ""}>
+                  {lead.lead_type}
                 </Badge>
               </TableCell>
               <TableCell>
-                <Badge variant={statusColors[lead.status] || "secondary"} className="capitalize">
+                <Badge variant="outline" className="capitalize">
+                  {lead.source?.replace("_", " ") || "manual"}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <Badge variant="outline" className={statusColors[lead.status] || ""}>
                   {lead.status.replace("_", " ")}
                 </Badge>
               </TableCell>
               <TableCell className="text-muted-foreground">
-                {lead.assigned_agent ? (
-                  <span className={lead.assigned_agent_id === currentAgentId ? "font-medium text-foreground" : ""}>
-                    {lead.assigned_agent.full_name || lead.assigned_agent.email}
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground">Unassigned</span>
-                )}
+                {lead.next_follow_up ? formatDistanceToNow(new Date(lead.next_follow_up), { addSuffix: true }) : "-"}
               </TableCell>
               <TableCell className="text-muted-foreground">
                 {formatDistanceToNow(new Date(lead.created_at), { addSuffix: true })}
