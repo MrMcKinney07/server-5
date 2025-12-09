@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { createBrowserClient } from "@/lib/supabase/client"
 import type { AgentMission, MissionTemplate } from "@/lib/types/database"
@@ -48,24 +48,13 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([])
   const router = useRouter()
 
-  useEffect(() => {
-    console.log("[v0] MissionsView mounted")
-    console.log("[v0] todayMissions:", todayMissions)
-    console.log("[v0] templates:", templates)
-    console.log("[v0] templates length:", templates?.length)
-    console.log("[v0] agentId:", agentId)
-    console.log("[v0] today:", today)
-  }, [todayMissions, templates, agentId, today])
+  const hasEnoughMissions = todayMissions.length >= REQUIRED_MISSIONS
+  const needsMoreMissions = todayMissions.length < REQUIRED_MISSIONS
+  const missionsNeeded = REQUIRED_MISSIONS - todayMissions.length
 
-  const hasSelectedMissions = todayMissions.length >= REQUIRED_MISSIONS
-  const needsToSelectMissions = todayMissions.length === 0
-
-  const handleOpenSelectMissions = () => {
-    console.log("[v0] Select missions button clicked")
-    console.log("[v0] templates available:", templates?.length)
-    setSelectMissionsOpen(true)
-    console.log("[v0] selectMissionsOpen set to true")
-  }
+  // Get IDs of templates already assigned today (to exclude from selection)
+  const alreadyAssignedTemplateIds = todayMissions.map((m) => m.template_id)
+  const availableTemplates = templates.filter((t) => !alreadyAssignedTemplateIds.includes(t.id))
 
   const handleCompleteMission = async () => {
     if (!completingMission) return
@@ -115,15 +104,15 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
       if (prev.includes(templateId)) {
         return prev.filter((id) => id !== templateId)
       }
-      if (prev.length >= REQUIRED_MISSIONS) {
-        return prev // Don't allow more than 3
+      if (prev.length >= missionsNeeded) {
+        return prev
       }
       return [...prev, templateId]
     })
   }
 
   const handleSubmitMissions = async () => {
-    if (selectedTemplateIds.length !== REQUIRED_MISSIONS) return
+    if (selectedTemplateIds.length !== missionsNeeded) return
     setIsLoading(true)
     const supabase = createBrowserClient()
 
@@ -147,7 +136,7 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
 
   return (
     <div className="space-y-6">
-      {needsToSelectMissions && (
+      {needsMoreMissions && (
         <Card className="border-amber-300 bg-amber-50">
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
@@ -155,13 +144,25 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
                 <AlertCircle className="h-6 w-6" />
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-amber-900">Select Your Daily Missions</h3>
+                <h3 className="font-semibold text-amber-900">
+                  {todayMissions.length === 0
+                    ? "Select Your Daily Missions"
+                    : `Select ${missionsNeeded} More Mission${missionsNeeded > 1 ? "s" : ""}`}
+                </h3>
                 <p className="text-sm text-amber-700">
-                  Choose {REQUIRED_MISSIONS} missions to complete today. Once selected, you cannot change them.
+                  {todayMissions.length === 0
+                    ? `Choose ${REQUIRED_MISSIONS} missions to complete today. Once selected, you cannot change them.`
+                    : `You have ${todayMissions.length} mission${todayMissions.length > 1 ? "s" : ""} selected. Select ${missionsNeeded} more to complete your daily set.`}
                 </p>
               </div>
-              <Button onClick={handleOpenSelectMissions} className="bg-amber-500 hover:bg-amber-600">
-                Select {REQUIRED_MISSIONS} Missions
+              <Button
+                onClick={() => {
+                  setSelectedTemplateIds([])
+                  setSelectMissionsOpen(true)
+                }}
+                className="bg-amber-500 hover:bg-amber-600"
+              >
+                Select {missionsNeeded} Mission{missionsNeeded > 1 ? "s" : ""}
               </Button>
             </div>
           </CardContent>
@@ -177,9 +178,9 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
               Today's Missions
             </CardTitle>
             <CardDescription>
-              {hasSelectedMissions
+              {hasEnoughMissions
                 ? "Complete these missions to earn points"
-                : `Select ${REQUIRED_MISSIONS} missions to get started`}
+                : `Select ${missionsNeeded} more mission${missionsNeeded > 1 ? "s" : ""} to complete your daily set`}
             </CardDescription>
           </div>
         </CardHeader>
@@ -328,72 +329,75 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={selectMissionsOpen}
-        onOpenChange={(open) => {
-          console.log("[v0] Dialog onOpenChange:", open)
-          setSelectMissionsOpen(open)
-        }}
-      >
+      {/* Select Missions Dialog - Only show available templates not already assigned */}
+      <Dialog open={selectMissionsOpen} onOpenChange={setSelectMissionsOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <div className="text-xs text-gray-400 mb-2">Debug: {templates?.length || 0} templates loaded</div>
           <DialogHeader>
-            <DialogTitle>Select Your {REQUIRED_MISSIONS} Daily Missions</DialogTitle>
+            <DialogTitle>
+              Select {missionsNeeded} Mission{missionsNeeded > 1 ? "s" : ""}
+            </DialogTitle>
             <DialogDescription>
-              Choose exactly {REQUIRED_MISSIONS} missions to complete today. You cannot change your selection after
-              submitting.
+              {todayMissions.length === 0
+                ? `Choose exactly ${REQUIRED_MISSIONS} missions to complete today. You cannot change your selection after submitting.`
+                : `You already have ${todayMissions.length} mission${todayMissions.length > 1 ? "s" : ""}. Select ${missionsNeeded} more to complete your daily set.`}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             {/* Selection counter */}
             <div className="mb-4 p-3 bg-amber-50 rounded-lg flex items-center justify-between">
               <span className="text-sm text-amber-800">
-                Selected: <strong>{selectedTemplateIds.length}</strong> of {REQUIRED_MISSIONS}
+                Selected: <strong>{selectedTemplateIds.length}</strong> of {missionsNeeded}
               </span>
-              {selectedTemplateIds.length === REQUIRED_MISSIONS && (
+              {selectedTemplateIds.length === missionsNeeded && (
                 <Badge className="bg-emerald-500">Ready to submit</Badge>
               )}
             </div>
 
             <div className="space-y-3">
-              {templates.map((template) => {
-                const isSelected = selectedTemplateIds.includes(template.id)
-                const isDisabled = !isSelected && selectedTemplateIds.length >= REQUIRED_MISSIONS
+              {availableTemplates.length > 0 ? (
+                availableTemplates.map((template) => {
+                  const isSelected = selectedTemplateIds.includes(template.id)
+                  const isDisabled = !isSelected && selectedTemplateIds.length >= missionsNeeded
 
-                return (
-                  <div
-                    key={template.id}
-                    onClick={() => !isDisabled && toggleTemplateSelection(template.id)}
-                    className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors ${
-                      isSelected
-                        ? "border-amber-500 bg-amber-50"
-                        : isDisabled
-                          ? "border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed"
-                          : "border-gray-200 hover:border-amber-300 hover:bg-amber-50/50"
-                    }`}
-                  >
-                    <Checkbox checked={isSelected} disabled={isDisabled} className="pointer-events-none" />
-                    <div className="flex-1">
-                      <h4 className="font-medium">{template.title}</h4>
-                      <p className="text-sm text-muted-foreground">{template.description}</p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Badge variant="outline" className={categoryColors[template.category || "general"]}>
-                          {template.category}
-                        </Badge>
-                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                          {template.points} pts
-                        </Badge>
-                        {template.requires_photo && (
-                          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                            <Camera className="h-3 w-3 mr-1" />
-                            Photo
+                  return (
+                    <div
+                      key={template.id}
+                      onClick={() => !isDisabled && toggleTemplateSelection(template.id)}
+                      className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors ${
+                        isSelected
+                          ? "border-amber-500 bg-amber-50"
+                          : isDisabled
+                            ? "border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed"
+                            : "border-gray-200 hover:border-amber-300 hover:bg-amber-50/50"
+                      }`}
+                    >
+                      <Checkbox checked={isSelected} disabled={isDisabled} className="pointer-events-none" />
+                      <div className="flex-1">
+                        <h4 className="font-medium">{template.title}</h4>
+                        <p className="text-sm text-muted-foreground">{template.description}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Badge variant="outline" className={categoryColors[template.category || "general"]}>
+                            {template.category}
                           </Badge>
-                        )}
+                          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                            {template.points} pts
+                          </Badge>
+                          {template.requires_photo && (
+                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                              <Camera className="h-3 w-3 mr-1" />
+                              Photo
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                })
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No more mission templates available.</p>
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -402,10 +406,10 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
             </Button>
             <Button
               onClick={handleSubmitMissions}
-              disabled={isLoading || selectedTemplateIds.length !== REQUIRED_MISSIONS}
+              disabled={isLoading || selectedTemplateIds.length !== missionsNeeded}
               className="bg-amber-500 hover:bg-amber-600"
             >
-              {isLoading ? "Submitting..." : `Confirm ${REQUIRED_MISSIONS} Missions`}
+              {isLoading ? "Submitting..." : `Confirm ${missionsNeeded} Mission${missionsNeeded > 1 ? "s" : ""}`}
             </Button>
           </DialogFooter>
         </DialogContent>
