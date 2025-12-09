@@ -1,12 +1,13 @@
 // Database types for McKinney One CRM
 
-export type AgentRole = "agent" | "admin"
+export type AgentRole = "agent" | "broker"
 export type AgentSegment = "new" | "seasoned"
 
 export interface Agent {
   id: string
   full_name: string | null
   email: string
+  phone: string | null
   role: AgentRole
   segment: AgentSegment
   tier: number
@@ -14,191 +15,172 @@ export interface Agent {
   created_at: string
 }
 
-export type LeadSource = "realtor" | "upnest" | "opcity" | "fb_ads" | "manual" | "referral" | "website" | "other"
-export type LeadStatus =
-  | "new"
-  | "assigned"
-  | "unclaimed_expired"
-  | "claimed"
-  | "contacted"
-  | "nurture"
-  | "closed"
-  | "lost"
+export type ContactType = "buyer" | "seller" | "both" | "investor" | "referral" | "other"
 
 export interface Contact {
   id: string
-  full_name: string
+  agent_id: string
+  first_name: string
+  last_name: string
   email: string | null
   phone: string | null
-  primary_agent_id: string | null
-  tags: string[]
+  address: string | null
+  city: string | null
+  state: string | null
+  zip: string | null
+  contact_type: ContactType
+  source: string | null
+  notes: string | null
   created_at: string
   updated_at: string
 }
 
+export type LeadStatus =
+  | "new"
+  | "contacted"
+  | "qualified"
+  | "nurturing"
+  | "active"
+  | "under_contract"
+  | "closed_won"
+  | "closed_lost"
+export type LeadType = "buyer" | "seller" | "both" | "investor" | "renter"
+
 export interface Lead {
   id: string
-  contact_id: string
-  source: LeadSource
-  assigned_agent_id: string | null
+  agent_id: string
+  contact_id: string | null
+  first_name: string
+  last_name: string
+  email: string | null
+  phone: string | null
+  source: string
   status: LeadStatus
-  created_at: string
-  assigned_at: string | null
-  claim_expires_at: string | null
-  claimed_at: string | null
+  lead_type: LeadType
   notes: string | null
-  raw_payload: Record<string, unknown> | null
-  failed_claim_attempts: number
+  property_interest: string | null
+  budget_min: number | null
+  budget_max: number | null
+  timeline: string | null
+  next_follow_up: string | null
+  last_contacted_at: string | null
+  created_at: string
+  updated_at: string
 }
 
-export type ActivityType = "note" | "call" | "text" | "email" | "status_change" | "mission" | "assignment" | "other"
+export type ActivityType = "call" | "email" | "text" | "meeting" | "showing" | "note" | "task" | "follow_up"
 
 export interface Activity {
   id: string
-  contact_id: string
-  lead_id: string | null
   agent_id: string
-  type: ActivityType
-  description: string
+  contact_id: string | null
+  lead_id: string | null
+  activity_type: ActivityType
+  subject: string | null
+  description: string | null
+  completed: boolean
+  due_at: string | null
+  completed_at: string | null
   created_at: string
 }
-
-// Extended types with relations
-export interface LeadWithContact extends Lead {
-  contact: Contact
-  assigned_agent?: Agent | null
-}
-
-export interface ContactWithRelations extends Contact {
-  primary_agent?: Agent | null
-  leads?: Lead[]
-  activities?: Activity[]
-}
-
-export interface ActivityWithRelations extends Activity {
-  agent?: Agent
-  lead?: Lead
-}
-
-export type MissionSegment = "new" | "seasoned" | "all"
-export type MissionSetSegment = "new" | "seasoned" | "custom"
 
 export interface MissionTemplate {
   id: string
   title: string
   description: string | null
-  segment: MissionSegment
+  points: number
+  category: "prospecting" | "follow_up" | "learning" | "marketing" | "general"
+  requires_photo: boolean
   is_active: boolean
   created_at: string
 }
 
-export interface MissionSet {
-  id: string
-  name: string
-  segment: MissionSetSegment
-  description: string | null
-  created_at: string
-}
-
-export interface MissionSetItem {
-  id: string
-  mission_set_id: string
-  mission_template_id: string
-  weight: number
-}
-
-export interface AgentDailyMission {
+export interface AgentMission {
   id: string
   agent_id: string
-  date: string
-  mission1_template_id: string
-  mission2_template_id: string
-  mission3_template_id: string
-  mission1_completed: boolean
-  mission2_completed: boolean
-  mission3_completed: boolean
-  released_at: string | null
-  created_at: string
-}
-
-export interface MonthlyAgentStats {
-  id: number
-  agent_id: string
-  year: number
-  month: number
-  total_points: number
-  rank: number | null
-  updated_at: string
-}
-
-export interface LeadAssignState {
-  id: number
-  year: number
-  month: number
-  last_rank_assigned: number
-  updated_at: string
-}
-
-// Extended types with relations
-export interface MissionSetWithItems extends MissionSet {
-  items?: (MissionSetItem & { mission_template?: MissionTemplate })[]
-}
-
-export interface AgentDailyMissionWithTemplates extends AgentDailyMission {
-  mission1_template?: MissionTemplate
-  mission2_template?: MissionTemplate
-  mission3_template?: MissionTemplate
-  agent?: Agent
-}
-
-export type CampaignStepActionType = "email" | "sms" | "task"
-
-export interface Campaign {
-  id: string
-  name: string
-  description: string | null
-  is_active: boolean
-  created_by_agent_id: string | null
-  created_at: string
-}
-
-export interface CampaignStep {
-  id: string
-  campaign_id: string
-  step_number: number
-  delay_minutes: number
-  action_type: CampaignStepActionType
-  subject: string | null
-  body: string
-  created_at: string
-}
-
-export interface CampaignEnrollment {
-  id: string
-  campaign_id: string
-  contact_id: string
-  lead_id: string | null
-  agent_id: string
-  enrolled_at: string
-  is_paused: boolean
+  template_id: string
+  mission_date: string
+  status: "pending" | "in_progress" | "completed" | "skipped"
+  photo_url: string | null
+  notes: string | null
   completed_at: string | null
-  last_step_executed: number
+  points_earned: number
   created_at: string
 }
 
-// Extended types with relations
-export interface CampaignWithSteps extends Campaign {
-  steps?: CampaignStep[]
-  created_by_agent?: Agent | null
+export interface AgentMissionWithTemplate extends AgentMission {
+  template?: MissionTemplate
 }
 
-export interface CampaignEnrollmentWithRelations extends CampaignEnrollment {
-  campaign?: Campaign
-  contact?: Contact
+export type TransactionType = "buy" | "sell" | "dual" | "lease"
+export type TransactionStatus = "pending" | "under_contract" | "closed" | "cancelled" | "fell_through"
+
+export interface Transaction {
+  id: string
+  agent_id: string
+  contact_id: string | null
+  lead_id: string | null
+  property_address: string
+  transaction_type: TransactionType
+  status: TransactionStatus
+  sale_price: number | null
+  commission_rate: number
+  gross_commission: number | null
+  agent_split: number | null
+  agent_commission: number | null
+  broker_commission: number | null
+  closing_date: string | null
+  contract_date: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CommissionPlan {
+  id: string
+  name: string
+  description: string | null
+  split_percentage: number
+  cap_amount: number | null
+  monthly_fee: number
+  transaction_fee: number
+  is_default: boolean
+  is_active: boolean
+  created_at: string
+}
+
+export interface AgentCommissionPlan {
+  id: string
+  agent_id: string
+  plan_id: string
+  effective_date: string
+  cap_progress: number
+  ytd_gci: number
+  created_at: string
+}
+
+export interface AgentCommissionPlanWithDetails extends AgentCommissionPlan {
+  plan?: CommissionPlan
   agent?: Agent
 }
 
-export type PropertyStatus = "active" | "pending" | "sold"
+// Extended types with relations
+export interface LeadWithContact extends Lead {
+  contact?: Contact | null
+}
+
+export interface ContactWithRelations extends Contact {
+  leads?: Lead[]
+  activities?: Activity[]
+}
+
+export interface TransactionWithRelations extends Transaction {
+  contact?: Contact | null
+  lead?: Lead | null
+  agent?: Agent
+}
+
+export type LeadSource = "realtor" | "upnest" | "opcity" | "fb_ads" | "manual" | "referral" | "website" | "other"
 
 export interface Property {
   id: string
@@ -234,6 +216,8 @@ export interface FavoriteProperty {
   created_at: string
 }
 
+export type PropertyStatus = "active" | "pending" | "sold"
+
 export interface PropertySearchQuery {
   location?: string
   city?: string
@@ -252,71 +236,6 @@ export interface PropertySearchQuery {
 // Extended types with relations
 export interface FavoritePropertyWithDetails extends FavoriteProperty {
   property?: Property
-}
-
-export type TransactionStatus = "new" | "in_progress" | "pending_broker_review" | "closed" | "cancelled"
-export type TransactionActivityType =
-  | "note"
-  | "call"
-  | "text"
-  | "email"
-  | "status_change"
-  | "mission"
-  | "assignment"
-  | "transaction_created"
-  | "other"
-
-export interface Transaction {
-  id: string
-  lead_id: string | null
-  contact_id: string
-  property_id: string | null
-  agent_id: string
-  status: TransactionStatus
-  external_system: string | null
-  external_id: string | null
-  broker_notes: string | null
-  created_at: string
-  updated_at: string
-}
-
-// Extended types with relations
-export interface TransactionWithRelations extends Transaction {
-  lead?: Lead | null
-  contact?: Contact
-  property?: Property | null
-  agent?: Agent
-}
-
-// Commission & Financials types
-export interface CommissionPlan {
-  id: string
-  name: string
-  description: string | null
-  default_split_percent: number
-  annual_cap: number | null
-  transaction_fee: number
-  e_and_o_fee: number
-  tech_fee: number
-  is_default: boolean
-  is_active: boolean
-  created_at: string
-}
-
-export interface AgentCommissionPlan {
-  id: string
-  agent_id: string
-  commission_plan_id: string | null
-  override_split_percent: number | null
-  override_annual_cap: number | null
-  override_transaction_fee: number | null
-  effective_date: string
-  created_at: string
-}
-
-export interface AgentCommissionPlanWithDetails extends AgentCommissionPlan {
-  commission_plan?: CommissionPlan | null
-  agent?: Agent
 }
 
 export interface DealFinancials {

@@ -10,6 +10,15 @@ interface ContactsTableProps {
   contacts: Contact[]
 }
 
+const contactTypeBadgeColors: Record<string, string> = {
+  buyer: "bg-blue-100 text-blue-800 border-blue-200",
+  seller: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  both: "bg-amber-100 text-amber-800 border-amber-200",
+  investor: "bg-purple-100 text-purple-800 border-purple-200",
+  referral: "bg-rose-100 text-rose-800 border-rose-200",
+  other: "bg-gray-100 text-gray-800 border-gray-200",
+}
+
 export function ContactsTable({ contacts }: ContactsTableProps) {
   if (contacts.length === 0) {
     return (
@@ -27,7 +36,8 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
             <TableHead>Name</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Phone</TableHead>
-            <TableHead>Tags</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Source</TableHead>
             <TableHead>Created</TableHead>
           </TableRow>
         </TableHeader>
@@ -35,26 +45,18 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
           {contacts.map((contact) => (
             <TableRow key={contact.id}>
               <TableCell>
-                <Link href={`/dashboard/contacts/${contact.id}`} className="font-medium hover:underline">
-                  {contact.full_name}
+                <Link href={`/dashboard/contacts/${contact.id}`} className="font-medium hover:underline text-blue-600">
+                  {contact.first_name} {contact.last_name}
                 </Link>
               </TableCell>
               <TableCell className="text-muted-foreground">{contact.email || "-"}</TableCell>
               <TableCell className="text-muted-foreground">{contact.phone || "-"}</TableCell>
               <TableCell>
-                <div className="flex gap-1 flex-wrap">
-                  {contact.tags?.slice(0, 3).map((tag) => (
-                    <Badge key={tag} variant="secondary" className="text-xs">
-                      {tag}
-                    </Badge>
-                  ))}
-                  {contact.tags?.length > 3 && (
-                    <Badge variant="outline" className="text-xs">
-                      +{contact.tags.length - 3}
-                    </Badge>
-                  )}
-                </div>
+                <Badge variant="outline" className={contactTypeBadgeColors[contact.contact_type] || ""}>
+                  {contact.contact_type}
+                </Badge>
               </TableCell>
+              <TableCell className="text-muted-foreground">{contact.source || "-"}</TableCell>
               <TableCell className="text-muted-foreground">
                 {formatDistanceToNow(new Date(contact.created_at), { addSuffix: true })}
               </TableCell>
