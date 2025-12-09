@@ -144,9 +144,9 @@ export default async function PropertiesPage() {
       </Card>
 
       {/* IDX Map Search */}
-      <Card>
+      <Card className="overflow-hidden">
         <CardContent className="p-0">
-          <div id="idxStart" className="w-full" style={{ minHeight: "700px" }}></div>
+          <div id="idxStart" className="w-full h-[600px]"></div>
           <Script
             src="https://mckinneyrealtyco.idxbroker.com/idx/map/mapsearch?apikey=kN7w3ySMUIniDtdf0qfLV"
             strategy="afterInteractive"
