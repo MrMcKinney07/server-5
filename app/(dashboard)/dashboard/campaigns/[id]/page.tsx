@@ -20,7 +20,7 @@ export default async function CampaignPage({ params }: CampaignPageProps) {
 
   const { data: campaign } = await supabase
     .from("campaigns")
-    .select("*, owner:agents!owner_id(full_name, email)")
+    .select("*, owner:agents!owner_id(Name, Email)")
     .eq("id", id)
     .single()
 
