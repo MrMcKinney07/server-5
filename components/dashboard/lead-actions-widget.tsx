@@ -85,8 +85,12 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
       .eq("id", taskId)
 
     if (!taskError) {
-      // Award +5 exp to the agent (support action, not ranking)
-      await supabase.rpc("increment_agent_exp", { agent_id: agentId, exp_amount: 5 })
+      // Award +5 exp to the agent - direct update
+      const { data: agentData } = await supabase.from("agents").select("exp").eq("id", agentId).single()
+      await supabase
+        .from("agents")
+        .update({ exp: (agentData?.exp || 0) + 5 })
+        .eq("id", agentId)
 
       // Refresh tasks
       fetchTasks()
@@ -150,7 +154,7 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
           <div>
             <CardTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-red-500" />
-              Lead Actions Needing Attention
+              Follow Up Tasks
             </CardTitle>
             <CardDescription>Tasks due today and overdue items</CardDescription>
           </div>
@@ -248,7 +252,7 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
                     disabled={actionLoading === task.id}
                   >
                     <CheckCircle className="h-3 w-3 mr-1" />
-                    {actionLoading === task.id ? "..." : "Complete (+5 XP)"}
+                    {actionLoading === task.id ? "..." : "Log Activity (+5 XP)"}
                   </Button>
                   <Button
                     size="sm"

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { createBrowserClient } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -33,11 +33,11 @@ export function AddLeadActivityDialog({ leadId, agentId }: AddLeadActivityDialog
     description: "",
   })
   const router = useRouter()
+  const supabase = createClient()
 
   const handleSubmit = async () => {
     if (!formData.subject) return
     setIsLoading(true)
-    const supabase = createBrowserClient()
 
     const { error } = await supabase.from("activities").insert({
       lead_id: leadId,
@@ -53,6 +53,17 @@ export function AddLeadActivityDialog({ leadId, agentId }: AddLeadActivityDialog
       // Update lead's last_contacted_at
       await supabase.from("leads").update({ last_contacted_at: new Date().toISOString() }).eq("id", leadId)
 
+      await supabase
+        .from("agents")
+        .update({ exp: supabase.rpc("COALESCE", { exp: 0 }) })
+        .eq("id", agentId)
+      // Direct update since RPC may not exist
+      const { data: agentData } = await supabase.from("agents").select("exp").eq("id", agentId).single()
+      await supabase
+        .from("agents")
+        .update({ exp: (agentData?.exp || 0) + 5 })
+        .eq("id", agentId)
+
       setOpen(false)
       setFormData({ activity_type: "call", subject: "", description: "" })
       router.refresh()
@@ -66,7 +77,7 @@ export function AddLeadActivityDialog({ leadId, agentId }: AddLeadActivityDialog
       <DialogTrigger asChild>
         <Button className="bg-blue-600 hover:bg-blue-700">
           <Plus className="h-4 w-4 mr-2" />
-          Log Activity
+          Log Activity (+5 XP)
         </Button>
       </DialogTrigger>
       <DialogContent>
@@ -116,8 +127,12 @@ export function AddLeadActivityDialog({ leadId, agentId }: AddLeadActivityDialog
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isLoading || !formData.subject}>
-            {isLoading ? "Saving..." : "Log Activity"}
+          <Button
+            onClick={handleSubmit}
+            disabled={isLoading || !formData.subject}
+            className="bg-emerald-600 hover:bg-emerald-700"
+          >
+            {isLoading ? "Saving..." : "Log Activity (+5 XP)"}
           </Button>
         </DialogFooter>
       </DialogContent>
