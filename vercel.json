@@ -1,11 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/cron/morning-missions",
-      "schedule": "0 12 * * *"
-    },
-    {
-      "path": "/api/cron/campaigns",
+      "path": "/api/cron/scheduled-tasks",
       "schedule": "*/15 * * * *"
     }
   ]
