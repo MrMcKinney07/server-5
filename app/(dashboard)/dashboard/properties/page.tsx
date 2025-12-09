@@ -12,17 +12,18 @@ export default async function PropertiesPage() {
         <p className="text-sm text-muted-foreground">Search MLS listings with interactive map</p>
       </div>
 
-      {/* IDX Map Search - Full featured search with built-in filters */}
       <Card className="overflow-hidden">
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg">MLS Map Search</CardTitle>
-          <CardDescription>Use the map controls to search by location, price, beds, baths, and more</CardDescription>
+          <CardTitle className="text-lg">MLS Property Search</CardTitle>
+          <CardDescription>Browse and search available listings</CardDescription>
         </CardHeader>
-        <CardContent className="p-0">
-          <div id="idxStart" className="w-full h-[700px]"></div>
+        <CardContent className="p-4">
+          <div id="idxwidgetsrc-131657" className="w-full min-h-[700px]"></div>
           <Script
-            src="https://mckinneyrealtyco.idxbroker.com/idx/map/mapsearch?apikey=kN7w3ySMUIniDtdf0qfLV"
+            id="idxwidgetsrc-131657-script"
+            src="//mckinneyrealtyco.idxbroker.com/idx/widgets/131657"
             strategy="afterInteractive"
+            charSet="UTF-8"
           />
         </CardContent>
       </Card>
