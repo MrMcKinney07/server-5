@@ -10,10 +10,18 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
-import type { Campaign } from "@/lib/types/database"
+
+interface Campaign {
+  id: string
+  name: string
+  description: string | null
+  is_active: boolean
+  created_at: string
+  owner: { full_name: string; email: string } | null
+}
 
 interface CampaignDetailsProps {
-  campaign: Campaign & { created_by_agent: { full_name: string; email: string } | null }
+  campaign: Campaign
 }
 
 export function CampaignDetails({ campaign }: CampaignDetailsProps) {
@@ -86,7 +94,7 @@ export function CampaignDetails({ campaign }: CampaignDetailsProps) {
             <div className="space-y-1">
               <p className="text-sm font-medium">Created By</p>
               <p className="text-sm text-muted-foreground">
-                {campaign.created_by_agent?.full_name || campaign.created_by_agent?.email || "System"}
+                {campaign.owner?.full_name || campaign.owner?.email || "System"}
               </p>
             </div>
             <div className="space-y-1">

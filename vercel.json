@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/morning-missions",
       "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/campaigns",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

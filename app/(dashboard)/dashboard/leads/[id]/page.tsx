@@ -5,10 +5,11 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Mail, Phone, Calendar, DollarSign, Clock, MapPin, User } from "lucide-react"
+import { ArrowLeft, Mail, Phone, Calendar, DollarSign, Clock, MapPin, User, Zap } from "lucide-react"
 import { LeadStatusSelect } from "@/components/leads/lead-status-select"
 import { LeadActivities } from "@/components/leads/lead-activities"
 import { AddLeadActivityDialog } from "@/components/leads/add-lead-activity-dialog"
+import { EnrollCampaignDialog } from "@/components/leads/enroll-campaign-dialog"
 
 interface LeadPageProps {
   params: Promise<{ id: string }>
@@ -19,22 +20,25 @@ export default async function LeadPage({ params }: LeadPageProps) {
   const agent = await requireAuth()
   const supabase = await createClient()
 
-  // Fetch lead directly from leads table
   const { data: lead, error } = await supabase.from("leads").select("*").eq("id", id).single()
 
   if (error || !lead) {
-    console.log("[v0] Lead fetch error:", error)
     notFound()
   }
 
-  // Fetch activities for this lead
   const { data: activities } = await supabase
     .from("activities")
     .select("*")
     .eq("lead_id", id)
     .order("created_at", { ascending: false })
 
-  // Format budget display
+  const { data: enrollments } = await supabase
+    .from("lead_campaign_enrollments")
+    .select("*, campaign:campaigns(id, name)")
+    .eq("lead_id", id)
+
+  const enrolledCampaignIds = enrollments?.map((e) => e.campaign_id) || []
+
   const formatBudget = (min: number | null, max: number | null) => {
     if (!min && !max) return null
     const fmt = (n: number) =>
@@ -89,6 +93,11 @@ export default async function LeadPage({ params }: LeadPageProps) {
             Added {new Date(lead.created_at).toLocaleDateString()} via {lead.source}
           </p>
         </div>
+        <EnrollCampaignDialog
+          leadId={id}
+          leadName={`${lead.first_name} ${lead.last_name}`}
+          enrolledCampaignIds={enrolledCampaignIds}
+        />
         <AddLeadActivityDialog leadId={id} agentId={agent.id} />
       </div>
 
@@ -184,6 +193,30 @@ export default async function LeadPage({ params }: LeadPageProps) {
               <LeadStatusSelect lead={lead} agentId={agent.id} />
             </CardContent>
           </Card>
+
+          {enrollments && enrollments.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Zap className="h-4 w-4" />
+                  Active Campaigns
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {enrollments.map((enrollment) => (
+                  <div key={enrollment.id} className="flex items-center justify-between p-2 bg-muted rounded-lg">
+                    <div>
+                      <p className="text-sm font-medium">{enrollment.campaign?.name}</p>
+                      <p className="text-xs text-muted-foreground">Step {enrollment.current_step}</p>
+                    </div>
+                    <Badge variant={enrollment.status === "active" ? "default" : "secondary"}>
+                      {enrollment.status}
+                    </Badge>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Right Column - Activities & Notes */}

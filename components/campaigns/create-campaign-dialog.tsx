@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { createBrowserClient } from "@/lib/supabase/client"
@@ -41,7 +40,7 @@ export function CreateCampaignDialog() {
     const { error } = await supabase.from("campaigns").insert({
       name,
       description: description || null,
-      created_by_agent_id: user?.id,
+      owner_id: user?.id,
     })
 
     setLoading(false)
@@ -64,7 +63,9 @@ export function CreateCampaignDialog() {
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Create Campaign</DialogTitle>
-            <DialogDescription>Create a new drip campaign with automated email/SMS sequences.</DialogDescription>
+            <DialogDescription>
+              Create a new drip campaign with automated email, SMS, and property recommendations.
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">

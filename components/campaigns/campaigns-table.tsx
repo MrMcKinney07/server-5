@@ -7,12 +7,22 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react"
+import { MoreHorizontal, Pencil, Trash2, Mail, Users } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import type { Campaign } from "@/lib/types/database"
+
+interface Campaign {
+  id: string
+  name: string
+  description: string | null
+  is_active: boolean
+  created_at: string
+  owner: { full_name: string; email: string } | null
+  steps: { count: number }[]
+  enrollments: { count: number }[]
+}
 
 interface CampaignsTableProps {
-  campaigns: (Campaign & { created_by_agent: { full_name: string; email: string } | null })[]
+  campaigns: Campaign[]
 }
 
 export function CampaignsTable({ campaigns }: CampaignsTableProps) {
@@ -35,7 +45,11 @@ export function CampaignsTable({ campaigns }: CampaignsTableProps) {
   if (campaigns.length === 0) {
     return (
       <div className="border border-dashed rounded-lg p-8 text-center">
-        <p className="text-muted-foreground">No campaigns yet. Create your first drip campaign to get started.</p>
+        <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
+          <Mail className="h-6 w-6 text-muted-foreground" />
+        </div>
+        <h3 className="font-medium mb-1">No campaigns yet</h3>
+        <p className="text-muted-foreground text-sm">Create your first drip campaign to automate lead nurturing.</p>
       </div>
     )
   }
@@ -45,8 +59,9 @@ export function CampaignsTable({ campaigns }: CampaignsTableProps) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Created By</TableHead>
+            <TableHead>Campaign</TableHead>
+            <TableHead>Steps</TableHead>
+            <TableHead>Enrolled</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Active</TableHead>
             <TableHead className="w-[50px]"></TableHead>
@@ -63,8 +78,17 @@ export function CampaignsTable({ campaigns }: CampaignsTableProps) {
                   <p className="text-sm text-muted-foreground truncate max-w-xs">{campaign.description}</p>
                 )}
               </TableCell>
-              <TableCell className="text-muted-foreground">
-                {campaign.created_by_agent?.full_name || campaign.created_by_agent?.email || "System"}
+              <TableCell>
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <span className="font-medium text-foreground">{campaign.steps?.[0]?.count || 0}</span>
+                  steps
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <Users className="h-4 w-4" />
+                  <span className="font-medium text-foreground">{campaign.enrollments?.[0]?.count || 0}</span>
+                </div>
               </TableCell>
               <TableCell>
                 <Badge variant={campaign.is_active ? "default" : "secondary"}>
