@@ -10,7 +10,7 @@ export default async function CampaignsPage() {
   const { data: campaigns } = await supabase
     .from("campaigns")
     .select(
-      "*, owner:agents!owner_id(full_name, email), steps:campaign_steps(count), enrollments:lead_campaign_enrollments(count)",
+      `*, owner:agents!owner_id(Name, Email), steps:campaign_steps(count), enrollments:lead_campaign_enrollments(count)`,
     )
     .order("created_at", { ascending: false })
 

@@ -16,7 +16,7 @@ interface Campaign {
   description: string | null
   is_active: boolean
   created_at: string
-  owner: { full_name: string; email: string } | null
+  owner: { Name: string; Email: string } | null
   steps: { count: number }[]
   enrollments: { count: number }[]
 }
