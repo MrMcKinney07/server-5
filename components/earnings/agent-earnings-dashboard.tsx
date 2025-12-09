@@ -4,31 +4,39 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { DollarSign, TrendingUp, Target, Award } from "lucide-react"
-import type {
-  Agent,
-  AgentAnnualSummary,
-  CommissionPlan,
-  AgentCommissionPlan,
-  DealFinancialsWithRelations,
-} from "@/lib/types/database"
+import { DollarSign, TrendingUp, Target, Award, Building2 } from "lucide-react"
 
 interface AgentEarningsDashboardProps {
-  agent: Agent
-  annualSummary: AgentAnnualSummary | null
-  commissionPlan: CommissionPlan | null
-  agentPlanOverrides: AgentCommissionPlan | null
-  recentDeals: (DealFinancialsWithRelations & {
-    transaction?: { contact?: { full_name: string }; property?: { address: string } | null }
-  })[]
+  agent: { id: string; Name: string }
+  ytdStats: {
+    totalGCI: number
+    totalVolume: number
+    totalDeals: number
+    agentEarnings: number
+    brokerShare: number
+  }
+  splitPercent: number
+  capAmount: number
+  capProgress: number
+  isCapped: boolean
+  recentDeals: Array<{
+    id: string
+    property_address: string
+    sale_price: number | null
+    gross_commission: number | null
+    closing_date: string | null
+    transaction_type: string | null
+  }>
   currentYear: number
 }
 
 export function AgentEarningsDashboard({
   agent,
-  annualSummary,
-  commissionPlan,
-  agentPlanOverrides,
+  ytdStats,
+  splitPercent,
+  capAmount,
+  capProgress,
+  isCapped,
   recentDeals,
   currentYear,
 }: AgentEarningsDashboardProps) {
@@ -41,115 +49,109 @@ export function AgentEarningsDashboard({
     }).format(amount)
   }
 
-  const effectiveSplit = agentPlanOverrides?.override_split_percent ?? commissionPlan?.default_split_percent ?? 70
-  const effectiveCap = agentPlanOverrides?.override_annual_cap ?? commissionPlan?.annual_cap ?? 0
-  const capProgress = effectiveCap > 0 ? ((annualSummary?.amount_toward_cap || 0) / effectiveCap) * 100 : 0
+  const capPercentage = capAmount > 0 ? (capProgress / capAmount) * 100 : 0
 
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="border-l-4 border-l-emerald-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">YTD GCI</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <DollarSign className="h-4 w-4 text-emerald-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(annualSummary?.total_gci || 0)}</div>
-            <p className="text-xs text-muted-foreground">{annualSummary?.total_deals || 0} deals closed</p>
+            <div className="text-2xl font-bold text-emerald-600">{formatCurrency(ytdStats.totalGCI)}</div>
+            <p className="text-xs text-muted-foreground">{ytdStats.totalDeals} deals closed</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-l-4 border-l-blue-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Agent Earnings</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Your Earnings</CardTitle>
+            <TrendingUp className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(annualSummary?.total_agent_earnings || 0)}</div>
-            <p className="text-xs text-muted-foreground">After {effectiveSplit}% split</p>
+            <div className="text-2xl font-bold text-blue-600">{formatCurrency(ytdStats.agentEarnings)}</div>
+            <p className="text-xs text-muted-foreground">After {splitPercent}% split</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-l-4 border-l-amber-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Company Dollar</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <Building2 className="h-4 w-4 text-amber-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(annualSummary?.total_broker_share || 0)}</div>
+            <div className="text-2xl font-bold text-amber-600">{formatCurrency(ytdStats.brokerShare)}</div>
             <p className="text-xs text-muted-foreground">Broker share paid</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-l-4 border-l-purple-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Total Volume</CardTitle>
-            <Award className="h-4 w-4 text-muted-foreground" />
+            <Award className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(annualSummary?.total_volume || 0)}</div>
+            <div className="text-2xl font-bold text-purple-600">{formatCurrency(ytdStats.totalVolume)}</div>
             <p className="text-xs text-muted-foreground">Sales volume {currentYear}</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Cap Progress */}
-      {effectiveCap > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5" />
-              Progress to Cap
-            </CardTitle>
-            <CardDescription>
-              {annualSummary?.is_capped ? (
-                <Badge className="bg-green-600">Cap Reached!</Badge>
-              ) : (
-                `${formatCurrency(effectiveCap - (annualSummary?.amount_toward_cap || 0))} remaining to cap`
-              )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Progress value={Math.min(capProgress, 100)} className="h-3" />
-            <div className="flex justify-between text-sm text-muted-foreground">
-              <span>{formatCurrency(annualSummary?.amount_toward_cap || 0)}</span>
-              <span>{formatCurrency(effectiveCap)}</span>
-            </div>
-            {annualSummary?.cap_reached_date && (
-              <p className="text-sm text-green-600">
-                Cap reached on {new Date(annualSummary.cap_reached_date).toLocaleDateString()}
-              </p>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Target className="h-5 w-5 text-emerald-600" />
+            Progress to Cap
+          </CardTitle>
+          <CardDescription>
+            {isCapped ? (
+              <Badge className="bg-emerald-600">Cap Reached! You keep 100%</Badge>
+            ) : (
+              `${formatCurrency(capAmount - capProgress)} remaining to cap`
             )}
-          </CardContent>
-        </Card>
-      )}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <Progress value={Math.min(capPercentage, 100)} className="h-3" />
+          <div className="flex justify-between text-sm text-muted-foreground">
+            <span>{formatCurrency(capProgress)}</span>
+            <span>{formatCurrency(capAmount)}</span>
+          </div>
+          {isCapped && (
+            <p className="text-sm text-emerald-600 font-medium">
+              Congratulations! All future commission is 100% yours!
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Commission Plan Details */}
       <Card>
         <CardHeader>
           <CardTitle>Your Commission Plan</CardTitle>
-          <CardDescription>{commissionPlan?.name || "Default Plan"}</CardDescription>
+          <CardDescription>Standard McKinney One Plan</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Split</p>
-              <p className="text-lg font-semibold">{effectiveSplit}%</p>
+            <div className="p-4 bg-muted/50 rounded-lg">
+              <p className="text-sm text-muted-foreground">Your Split</p>
+              <p className="text-2xl font-bold text-emerald-600">{splitPercent}%</p>
             </div>
-            <div>
+            <div className="p-4 bg-muted/50 rounded-lg">
+              <p className="text-sm text-muted-foreground">Annual Cap</p>
+              <p className="text-2xl font-bold">{formatCurrency(capAmount)}</p>
+            </div>
+            <div className="p-4 bg-muted/50 rounded-lg">
               <p className="text-sm text-muted-foreground">Transaction Fee</p>
-              <p className="text-lg font-semibold">
-                {formatCurrency(agentPlanOverrides?.override_transaction_fee ?? commissionPlan?.transaction_fee ?? 395)}
-              </p>
+              <p className="text-2xl font-bold">{formatCurrency(495)}</p>
             </div>
-            <div>
+            <div className="p-4 bg-muted/50 rounded-lg">
               <p className="text-sm text-muted-foreground">E&O Fee</p>
-              <p className="text-lg font-semibold">{formatCurrency(commissionPlan?.e_and_o_fee ?? 40)}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Tech Fee</p>
-              <p className="text-lg font-semibold">{formatCurrency(commissionPlan?.tech_fee ?? 25)}</p>
+              <p className="text-2xl font-bold">{formatCurrency(40)}</p>
             </div>
           </div>
         </CardContent>
@@ -158,37 +160,53 @@ export function AgentEarningsDashboard({
       {/* Recent Closings */}
       <Card>
         <CardHeader>
-          <CardTitle>Last 10 Closings</CardTitle>
+          <CardTitle>Recent Closings</CardTitle>
           <CardDescription>Your most recent transactions</CardDescription>
         </CardHeader>
         <CardContent>
           {recentDeals.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">No closings yet this year</p>
+            <div className="text-center py-12">
+              <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No closings yet this year</p>
+              <p className="text-sm text-muted-foreground">Closed transactions will appear here</p>
+            </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
-                  <TableHead>Client</TableHead>
                   <TableHead>Property</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead className="text-right">Sale Price</TableHead>
                   <TableHead className="text-right">GCI</TableHead>
                   <TableHead className="text-right">Your Share</TableHead>
-                  <TableHead className="text-right">Net</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {recentDeals.map((deal) => (
-                  <TableRow key={deal.id}>
-                    <TableCell>{deal.closed_date ? new Date(deal.closed_date).toLocaleDateString() : "-"}</TableCell>
-                    <TableCell>{deal.transaction?.contact?.full_name || "-"}</TableCell>
-                    <TableCell className="max-w-[200px] truncate">
-                      {deal.transaction?.property?.address || "N/A"}
-                    </TableCell>
-                    <TableCell className="text-right">{formatCurrency(deal.gross_commission)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(deal.agent_share)}</TableCell>
-                    <TableCell className="text-right font-medium">{formatCurrency(deal.net_agent_amount)}</TableCell>
-                  </TableRow>
-                ))}
+                {recentDeals.map((deal) => {
+                  const gci = Number(deal.gross_commission) || 0
+                  const agentShare = gci * (splitPercent / 100)
+                  return (
+                    <TableRow key={deal.id}>
+                      <TableCell>
+                        {deal.closing_date ? new Date(deal.closing_date).toLocaleDateString() : "-"}
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate font-medium">
+                        {deal.property_address || "N/A"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="capitalize">
+                          {deal.transaction_type || "buyer"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">{formatCurrency(Number(deal.sale_price) || 0)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(gci)}</TableCell>
+                      <TableCell className="text-right font-medium text-emerald-600">
+                        {formatCurrency(agentShare)}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           )}

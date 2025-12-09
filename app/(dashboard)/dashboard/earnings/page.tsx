@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/auth"
 import { redirect } from "next/navigation"
-import { EarningsDashboard } from "@/components/earnings/earnings-dashboard"
+import { AgentEarningsDashboard } from "@/components/earnings/agent-earnings-dashboard"
 
 export default async function EarningsPage() {
   const supabase = await createClient()
@@ -15,52 +15,52 @@ export default async function EarningsPage() {
   const startOfYear = `${currentYear}-01-01`
   const endOfYear = `${currentYear}-12-31`
 
-  const { data: transactions } = await supabase
+  // Get all closed transactions for this year to calculate earnings
+  const { data: closedTransactions } = await supabase
     .from("transactions")
     .select("*")
     .eq("agent_id", agent.id)
+    .eq("status", "closed")
     .gte("closing_date", startOfYear)
     .lte("closing_date", endOfYear)
     .order("closing_date", { ascending: false })
 
   // Calculate YTD stats from transactions
-  const closedTransactions = (transactions || []).filter((t) => t.status === "closed")
+  const transactions = closedTransactions || []
 
   const ytdStats = {
-    totalGCI: closedTransactions.reduce((sum, t) => sum + (Number(t.gross_commission) || 0), 0),
-    totalVolume: closedTransactions.reduce((sum, t) => sum + (Number(t.sale_price) || 0), 0),
-    totalDeals: closedTransactions.length,
+    totalGCI: transactions.reduce((sum, t) => sum + (Number(t.gross_commission) || 0), 0),
+    totalVolume: transactions.reduce((sum, t) => sum + (Number(t.sale_price) || 0), 0),
+    totalDeals: transactions.length,
+    agentEarnings: 0,
+    brokerShare: 0,
   }
 
-  // Default commission plan values (70/30 split, $25k cap)
-  const commissionPlan = {
-    name: "Standard Plan",
-    splitPercentage: 0.7,
-    capAmount: 25000,
-    transactionFee: 495,
-  }
+  // Apply 70/30 split (default) - agent gets 70%
+  const splitPercent = 70
+  ytdStats.agentEarnings = ytdStats.totalGCI * (splitPercent / 100)
+  ytdStats.brokerShare = ytdStats.totalGCI - ytdStats.agentEarnings
 
-  // Calculate agent earnings (split applied to GCI)
-  const agentEarnings = ytdStats.totalGCI * commissionPlan.splitPercentage
-  const brokerShare = ytdStats.totalGCI * (1 - commissionPlan.splitPercentage)
-  const capProgress = Math.min((brokerShare / commissionPlan.capAmount) * 100, 100)
-  const isCapped = brokerShare >= commissionPlan.capAmount
+  // Cap tracking - $25,000 default cap
+  const capAmount = 25000
+  const capProgress = Math.min(ytdStats.brokerShare, capAmount)
+  const isCapped = ytdStats.brokerShare >= capAmount
 
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-xl p-6 text-white">
-        <h1 className="text-2xl font-bold">My Earnings</h1>
+      <div className="bg-gradient-to-r from-emerald-600 to-green-500 rounded-xl p-6 text-white">
+        <h1 className="text-2xl font-semibold">My Earnings</h1>
         <p className="text-emerald-100">Track your commission, cap progress, and recent closings</p>
       </div>
 
-      <EarningsDashboard
+      <AgentEarningsDashboard
+        agent={agent}
         ytdStats={ytdStats}
-        agentEarnings={agentEarnings}
-        brokerShare={brokerShare}
-        commissionPlan={commissionPlan}
+        splitPercent={splitPercent}
+        capAmount={capAmount}
         capProgress={capProgress}
         isCapped={isCapped}
-        recentTransactions={closedTransactions.slice(0, 10)}
+        recentDeals={transactions.slice(0, 10)}
         currentYear={currentYear}
       />
     </div>
