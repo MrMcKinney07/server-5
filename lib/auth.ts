@@ -35,6 +35,7 @@ export async function getCurrentAgent(): Promise<CurrentAgent | null> {
     if (agentError.code === "PGRST205") {
       return null
     }
+    console.log("[v0] Agent query error:", agentError)
     return null
   }
 
@@ -43,24 +44,37 @@ export async function getCurrentAgent(): Promise<CurrentAgent | null> {
       .from("agents")
       .insert({
         id: user.id,
-        email: user.email || "",
-        full_name: user.user_metadata?.full_name || user.email?.split("@")[0] || "",
+        Email: user.email || "",
+        Name: user.user_metadata?.full_name || user.email?.split("@")[0] || "",
+        Phone: "",
+        Role: "agent",
       })
       .select()
       .single()
 
     if (insertError || !newAgent) {
+      console.log("[v0] Agent insert error:", insertError)
       return null
     }
 
     return {
-      ...newAgent,
+      id: newAgent.id,
+      created_at: newAgent.created_at,
+      email: newAgent.Email,
+      full_name: newAgent.Name,
+      phone: newAgent.Phone,
+      role: newAgent.Role,
       user_id: user.id,
     } as CurrentAgent
   }
 
   return {
-    ...agent,
+    id: agent.id,
+    created_at: agent.created_at,
+    email: agent.Email,
+    full_name: agent.Name,
+    phone: agent.Phone,
+    role: agent.Role,
     user_id: user.id,
   } as CurrentAgent
 }
@@ -85,7 +99,7 @@ export async function requireAuth(): Promise<CurrentAgent> {
 export async function requireAdmin(): Promise<CurrentAgent> {
   const agent = await requireAuth()
 
-  if (agent.role !== "admin") {
+  if (agent.role !== "admin" && agent.role !== "broker") {
     const { redirect } = await import("next/navigation")
     redirect("/dashboard")
   }
