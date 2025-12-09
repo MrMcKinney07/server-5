@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createBrowserClient } from "@/lib/supabase/client"
 import type { AgentMission, MissionTemplate } from "@/lib/types/database"
@@ -48,8 +48,24 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([])
   const router = useRouter()
 
+  useEffect(() => {
+    console.log("[v0] MissionsView mounted")
+    console.log("[v0] todayMissions:", todayMissions)
+    console.log("[v0] templates:", templates)
+    console.log("[v0] templates length:", templates?.length)
+    console.log("[v0] agentId:", agentId)
+    console.log("[v0] today:", today)
+  }, [todayMissions, templates, agentId, today])
+
   const hasSelectedMissions = todayMissions.length >= REQUIRED_MISSIONS
   const needsToSelectMissions = todayMissions.length === 0
+
+  const handleOpenSelectMissions = () => {
+    console.log("[v0] Select missions button clicked")
+    console.log("[v0] templates available:", templates?.length)
+    setSelectMissionsOpen(true)
+    console.log("[v0] selectMissionsOpen set to true")
+  }
 
   const handleCompleteMission = async () => {
     if (!completingMission) return
@@ -144,7 +160,7 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
                   Choose {REQUIRED_MISSIONS} missions to complete today. Once selected, you cannot change them.
                 </p>
               </div>
-              <Button onClick={() => setSelectMissionsOpen(true)} className="bg-amber-500 hover:bg-amber-600">
+              <Button onClick={handleOpenSelectMissions} className="bg-amber-500 hover:bg-amber-600">
                 Select {REQUIRED_MISSIONS} Missions
               </Button>
             </div>
@@ -312,8 +328,15 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
         </DialogContent>
       </Dialog>
 
-      <Dialog open={selectMissionsOpen} onOpenChange={setSelectMissionsOpen}>
+      <Dialog
+        open={selectMissionsOpen}
+        onOpenChange={(open) => {
+          console.log("[v0] Dialog onOpenChange:", open)
+          setSelectMissionsOpen(open)
+        }}
+      >
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <div className="text-xs text-gray-400 mb-2">Debug: {templates?.length || 0} templates loaded</div>
           <DialogHeader>
             <DialogTitle>Select Your {REQUIRED_MISSIONS} Daily Missions</DialogTitle>
             <DialogDescription>
