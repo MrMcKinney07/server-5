@@ -34,6 +34,7 @@ export default async function EarningsPage() {
     totalDeals: transactions.length,
     agentEarnings: 0,
     brokerShare: 0,
+    marketingBudget: 0,
   }
 
   // Apply 70/30 split (default) - agent gets 70%
@@ -41,25 +42,28 @@ export default async function EarningsPage() {
   ytdStats.agentEarnings = ytdStats.totalGCI * (splitPercent / 100)
   ytdStats.brokerShare = ytdStats.totalGCI - ytdStats.agentEarnings
 
-  // Cap tracking - $25,000 default cap
-  const capAmount = 25000
-  const capProgress = Math.min(ytdStats.brokerShare, capAmount)
-  const isCapped = ytdStats.brokerShare >= capAmount
+  const marketingThreshold = 15000
+  const hasReachedThreshold = ytdStats.brokerShare >= marketingThreshold
+
+  // Calculate marketing budget: 10% of broker share above threshold
+  if (hasReachedThreshold) {
+    const amountAboveThreshold = ytdStats.brokerShare - marketingThreshold
+    ytdStats.marketingBudget = amountAboveThreshold * 0.1
+  }
 
   return (
     <div className="space-y-6">
       <div className="bg-gradient-to-r from-emerald-600 to-green-500 rounded-xl p-6 text-white">
         <h1 className="text-2xl font-semibold">My Earnings</h1>
-        <p className="text-emerald-100">Track your commission, cap progress, and recent closings</p>
+        <p className="text-emerald-100">Track your commission, marketing budget progress, and recent closings</p>
       </div>
 
       <AgentEarningsDashboard
         agent={agent}
         ytdStats={ytdStats}
         splitPercent={splitPercent}
-        capAmount={capAmount}
-        capProgress={capProgress}
-        isCapped={isCapped}
+        marketingThreshold={marketingThreshold}
+        hasReachedThreshold={hasReachedThreshold}
         recentDeals={transactions.slice(0, 10)}
         currentYear={currentYear}
       />

@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { DollarSign, TrendingUp, Target, Award, Building2 } from "lucide-react"
+import { DollarSign, TrendingUp, Target, Award, Building2, Megaphone } from "lucide-react"
 
 interface AgentEarningsDashboardProps {
   agent: { id: string; Name: string }
@@ -14,11 +14,11 @@ interface AgentEarningsDashboardProps {
     totalDeals: number
     agentEarnings: number
     brokerShare: number
+    marketingBudget: number
   }
   splitPercent: number
-  capAmount: number
-  capProgress: number
-  isCapped: boolean
+  marketingThreshold: number
+  hasReachedThreshold: boolean
   recentDeals: Array<{
     id: string
     property_address: string
@@ -34,9 +34,8 @@ export function AgentEarningsDashboard({
   agent,
   ytdStats,
   splitPercent,
-  capAmount,
-  capProgress,
-  isCapped,
+  marketingThreshold,
+  hasReachedThreshold,
   recentDeals,
   currentYear,
 }: AgentEarningsDashboardProps) {
@@ -49,12 +48,13 @@ export function AgentEarningsDashboard({
     }).format(amount)
   }
 
-  const capPercentage = capAmount > 0 ? (capProgress / capAmount) * 100 : 0
+  const thresholdProgress = Math.min(ytdStats.brokerShare, marketingThreshold)
+  const thresholdPercentage = marketingThreshold > 0 ? (thresholdProgress / marketingThreshold) * 100 : 0
 
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card className="border-l-4 border-l-emerald-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">YTD GCI</CardTitle>
@@ -88,6 +88,19 @@ export function AgentEarningsDashboard({
           </CardContent>
         </Card>
 
+        <Card className="border-l-4 border-l-pink-500">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Marketing Budget</CardTitle>
+            <Megaphone className="h-4 w-4 text-pink-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-pink-600">{formatCurrency(ytdStats.marketingBudget)}</div>
+            <p className="text-xs text-muted-foreground">
+              {hasReachedThreshold ? "10% of company share" : "Unlocks at $15k"}
+            </p>
+          </CardContent>
+        </Card>
+
         <Card className="border-l-4 border-l-purple-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Total Volume</CardTitle>
@@ -100,30 +113,41 @@ export function AgentEarningsDashboard({
         </Card>
       </div>
 
-      {/* Cap Progress */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5 text-emerald-600" />
-            Progress to Cap
+            <Target className="h-5 w-5 text-pink-600" />
+            Marketing Budget Threshold
           </CardTitle>
           <CardDescription>
-            {isCapped ? (
-              <Badge className="bg-emerald-600">Cap Reached! You keep 100%</Badge>
+            {hasReachedThreshold ? (
+              <Badge className="bg-pink-600">Threshold Reached! Earning 10% Marketing Budget</Badge>
             ) : (
-              `${formatCurrency(capAmount - capProgress)} remaining to cap`
+              `${formatCurrency(marketingThreshold - thresholdProgress)} remaining to unlock marketing budget`
             )}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
-          <Progress value={Math.min(capPercentage, 100)} className="h-3" />
+          <Progress value={Math.min(thresholdPercentage, 100)} className="h-3" />
           <div className="flex justify-between text-sm text-muted-foreground">
-            <span>{formatCurrency(capProgress)}</span>
-            <span>{formatCurrency(capAmount)}</span>
+            <span>{formatCurrency(thresholdProgress)} company dollar</span>
+            <span>{formatCurrency(marketingThreshold)} threshold</span>
           </div>
-          {isCapped && (
-            <p className="text-sm text-emerald-600 font-medium">
-              Congratulations! All future commission is 100% yours!
+          {hasReachedThreshold && (
+            <div className="mt-4 p-4 bg-pink-50 dark:bg-pink-950/20 rounded-lg border border-pink-200 dark:border-pink-800">
+              <p className="text-sm text-pink-700 dark:text-pink-300 font-medium">
+                Congratulations! You've unlocked your marketing budget. You now receive 10% of all future company dollar
+                as marketing funds.
+              </p>
+              <p className="text-xs text-pink-600 dark:text-pink-400 mt-1">
+                Current marketing budget: {formatCurrency(ytdStats.marketingBudget)}
+              </p>
+            </div>
+          )}
+          {!hasReachedThreshold && (
+            <p className="text-sm text-muted-foreground mt-2">
+              After reaching {formatCurrency(marketingThreshold)} in company dollar, you'll earn a 10% marketing budget
+              from future company share.
             </p>
           )}
         </CardContent>
@@ -133,7 +157,7 @@ export function AgentEarningsDashboard({
       <Card>
         <CardHeader>
           <CardTitle>Your Commission Plan</CardTitle>
-          <CardDescription>Standard McKinney One Plan</CardDescription>
+          <CardDescription>McKinney Realty Commission Structure</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-4">
@@ -142,8 +166,8 @@ export function AgentEarningsDashboard({
               <p className="text-2xl font-bold text-emerald-600">{splitPercent}%</p>
             </div>
             <div className="p-4 bg-muted/50 rounded-lg">
-              <p className="text-sm text-muted-foreground">Annual Cap</p>
-              <p className="text-2xl font-bold">{formatCurrency(capAmount)}</p>
+              <p className="text-sm text-muted-foreground">Marketing Threshold</p>
+              <p className="text-2xl font-bold">{formatCurrency(marketingThreshold)}</p>
             </div>
             <div className="p-4 bg-muted/50 rounded-lg">
               <p className="text-sm text-muted-foreground">Transaction Fee</p>
