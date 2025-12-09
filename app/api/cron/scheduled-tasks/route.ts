@@ -15,15 +15,26 @@ export async function GET(request: Request) {
   }
 
   const results = {
+    missionReset: { processed: false, error: null as string | null },
     morningMissions: { processed: false, error: null as string | null },
     campaigns: { processed: 0, errors: [] as string[] },
   }
 
-  // Check if it's time for morning missions (8 AM CT = 14:00 UTC, run at :00 minutes only)
+  // Check current time in CT (UTC-6)
   const now = new Date()
   const minutes = now.getUTCMinutes()
   const hours = now.getUTCHours()
 
+  if (hours === 9 && minutes === 0) {
+    try {
+      await resetDailyMissions()
+      results.missionReset.processed = true
+    } catch (error) {
+      results.missionReset.error = error instanceof Error ? error.message : "Unknown error"
+    }
+  }
+
+  // 8 AM CT morning mission emails (8 AM CT = 14:00 UTC)
   if (hours === 14 && minutes === 0) {
     try {
       await processMorningMissions()
@@ -43,6 +54,43 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({ success: true, results })
+}
+
+async function resetDailyMissions() {
+  const supabase = await createClient()
+  const today = new Date().toISOString().split("T")[0]
+
+  // Get all agents
+  const { data: agents } = await supabase.from("agents").select("id")
+
+  if (!agents || agents.length === 0) return
+
+  // For each agent, update their missions to today's date and reset status
+  for (const agent of agents) {
+    // Reset any incomplete missions from previous days to mark them as missed
+    await supabase
+      .from("agent_missions")
+      .update({ status: "missed" })
+      .eq("agent_id", agent.id)
+      .neq("mission_date", today)
+      .eq("status", "pending")
+
+    // Update existing missions for today (if they selected them yesterday for today)
+    // or just set mission_date to today for their selected missions
+    await supabase
+      .from("agent_missions")
+      .update({
+        mission_date: today,
+        status: "pending",
+        completed_at: null,
+        points_earned: 0,
+        notes: null,
+        photo_url: null,
+      })
+      .eq("agent_id", agent.id)
+      .eq("status", "pending")
+      .neq("mission_date", today)
+  }
 }
 
 async function processMorningMissions() {
