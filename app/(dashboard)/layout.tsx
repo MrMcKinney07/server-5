@@ -43,7 +43,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen flex bg-background">
-      <DashboardSidebar />
+      <DashboardSidebar agentRole={agent.role} />
       <div className="flex-1 flex flex-col">
         <DashboardTopbar agent={agent} />
         <main className="flex-1 p-6">{children}</main>

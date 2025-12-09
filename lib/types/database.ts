@@ -3,19 +3,16 @@
 export type AgentRole = "agent" | "broker"
 export type AgentSegment = "new" | "seasoned"
 
-// Agent type matches the actual database schema with capitalized column names
 export interface Agent {
   id: string
-  Name: string | null
-  Email: string | null
-  Phone: string | null
-  Role: AgentRole
+  full_name: string | null
+  email: string
+  phone: string | null
+  role: AgentRole
+  segment: AgentSegment
+  tier: number
+  is_active: boolean
   created_at: string
-  // Computed properties for backward compatibility
-  full_name?: string
-  email?: string
-  phone?: string
-  role?: AgentRole
 }
 
 export type ContactType = "buyer" | "seller" | "both" | "investor" | "referral" | "other"
@@ -116,14 +113,7 @@ export interface AgentMissionWithTemplate extends AgentMission {
 }
 
 export type TransactionType = "buy" | "sell" | "dual" | "lease"
-export type TransactionStatus =
-  | "pending"
-  | "under_contract"
-  | "inspection"
-  | "appraisal"
-  | "closing"
-  | "closed"
-  | "cancelled"
+export type TransactionStatus = "pending" | "under_contract" | "closed" | "cancelled" | "fell_through"
 
 export interface Transaction {
   id: string
@@ -134,7 +124,7 @@ export interface Transaction {
   transaction_type: TransactionType
   status: TransactionStatus
   sale_price: number | null
-  commission_rate: number | null
+  commission_rate: number
   gross_commission: number | null
   agent_split: number | null
   agent_commission: number | null
@@ -175,9 +165,8 @@ export interface AgentCommissionPlanWithDetails extends AgentCommissionPlan {
 }
 
 // Extended types with relations
-export interface LeadWithRelations extends Lead {
+export interface LeadWithContact extends Lead {
   contact?: Contact | null
-  agent?: Agent | null
 }
 
 export interface ContactWithRelations extends Contact {
