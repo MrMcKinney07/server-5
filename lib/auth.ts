@@ -28,7 +28,7 @@ export async function getCurrentAgent(): Promise<CurrentAgent | null> {
     return null
   }
 
-  const { data: agent, error: agentError } = await supabase.from("agents").select("*").eq("id", user.id).single()
+  const { data: agent, error: agentError } = await supabase.from("agents").select("*").eq("id", user.id).maybeSingle()
 
   if (agentError) {
     // If table doesn't exist, return null gracefully
@@ -39,7 +39,24 @@ export async function getCurrentAgent(): Promise<CurrentAgent | null> {
   }
 
   if (!agent) {
-    return null
+    const { data: newAgent, error: insertError } = await supabase
+      .from("agents")
+      .insert({
+        id: user.id,
+        email: user.email || "",
+        full_name: user.user_metadata?.full_name || user.email?.split("@")[0] || "",
+      })
+      .select()
+      .single()
+
+    if (insertError || !newAgent) {
+      return null
+    }
+
+    return {
+      ...newAgent,
+      user_id: user.id,
+    } as CurrentAgent
   }
 
   return {
