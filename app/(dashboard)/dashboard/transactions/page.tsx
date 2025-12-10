@@ -1,16 +1,15 @@
 import { createClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/auth"
 import { TransactionsTable } from "@/components/transactions/transactions-table"
-import type { Transaction, Contact, Property } from "@/lib/types/database"
+import type { Transaction, Contact } from "@/lib/types/database"
 
 export default async function TransactionsPage() {
   const agent = await requireAuth()
   const supabase = await createClient()
 
-  // Fetch transactions - agents see their own, admins see all
   let query = supabase
     .from("transactions")
-    .select("*, contact:contacts(*), property:properties(*), agent:agents(full_name, email)")
+    .select("*, contact:contacts(*), agent:agents(Name, Email)")
     .order("created_at", { ascending: false })
 
   if (agent.role !== "admin") {
@@ -32,8 +31,7 @@ export default async function TransactionsPage() {
         transactions={
           (transactions as (Transaction & {
             contact: Contact
-            property: Property | null
-            agent: { full_name: string; email: string }
+            agent: { Name: string; Email: string }
           })[]) || []
         }
         isAdmin={agent.role === "admin"}
