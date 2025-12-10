@@ -21,9 +21,10 @@ import {
 } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Users, Phone, Mail, Calendar, AlertCircle } from "lucide-react"
+import { Plus, Users, Phone, Mail, Calendar, AlertCircle, LayoutGrid, List } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import Link from "next/link"
+import { LeadsPipeline } from "./leads-pipeline"
 
 interface LeadsViewProps {
   leads: Lead[]
@@ -53,6 +54,7 @@ const typeColors: Record<string, string> = {
 export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [viewMode, setViewMode] = useState<"pipeline" | "table">("pipeline")
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
@@ -197,34 +199,83 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
         </Card>
       )}
 
-      {/* Leads Table */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+          <Button
+            variant={viewMode === "pipeline" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("pipeline")}
+            className="gap-2"
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Pipeline
+          </Button>
+          <Button
+            variant={viewMode === "table" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("table")}
+            className="gap-2"
+          >
+            <List className="h-4 w-4" />
+            Table
+          </Button>
+        </div>
+        <Button onClick={() => setCreateDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+          <Plus className="h-4 w-4 mr-2" />
+          Add Lead
+        </Button>
+      </div>
+
+      {viewMode === "pipeline" ? (
+        <LeadsPipeline leads={leads} agentId={agentId} />
+      ) : (
+        <Card>
+          <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5 text-blue-500" />
               All Leads
             </CardTitle>
             <CardDescription>Your complete lead pipeline</CardDescription>
-          </div>
-          <Button onClick={() => setCreateDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Lead
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="all">
-            <TabsList className="mb-4">
-              <TabsTrigger value="all">All ({leads.length})</TabsTrigger>
-              <TabsTrigger value="new">New ({leads.filter((l) => l.status === "new").length})</TabsTrigger>
-              <TabsTrigger value="active">Active ({leads.filter((l) => l.status === "active").length})</TabsTrigger>
-              <TabsTrigger value="nurturing">
-                Nurturing ({leads.filter((l) => l.status === "nurturing").length})
-              </TabsTrigger>
-            </TabsList>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="all">
+              <TabsList className="mb-4">
+                <TabsTrigger value="all">All ({leads.length})</TabsTrigger>
+                <TabsTrigger value="new">New ({leads.filter((l) => l.status === "new").length})</TabsTrigger>
+                <TabsTrigger value="active">Active ({leads.filter((l) => l.status === "active").length})</TabsTrigger>
+                <TabsTrigger value="nurturing">
+                  Nurturing ({leads.filter((l) => l.status === "nurturing").length})
+                </TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="all">
-              {leads.length > 0 ? (
+              <TabsContent value="all">
+                {leads.length > 0 ? (
+                  <div className="border rounded-lg">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Contact</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Source</TableHead>
+                          <TableHead>Follow-up</TableHead>
+                          <TableHead>Created</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>{leads.map(renderLeadRow)}</TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Users className="h-16 w-16 mx-auto mb-4 opacity-30" />
+                    <p className="text-lg font-medium">No leads yet</p>
+                    <p className="text-sm">Click "Add Lead" to create your first lead</p>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="new">
                 <div className="border rounded-lg">
                   <Table>
                     <TableHeader>
@@ -238,77 +289,52 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
                         <TableHead>Created</TableHead>
                       </TableRow>
                     </TableHeader>
-                    <TableBody>{leads.map(renderLeadRow)}</TableBody>
+                    <TableBody>{leads.filter((l) => l.status === "new").map(renderLeadRow)}</TableBody>
                   </Table>
                 </div>
-              ) : (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Users className="h-16 w-16 mx-auto mb-4 opacity-30" />
-                  <p className="text-lg font-medium">No leads yet</p>
-                  <p className="text-sm">Click "Add Lead" to create your first lead</p>
+              </TabsContent>
+
+              <TabsContent value="active">
+                <div className="border rounded-lg">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Contact</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Source</TableHead>
+                        <TableHead>Follow-up</TableHead>
+                        <TableHead>Created</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>{leads.filter((l) => l.status === "active").map(renderLeadRow)}</TableBody>
+                  </Table>
                 </div>
-              )}
-            </TabsContent>
+              </TabsContent>
 
-            <TabsContent value="new">
-              <div className="border rounded-lg">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Contact</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Source</TableHead>
-                      <TableHead>Follow-up</TableHead>
-                      <TableHead>Created</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>{leads.filter((l) => l.status === "new").map(renderLeadRow)}</TableBody>
-                </Table>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="active">
-              <div className="border rounded-lg">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Contact</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Source</TableHead>
-                      <TableHead>Follow-up</TableHead>
-                      <TableHead>Created</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>{leads.filter((l) => l.status === "active").map(renderLeadRow)}</TableBody>
-                </Table>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="nurturing">
-              <div className="border rounded-lg">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Contact</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Source</TableHead>
-                      <TableHead>Follow-up</TableHead>
-                      <TableHead>Created</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>{leads.filter((l) => l.status === "nurturing").map(renderLeadRow)}</TableBody>
-                </Table>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+              <TabsContent value="nurturing">
+                <div className="border rounded-lg">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Contact</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Source</TableHead>
+                        <TableHead>Follow-up</TableHead>
+                        <TableHead>Created</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>{leads.filter((l) => l.status === "nurturing").map(renderLeadRow)}</TableBody>
+                  </Table>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Create Lead Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
