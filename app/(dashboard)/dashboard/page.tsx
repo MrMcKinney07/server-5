@@ -22,6 +22,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
+import { LeadActionsWidget } from "@/components/dashboard/lead-actions-widget"
 
 const PRESTIGE_LEVELS = [
   { name: "Rookie", minPoints: 0, icon: Shield, color: "text-gray-500", bg: "bg-gray-100" },
@@ -139,7 +140,6 @@ export default async function DashboardPage() {
     .sort((a, b) => b.points - a.points)
     .slice(0, 5)
 
-  // Find current agent's rank
   const allRanked = Array.from(leaderboardMap.entries())
     .map(([id, data]) => ({ id, ...data }))
     .sort((a, b) => b.points - a.points)
@@ -240,6 +240,8 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <LeadActionsWidget agentId={agent.id} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Column - Missions and Leaderboard */}
@@ -457,29 +459,17 @@ export default async function DashboardPage() {
                 <div className="space-y-4">
                   {recentActivities.map((activity: any) => (
                     <div key={activity.id} className="flex items-center gap-3">
-                      <div
-                        className={`p-2 rounded-lg ${
-                          activity.activity_type === "call"
-                            ? "bg-blue-100"
-                            : activity.activity_type === "email"
-                              ? "bg-emerald-100"
-                              : activity.activity_type === "meeting"
-                                ? "bg-amber-100"
-                                : "bg-gray-100"
-                        }`}
-                      >
+                      <div className="p-2 bg-blue-100 rounded-lg">
                         {activity.activity_type === "call" ? (
                           <Phone className="h-4 w-4 text-blue-600" />
                         ) : activity.activity_type === "email" ? (
-                          <Mail className="h-4 w-4 text-emerald-600" />
-                        ) : activity.activity_type === "meeting" ? (
-                          <Calendar className="h-4 w-4 text-amber-600" />
+                          <Mail className="h-4 w-4 text-blue-600" />
                         ) : (
-                          <TrendingUp className="h-4 w-4 text-gray-600" />
+                          <Calendar className="h-4 w-4 text-blue-600" />
                         )}
                       </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">{activity.title || activity.description || "Activity"}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{activity.subject || "Activity"}</p>
                         <p className="text-xs text-muted-foreground">
                           {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
                         </p>

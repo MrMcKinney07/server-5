@@ -10,6 +10,8 @@ import { LeadStatusSelect } from "@/components/leads/lead-status-select"
 import { LeadActivities } from "@/components/leads/lead-activities"
 import { AddLeadActivityDialog } from "@/components/leads/add-lead-activity-dialog"
 import { EnrollCampaignDialog } from "@/components/leads/enroll-campaign-dialog"
+import { SavedPropertiesList } from "@/components/leads/saved-properties-list"
+import { AddPropertyDialog } from "@/components/leads/add-property-dialog"
 
 interface LeadPageProps {
   params: Promise<{ id: string }>
@@ -36,6 +38,22 @@ export default async function LeadPage({ params }: LeadPageProps) {
     .from("lead_campaign_enrollments")
     .select("*, campaign:campaigns(id, name)")
     .eq("lead_id", id)
+
+  const { data: savedProperties } = await supabase
+    .from("saved_properties")
+    .select(`
+      *,
+      property_views (view_count, last_viewed_at)
+    `)
+    .eq("lead_id", id)
+    .order("date_added", { ascending: false })
+
+  const propertiesWithViews =
+    savedProperties?.map((prop) => ({
+      ...prop,
+      view_count: prop.property_views?.[0]?.view_count || 0,
+      last_viewed_at: prop.property_views?.[0]?.last_viewed_at || null,
+    })) || []
 
   const enrolledCampaignIds = enrollments?.map((e) => e.campaign_id) || []
 
@@ -93,6 +111,7 @@ export default async function LeadPage({ params }: LeadPageProps) {
             Added {new Date(lead.created_at).toLocaleDateString()} via {lead.source}
           </p>
         </div>
+        <AddPropertyDialog leadId={id} agentId={agent.id} />
         <EnrollCampaignDialog
           leadId={id}
           leadName={`${lead.first_name} ${lead.last_name}`}
@@ -219,7 +238,7 @@ export default async function LeadPage({ params }: LeadPageProps) {
           )}
         </div>
 
-        {/* Right Column - Activities & Notes */}
+        {/* Right Column - Activities, Properties & Notes */}
         <div className="lg:col-span-2 space-y-6">
           {/* Notes Card */}
           {lead.notes && (
@@ -244,6 +263,13 @@ export default async function LeadPage({ params }: LeadPageProps) {
               </CardHeader>
             </Card>
           )}
+
+          {/* Saved Properties */}
+          <SavedPropertiesList
+            properties={propertiesWithViews}
+            leadId={id}
+            leadName={`${lead.first_name} ${lead.last_name}`}
+          />
 
           {/* Activities */}
           <LeadActivities activities={activities || []} />
