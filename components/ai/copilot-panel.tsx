@@ -3,8 +3,7 @@
 import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
-import { useChat } from "@ai-sdk/react"
-import { DefaultChatTransport } from "ai"
+import { useChat } from "ai/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -26,14 +25,10 @@ export function CopilotPanel({ context, onClose }: CopilotPanelProps) {
   const [input, setInput] = useState("")
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  const { messages, sendMessage, status } = useChat({
-    transport: new DefaultChatTransport({
-      api: "/api/ai/copilot",
-      body: { context },
-    }),
+  const { messages, append, isLoading } = useChat({
+    api: "/api/ai/copilot",
+    body: { context },
   })
-
-  const isLoading = status === "in_progress"
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -44,7 +39,7 @@ export function CopilotPanel({ context, onClose }: CopilotPanelProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || isLoading) return
-    sendMessage({ text: input })
+    append({ role: "user", content: input })
     setInput("")
   }
 
@@ -83,9 +78,7 @@ export function CopilotPanel({ context, onClose }: CopilotPanelProps) {
                     variant="outline"
                     size="sm"
                     className="w-full justify-start text-xs h-auto py-2 bg-transparent"
-                    onClick={() => {
-                      sendMessage({ text: prompt })
-                    }}
+                    onClick={() => append({ role: "user", content: prompt })}
                   >
                     {prompt}
                   </Button>
@@ -110,9 +103,7 @@ export function CopilotPanel({ context, onClose }: CopilotPanelProps) {
                   message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted",
                 )}
               >
-                {message.parts.map((part, i) => (
-                  <span key={i}>{part.type === "text" ? part.text : null}</span>
-                ))}
+                {message.content}
               </div>
             </div>
           ))}

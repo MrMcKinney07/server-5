@@ -1,4 +1,4 @@
-import { convertToModelMessages, streamText, type UIMessage } from "ai"
+import { streamText } from "ai"
 
 export const maxDuration = 30
 
@@ -22,38 +22,24 @@ Guidelines:
 When given context about a specific lead, contact, or agent, use that information to provide tailored advice.`
 
 export async function POST(req: Request) {
-  const { messages, context }: { messages: UIMessage[]; context?: Record<string, unknown> } = await req.json()
+  const {
+    messages,
+    context,
+  }: { messages: Array<{ role: string; content: string }>; context?: Record<string, unknown> } = await req.json()
 
-  // Build context-aware system message
   let contextualPrompt = SYSTEM_PROMPT
 
   if (context) {
     contextualPrompt += "\n\nCurrent Context:\n"
-
-    if (context.lead) {
-      contextualPrompt += `\nLead Information:\n${JSON.stringify(context.lead, null, 2)}`
-    }
-    if (context.contact) {
-      contextualPrompt += `\nContact Information:\n${JSON.stringify(context.contact, null, 2)}`
-    }
-    if (context.agent) {
-      contextualPrompt += `\nAgent Information:\n${JSON.stringify(context.agent, null, 2)}`
-    }
-    if (context.activities) {
-      contextualPrompt += `\nRecent Activities:\n${JSON.stringify(context.activities, null, 2)}`
-    }
+    if (context.lead) contextualPrompt += `\nLead Information:\n${JSON.stringify(context.lead, null, 2)}`
+    if (context.contact) contextualPrompt += `\nContact Information:\n${JSON.stringify(context.contact, null, 2)}`
+    if (context.agent) contextualPrompt += `\nAgent Information:\n${JSON.stringify(context.agent, null, 2)}`
+    if (context.activities) contextualPrompt += `\nRecent Activities:\n${JSON.stringify(context.activities, null, 2)}`
   }
-
-  const prompt = convertToModelMessages([
-    { id: "system", role: "system", content: contextualPrompt, parts: [{ type: "text", text: contextualPrompt }] },
-    ...messages,
-  ])
 
   const result = streamText({
     model: "openai/gpt-4o-mini",
-    prompt,
-    maxOutputTokens: 2000,
-    abortSignal: req.signal,
+    messages: [{ role: "system", content: contextualPrompt }, ...messages],
   })
 
   return result.toUIMessageStreamResponse()
