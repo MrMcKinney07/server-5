@@ -50,13 +50,23 @@ export function AddLeadActivityDialog({ leadId, agentId }: AddLeadActivityDialog
     })
 
     if (!error) {
-      // Update lead's last_contacted_at
-      await supabase.from("leads").update({ last_contacted_at: new Date().toISOString() }).eq("id", leadId)
+      const { data: nextActivity } = await supabase
+        .from("activities")
+        .select("due_at")
+        .eq("lead_id", leadId)
+        .eq("completed", false)
+        .order("due_at", { ascending: true })
+        .limit(1)
+        .single()
 
       await supabase
-        .from("agents")
-        .update({ exp: supabase.rpc("COALESCE", { exp: 0 }) })
-        .eq("id", agentId)
+        .from("leads")
+        .update({
+          next_follow_up: nextActivity?.due_at || null,
+          last_contacted_at: new Date().toISOString(),
+        })
+        .eq("id", leadId)
+
       // Direct update since RPC may not exist
       const { data: agentData } = await supabase.from("agents").select("exp").eq("id", agentId).single()
       await supabase

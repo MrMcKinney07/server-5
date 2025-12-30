@@ -12,6 +12,7 @@ import { AddLeadActivityDialog } from "@/components/leads/add-lead-activity-dial
 import { EnrollCampaignDialog } from "@/components/leads/enroll-campaign-dialog"
 import { SavedPropertiesList } from "@/components/leads/saved-properties-list"
 import { AddPropertyDialog } from "@/components/leads/add-property-dialog"
+import { PropertyEngagementAnalytics } from "@/components/leads/property-engagement-analytics"
 
 interface LeadPageProps {
   params: Promise<{ id: string }>
@@ -87,6 +88,21 @@ export default async function LeadPage({ params }: LeadPageProps) {
     investor: "bg-purple-50 text-purple-700",
     renter: "bg-gray-50 text-gray-700",
   }
+
+  const { data: propertyViews } = await supabase
+    .from("property_views")
+    .select(`
+      *,
+      saved_property:saved_properties(
+        id,
+        address,
+        city,
+        state,
+        price,
+        photo_url
+      )
+    `)
+    .eq("lead_id", id)
 
   return (
     <div className="space-y-6">
@@ -261,6 +277,19 @@ export default async function LeadPage({ params }: LeadPageProps) {
                   Scheduled for {new Date(lead.next_follow_up).toLocaleDateString()}
                 </CardDescription>
               </CardHeader>
+            </Card>
+          )}
+
+          {/* Property Engagement Analytics */}
+          {propertyViews && propertyViews.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Property Engagement</CardTitle>
+                <CardDescription>Track which properties {lead.first_name} is interested in</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <PropertyEngagementAnalytics leadId={id} propertyViews={propertyViews} />
+              </CardContent>
             </Card>
           )}
 

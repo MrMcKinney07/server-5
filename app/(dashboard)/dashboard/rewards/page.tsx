@@ -2,6 +2,8 @@ import { createServerClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { RewardsDashboard } from "@/components/rewards/rewards-dashboard"
+import { PrizesShowcase } from "@/components/rewards/prizes-showcase"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default async function RewardsPage() {
   const supabase = await createServerClient()
@@ -64,19 +66,35 @@ export default async function RewardsPage() {
     missions_completed: completedMissions?.length || 0,
   }
 
+  const { data: agentData } = await supabase.from("agents").select("exp").eq("id", agent.id).single()
+  const currentAgentXP = (agentData?.exp || 0) + totalXP
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Rewards & Achievements</h1>
-        <p className="text-muted-foreground">Track your XP, badges, and mission progress</p>
+        <p className="text-muted-foreground">Track your XP, badges, mission progress, and redeem prizes</p>
       </div>
 
-      <RewardsDashboard
-        agent={agent}
-        agentXP={agentXP}
-        completedMissions={completedMissions || []}
-        xpLeaderboard={xpLeaderboard}
-      />
+      <Tabs defaultValue="achievements" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="achievements">Achievements</TabsTrigger>
+          <TabsTrigger value="prizes">Prize Shop</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="achievements" className="space-y-6">
+          <RewardsDashboard
+            agent={agent}
+            agentXP={agentXP}
+            completedMissions={completedMissions || []}
+            xpLeaderboard={xpLeaderboard}
+          />
+        </TabsContent>
+
+        <TabsContent value="prizes" className="space-y-6">
+          <PrizesShowcase agentXP={currentAgentXP} />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

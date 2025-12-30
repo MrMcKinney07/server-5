@@ -1,26 +1,14 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Rocket, Star, Sparkles, Zap, Volume2, VolumeX } from "lucide-react"
+import { Rocket, Star, Sparkles, Zap } from "lucide-react"
 
 export default function LaunchingPage() {
   const router = useRouter()
   const [progress, setProgress] = useState(0)
-  const [isMuted, setIsMuted] = useState(false)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
-    const audio = new Audio("https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3")
-    audio.volume = 0.6
-    audio.loop = false
-    audioRef.current = audio
-
-    // Try to play (may be blocked by browser autoplay policy)
-    audio.play().catch(() => {
-      // Autoplay blocked, user can unmute manually
-    })
-
     const interval = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 100) {
@@ -32,54 +20,27 @@ export default function LaunchingPage() {
     }, 100)
 
     const timeout = setTimeout(() => {
-      if (audioRef.current) {
-        audioRef.current.pause()
-      }
       router.push("/dashboard")
     }, 5000)
 
     return () => {
       clearInterval(interval)
       clearTimeout(timeout)
-      if (audioRef.current) {
-        audioRef.current.pause()
-        audioRef.current = null
-      }
     }
   }, [router])
-
-  const toggleMute = () => {
-    if (audioRef.current) {
-      if (isMuted) {
-        audioRef.current.volume = 0.6
-        audioRef.current.play().catch(() => {})
-      } else {
-        audioRef.current.volume = 0
-      }
-      setIsMuted(!isMuted)
-    }
-  }
 
   return (
     <div
       className="min-h-screen bg-black flex items-center justify-center overflow-hidden relative"
       style={{ perspective: "1000px" }}
     >
-      <button
-        onClick={toggleMute}
-        className="absolute top-6 right-6 z-50 p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors border border-white/20 backdrop-blur-sm"
-      >
-        {isMuted ? <VolumeX className="w-6 h-6 text-white" /> : <Volume2 className="w-6 h-6 text-white" />}
-      </button>
-
       <div className="absolute bottom-0 left-0 right-0 flex justify-center items-end gap-1 h-32 opacity-60">
         {Array.from({ length: 40 }).map((_, i) => (
           <div
             key={`bar-${i}`}
             className="w-2 bg-gradient-to-t from-cyan-500 via-blue-500 to-violet-500 rounded-t"
             style={{
-              height: `${Math.random() * 100}%`,
-              animation: `visualizer ${0.2 + Math.random() * 0.3}s ease-in-out ${i * 0.02}s infinite alternate`,
+              animation: `visualizer 0.3s ease-in-out ${i * 0.05}s infinite alternate`,
             }}
           />
         ))}

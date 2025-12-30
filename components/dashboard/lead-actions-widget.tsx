@@ -78,6 +78,12 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
   const handleComplete = async (taskId: string) => {
     setActionLoading(taskId)
 
+    const task = tasks.find((t) => t.id === taskId)
+    if (!task) {
+      setActionLoading(null)
+      return
+    }
+
     // Mark task as completed
     const { error: taskError } = await supabase
       .from("activities")
@@ -85,6 +91,23 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
       .eq("id", taskId)
 
     if (!taskError) {
+      const { data: nextActivity } = await supabase
+        .from("activities")
+        .select("due_at")
+        .eq("lead_id", task.lead_id)
+        .eq("completed", false)
+        .order("due_at", { ascending: true })
+        .limit(1)
+        .single()
+
+      await supabase
+        .from("leads")
+        .update({
+          next_follow_up: nextActivity?.due_at || null,
+          last_contacted_at: new Date().toISOString(),
+        })
+        .eq("id", task.lead_id)
+
       // Award +5 exp to the agent - direct update
       const { data: agentData } = await supabase.from("agents").select("exp").eq("id", agentId).single()
       await supabase
@@ -92,8 +115,7 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
         .update({ exp: (agentData?.exp || 0) + 5 })
         .eq("id", agentId)
 
-      // Refresh tasks
-      fetchTasks()
+      setTasks((prevTasks) => prevTasks.filter((t) => t.id !== taskId))
     }
 
     setActionLoading(null)
@@ -109,7 +131,8 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
 
     await supabase.from("activities").update({ due_at: tomorrow.toISOString() }).eq("id", taskId)
 
-    fetchTasks()
+    setTasks((prevTasks) => prevTasks.filter((t) => t.id !== taskId))
+
     setActionLoading(null)
   }
 

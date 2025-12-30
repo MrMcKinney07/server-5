@@ -1,25 +1,33 @@
 import { requireAuth } from "@/lib/auth"
-import Script from "next/script"
+import { createServerClient } from "@/lib/supabase/server"
+import { PropertyCart } from "@/components/properties/property-cart"
+import { IDXWidgetClient } from "@/components/properties/idx-widget-client"
 
 export default async function PropertiesPage() {
-  await requireAuth()
+  const user = await requireAuth()
+  const supabase = await createServerClient()
+
+  // Fetch agent's leads for the cart
+  const { data: leads } = await supabase
+    .from("leads")
+    .select("id, first_name, last_name, email, phone")
+    .eq("agent_id", user.id)
+    .order("first_name", { ascending: true })
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)]">
-      <div className="py-2 px-1 flex-shrink-0">
-        <h1 className="text-2xl font-semibold">Property Search</h1>
-        <p className="text-sm text-muted-foreground">Search MLS listings with interactive map</p>
+    <>
+      <div className="flex flex-col h-[calc(100vh-4rem)]">
+        <div className="py-2 px-1 flex-shrink-0">
+          <h1 className="text-2xl font-semibold">Property Search</h1>
+          <p className="text-sm text-muted-foreground">Search MLS listings and add properties to send to leads</p>
+        </div>
+
+        <div className="flex-1 w-full border rounded-lg overflow-hidden">
+          <IDXWidgetClient widgetId="131657" />
+        </div>
       </div>
 
-      <div className="flex-1 w-full border rounded-lg overflow-hidden">
-        <div id="idxwidgetsrc-131657" className="w-full h-full"></div>
-        <Script
-          id="idxwidgetsrc-131657-script"
-          src="//mckinneyrealtyco.idxbroker.com/idx/widgets/131657"
-          strategy="afterInteractive"
-          charSet="UTF-8"
-        />
-      </div>
-    </div>
+      <PropertyCart leads={leads || []} agentId={user.id} />
+    </>
   )
 }

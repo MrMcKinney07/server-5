@@ -6,7 +6,7 @@ import { createBrowserClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Home, ExternalLink, Trash2, Eye, DollarSign, Bed, Bath, Calendar } from "lucide-react"
+import { Home, ExternalLink, Trash2, Eye, DollarSign, Bed, Bath, Calendar, Send, Copy, Link2 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { toast } from "sonner"
 
@@ -37,6 +37,8 @@ interface SavedPropertiesListProps {
 
 export function SavedPropertiesList({ properties, leadId, leadName }: SavedPropertiesListProps) {
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
+  const [isSending, setIsSending] = useState<string | null>(null)
+  const [isCopying, setIsCopying] = useState<string | null>(null)
   const router = useRouter()
 
   const handleDelete = async (propertyId: string) => {
@@ -78,6 +80,45 @@ export function SavedPropertiesList({ properties, leadId, leadName }: SavedPrope
 
     // Open the property URL in new tab
     window.open(url, "_blank", "noopener,noreferrer")
+  }
+
+  const handleSendProperty = async (property: SavedProperty) => {
+    setIsSending(property.id)
+
+    try {
+      const response = await fetch("/api/send-property", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lead_id: leadId,
+          property_id: property.id,
+        }),
+      })
+
+      if (!response.ok) throw new Error("Failed to send property")
+
+      toast.success("Property sent to client!")
+      router.refresh()
+    } catch (error) {
+      console.error("Failed to send property:", error)
+      toast.error("Failed to send property")
+    } finally {
+      setIsSending(null)
+    }
+  }
+
+  const handleCopyLink = async (propertyId: string) => {
+    setIsCopying(propertyId)
+    const link = `${window.location.origin}/property-view/${propertyId}`
+
+    try {
+      await navigator.clipboard.writeText(link)
+      toast.success("Link copied to clipboard!")
+    } catch (error) {
+      toast.error("Failed to copy link")
+    } finally {
+      setTimeout(() => setIsCopying(null), 1000)
+    }
   }
 
   const formatPrice = (price: number | null) => {
@@ -197,6 +238,26 @@ export function SavedPropertiesList({ properties, leadId, leadName }: SavedPrope
 
             {/* Actions */}
             <div className="flex items-center gap-2">
+              {/* Copy link button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleCopyLink(property.id)}
+                disabled={isCopying === property.id}
+                title="Copy trackable link"
+              >
+                {isCopying === property.id ? <Copy className="h-4 w-4" /> : <Link2 className="h-4 w-4" />}
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => handleSendProperty(property)}
+                disabled={isSending === property.id}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Send className="h-4 w-4 mr-1" />
+                {isSending === property.id ? "Sending..." : "Send"}
+              </Button>
               <Button variant="outline" size="sm" onClick={() => handleViewProperty(property)}>
                 <ExternalLink className="h-4 w-4 mr-1" />
                 View

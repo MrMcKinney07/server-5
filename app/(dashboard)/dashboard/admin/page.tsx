@@ -2,7 +2,7 @@ import { requireAdmin } from "@/lib/auth"
 import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Shield, Target, Users, CheckCircle, TrendingUp } from "lucide-react"
+import { Shield, Target, Users, CheckCircle, TrendingUp, Gift } from "lucide-react"
 import Link from "next/link"
 import { MissionTemplatesManager } from "@/components/admin/mission-templates-manager"
 import { AgentLeaderboard } from "@/components/admin/agent-leaderboard"
@@ -142,6 +142,18 @@ export default async function AdminDashboardPage() {
                 Agent Management
               </CardTitle>
               <CardDescription>View and manage agent accounts and roles</CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
+
+        <Link href="/admin/prizes">
+          <Card className="hover:border-purple-300 hover:shadow-md transition-all cursor-pointer h-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Gift className="h-5 w-5 text-purple-500" />
+                Prizes & Rewards
+              </CardTitle>
+              <CardDescription>Manage redeemable prizes for agents</CardDescription>
             </CardHeader>
           </Card>
         </Link>

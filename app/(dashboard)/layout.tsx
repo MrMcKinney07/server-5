@@ -2,7 +2,6 @@ import type React from "react"
 import { DashboardSidebar } from "@/components/dashboard/sidebar"
 import { DashboardTopbar } from "@/components/dashboard/topbar"
 import { requireAuth, isDatabaseSetup } from "@/lib/auth"
-import { CopilotTrigger } from "@/components/ai/copilot-trigger"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertTriangle } from "lucide-react"
 
@@ -48,7 +47,6 @@ export default async function DashboardLayout({
         <DashboardTopbar agent={agent} />
         <main className="flex-1 p-6">{children}</main>
       </div>
-      <CopilotTrigger />
     </div>
   )
 }
