@@ -78,10 +78,7 @@ export function StartTransactionButton({ contactId, leadId, agentId, properties 
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Start Transaction</DialogTitle>
-          <DialogDescription>
-            Create a new transaction for this {leadId ? "lead" : "contact"}.
-            {/* TODO: Integrate with SkySlope - see lib/skyslope/skyslope.ts */}
-          </DialogDescription>
+          <DialogDescription>Create a new transaction for this {leadId ? "lead" : "contact"}.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
           {properties.length > 0 && (
@@ -103,7 +100,7 @@ export function StartTransactionButton({ contactId, leadId, agentId, properties 
             </div>
           )}
           <p className="text-sm text-muted-foreground">
-            This will create a new transaction record in the system. SkySlope integration can be enabled later.
+            This will create a new transaction record in the system for tracking.
           </p>
         </div>
         <DialogFooter>

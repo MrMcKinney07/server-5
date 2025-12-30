@@ -27,7 +27,6 @@ export async function POST(request: NextRequest) {
       closing_date,
       notes,
       agent_id,
-      sync_to_skyslope,
     } = body
 
     // Calculate commissions
@@ -58,51 +57,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to create transaction" }, { status: 500 })
     }
 
-    let skyslope_synced = false
-
-    // Sync to Skyslope if enabled and API key is available
-    if (sync_to_skyslope && process.env.SKYSLOPE_API_KEY) {
-      try {
-        const skyslopeResponse = await fetch("https://api.skyslope.com/api/v2/transactions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.SKYSLOPE_API_KEY}`,
-          },
-          body: JSON.stringify({
-            address: property_address,
-            salePrice: sale_price,
-            transactionType: transaction_type,
-            contractDate: contract_date,
-            closingDate: closing_date,
-            status: "Active",
-            // Add other Skyslope-specific fields as needed
-          }),
-        })
-
-        if (skyslopeResponse.ok) {
-          const skyslopeData = await skyslopeResponse.json()
-
-          // Update transaction with Skyslope ID
-          await supabase
-            .from("transactions")
-            .update({
-              notes: `${notes}\n\nSkyslope ID: ${skyslopeData.id || "N/A"}`,
-            })
-            .eq("id", transaction.id)
-
-          skyslope_synced = true
-        } else {
-          console.error("[v0] Skyslope sync failed:", await skyslopeResponse.text())
-        }
-      } catch (skyslopeError) {
-        console.error("[v0] Skyslope sync error:", skyslopeError)
-      }
-    }
-
     return NextResponse.json({
       transaction,
-      skyslope_synced,
     })
   } catch (error) {
     console.error("[v0] Transaction creation error:", error)

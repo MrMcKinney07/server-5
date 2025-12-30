@@ -40,7 +40,6 @@ export function AddTransactionDialog({ agentId, contacts, leads }: AddTransactio
     contract_date: new Date().toISOString().split("T")[0],
     closing_date: "",
     notes: "",
-    sync_to_skyslope: true,
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -63,9 +62,7 @@ export function AddTransactionDialog({ agentId, contacts, leads }: AddTransactio
         throw new Error("Failed to create transaction")
       }
 
-      const data = await response.json()
-
-      toast.success(data.skyslope_synced ? "Transaction created and synced to Skyslope" : "Transaction created")
+      toast.success("Transaction created successfully")
 
       setOpen(false)
       router.refresh()
@@ -88,7 +85,7 @@ export function AddTransactionDialog({ agentId, contacts, leads }: AddTransactio
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Transaction</DialogTitle>
-          <DialogDescription>Add a new transaction and optionally sync it to Skyslope</DialogDescription>
+          <DialogDescription>Add a new transaction to track commissions and closings</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -227,19 +224,6 @@ export function AddTransactionDialog({ agentId, contacts, leads }: AddTransactio
               placeholder="Additional transaction details..."
               rows={3}
             />
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <input
-              id="sync_to_skyslope"
-              type="checkbox"
-              checked={formData.sync_to_skyslope}
-              onChange={(e) => setFormData((prev) => ({ ...prev, sync_to_skyslope: e.target.checked }))}
-              className="h-4 w-4 rounded border-gray-300"
-            />
-            <Label htmlFor="sync_to_skyslope" className="text-sm font-normal cursor-pointer">
-              Sync to Skyslope (requires API key in environment variables)
-            </Label>
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
