@@ -2,7 +2,7 @@
 
 import Image from "next/image"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { getPrestigeTierInfo } from "@/lib/xp-service"
+import { getPrestigeTierInfo } from "@/lib/xp-constants"
 
 interface UserBadgeNameProps {
   name: string
