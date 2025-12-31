@@ -1,12 +1,53 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Rocket, Star, Sparkles, Zap } from "lucide-react"
+
+interface Firework {
+  id: number
+  x: number
+  y: number
+  color: string
+  particles: { angle: number; speed: number; size: number }[]
+}
+
+const FIREWORK_COLORS = [
+  "from-cyan-400 to-blue-500",
+  "from-violet-400 to-purple-600",
+  "from-orange-400 to-red-500",
+  "from-yellow-400 to-amber-500",
+  "from-pink-400 to-rose-600",
+  "from-emerald-400 to-green-500",
+]
 
 export default function LaunchingPage() {
   const router = useRouter()
   const [progress, setProgress] = useState(0)
+  const [fireworks, setFireworks] = useState<Firework[]>([])
+  const [showFinale, setShowFinale] = useState(false)
+
+  const createFirework = useCallback(() => {
+    const particles = Array.from({ length: 12 }, () => ({
+      angle: Math.random() * 360,
+      speed: Math.random() * 100 + 50,
+      size: Math.random() * 4 + 2,
+    }))
+
+    const newFirework: Firework = {
+      id: Date.now() + Math.random(),
+      x: Math.random() * 80 + 10,
+      y: Math.random() * 50 + 10,
+      color: FIREWORK_COLORS[Math.floor(Math.random() * FIREWORK_COLORS.length)],
+      particles,
+    }
+
+    setFireworks((prev) => [...prev, newFirework])
+
+    setTimeout(() => {
+      setFireworks((prev) => prev.filter((f) => f.id !== newFirework.id))
+    }, 1500)
+  }, [])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -19,21 +60,104 @@ export default function LaunchingPage() {
       })
     }, 100)
 
+    const fireworkInterval = setInterval(() => {
+      createFirework()
+    }, 400)
+
+    const finaleTimeout = setTimeout(() => {
+      setShowFinale(true)
+      const finaleInterval = setInterval(() => {
+        createFirework()
+        createFirework()
+      }, 150)
+      setTimeout(() => clearInterval(finaleInterval), 2000)
+    }, 4000)
+
     const timeout = setTimeout(() => {
       router.push("/dashboard")
     }, 5000)
 
     return () => {
       clearInterval(interval)
+      clearInterval(fireworkInterval)
+      clearTimeout(finaleTimeout)
       clearTimeout(timeout)
     }
-  }, [router])
+  }, [router, createFirework])
 
   return (
     <div
       className="min-h-screen bg-black flex items-center justify-center overflow-hidden relative"
       style={{ perspective: "1000px" }}
     >
+      <div className="absolute inset-0 pointer-events-none z-50">
+        <div
+          className="absolute text-9xl"
+          style={{
+            animation: "eagleFly 3s ease-in-out forwards",
+            filter: "drop-shadow(0 0 30px rgba(251, 191, 36, 0.6))",
+          }}
+        >
+          🦅
+        </div>
+      </div>
+
+      <div className="absolute inset-0 pointer-events-none z-20">
+        {fireworks.map((firework) => (
+          <div
+            key={firework.id}
+            className="absolute"
+            style={{
+              left: `${firework.x}%`,
+              top: `${firework.y}%`,
+            }}
+          >
+            <div
+              className={`absolute w-1 h-16 bg-gradient-to-t ${firework.color} opacity-60 rounded-full`}
+              style={{
+                animation: "fireworkLaunch 0.3s ease-out forwards",
+                transformOrigin: "bottom center",
+              }}
+            />
+            {firework.particles.map((particle, i) => (
+              <div
+                key={i}
+                className={`absolute rounded-full bg-gradient-to-r ${firework.color}`}
+                style={{
+                  width: `${particle.size}px`,
+                  height: `${particle.size}px`,
+                  animation: `fireworkExplode 1.2s ease-out 0.3s forwards`,
+                  transform: `rotate(${particle.angle}deg)`,
+                  boxShadow: `0 0 ${particle.size * 2}px currentColor`,
+                  ["--travel-x" as string]: `${Math.cos((particle.angle * Math.PI) / 180) * particle.speed}px`,
+                  ["--travel-y" as string]: `${Math.sin((particle.angle * Math.PI) / 180) * particle.speed}px`,
+                }}
+              />
+            ))}
+            <div
+              className={`absolute w-8 h-8 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-r ${firework.color} blur-md`}
+              style={{
+                animation: "fireworkGlow 0.6s ease-out 0.3s forwards",
+              }}
+            />
+          </div>
+        ))}
+
+        {showFinale &&
+          Array.from({ length: 30 }).map((_, i) => (
+            <div
+              key={`sparkle-${i}`}
+              className="absolute w-1 h-1 bg-white rounded-full"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: "-5%",
+                animation: `sparkleRain ${Math.random() * 2 + 1}s linear ${Math.random() * 0.5}s forwards`,
+                boxShadow: "0 0 4px white, 0 0 8px white",
+              }}
+            />
+          ))}
+      </div>
+
       <div className="absolute bottom-0 left-0 right-0 flex justify-center items-end gap-1 h-32 opacity-60">
         {Array.from({ length: 40 }).map((_, i) => (
           <div
@@ -47,10 +171,8 @@ export default function LaunchingPage() {
       </div>
 
       <div className="absolute inset-0" style={{ transformStyle: "preserve-3d" }}>
-        {/* Deep space gradient */}
         <div className="absolute inset-0 bg-gradient-to-b from-indigo-950 via-black to-slate-950" />
 
-        {/* 3D rotating rings */}
         <div
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] border border-cyan-500/20 rounded-full"
           style={{
@@ -73,7 +195,6 @@ export default function LaunchingPage() {
           }}
         />
 
-        {/* 3D Floating orbs with glow */}
         <div
           className="absolute top-1/4 left-1/4 w-32 h-32 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 blur-xl opacity-60"
           style={{ animation: "float3d 3s ease-in-out infinite" }}
@@ -87,7 +208,6 @@ export default function LaunchingPage() {
           style={{ animation: "float3d 2s ease-in-out infinite" }}
         />
 
-        {/* Star field with parallax depth */}
         {Array.from({ length: 50 }).map((_, i) => (
           <div
             key={i}
@@ -102,7 +222,6 @@ export default function LaunchingPage() {
           />
         ))}
 
-        {/* Flying particles toward center */}
         {Array.from({ length: 20 }).map((_, i) => (
           <div
             key={`particle-${i}`}
@@ -116,7 +235,6 @@ export default function LaunchingPage() {
         ))}
       </div>
 
-      {/* Main content with 3D transform */}
       <div
         className="relative z-10 text-center px-6"
         style={{
@@ -124,7 +242,6 @@ export default function LaunchingPage() {
           animation: "emergeIn 0.8s ease-out forwards",
         }}
       >
-        {/* 3D Rocket with glow */}
         <div className="mb-8 relative" style={{ transformStyle: "preserve-3d" }}>
           <div
             className="w-32 h-32 mx-auto rounded-3xl bg-gradient-to-br from-cyan-400 via-blue-500 to-violet-600 flex items-center justify-center shadow-[0_0_60px_rgba(34,211,238,0.5),0_0_100px_rgba(59,130,246,0.3)]"
@@ -139,7 +256,6 @@ export default function LaunchingPage() {
             />
           </div>
 
-          {/* Rocket exhaust with 3D effect */}
           <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center">
             <div
               className="w-12 h-24 bg-gradient-to-b from-orange-500 via-orange-400 to-yellow-300 blur-md opacity-80"
@@ -151,7 +267,6 @@ export default function LaunchingPage() {
             />
           </div>
 
-          {/* Orbiting elements */}
           <div
             className="absolute top-1/2 left-1/2 w-48 h-48 -translate-x-1/2 -translate-y-1/2"
             style={{ animation: "orbit 2s linear infinite" }}
@@ -172,7 +287,6 @@ export default function LaunchingPage() {
           </div>
         </div>
 
-        {/* 3D Text with depth */}
         <h1
           className="text-6xl md:text-8xl font-black text-white mb-2 tracking-tight drop-shadow-[0_0_30px_rgba(255,255,255,0.3)]"
           style={{
@@ -199,7 +313,6 @@ export default function LaunchingPage() {
           Your mission awaits. Time to dominate.
         </p>
 
-        {/* 3D Progress bar */}
         <div className="w-80 mx-auto">
           <div
             className="h-3 bg-slate-900/80 rounded-full overflow-hidden border border-cyan-500/30 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]"
@@ -217,7 +330,6 @@ export default function LaunchingPage() {
         </div>
       </div>
 
-      {/* CSS Animations */}
       <style jsx>{`
         @keyframes spin3d {
           from { transform: rotateX(75deg) rotateZ(0deg); }
@@ -272,6 +384,49 @@ export default function LaunchingPage() {
         @keyframes visualizer {
           0% { height: 10%; }
           100% { height: 100%; }
+        }
+        @keyframes fireworkLaunch {
+          0% { transform: scaleY(0); opacity: 1; }
+          100% { transform: scaleY(1); opacity: 0; }
+        }
+        @keyframes fireworkExplode {
+          0% { 
+            transform: translate(0, 0) scale(1); 
+            opacity: 1; 
+          }
+          100% { 
+            transform: translate(var(--travel-x), var(--travel-y)) scale(0); 
+            opacity: 0; 
+          }
+        }
+        @keyframes fireworkGlow {
+          0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+          50% { transform: translate(-50%, -50%) scale(2); opacity: 0.8; }
+          100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
+        }
+        @keyframes sparkleRain {
+          0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+          100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+        @keyframes eagleFly {
+          0% {
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%) scale(0.1) rotateY(0deg) translateZ(-500px);
+            opacity: 0;
+          }
+          30% {
+            opacity: 1;
+          }
+          70% {
+            opacity: 1;
+          }
+          100% {
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%) scale(4) rotateY(15deg) translateZ(300px);
+            opacity: 0;
+          }
         }
       `}</style>
     </div>

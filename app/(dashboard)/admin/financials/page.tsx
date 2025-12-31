@@ -41,7 +41,10 @@ export default async function AdminFinancialsPage() {
   })
 
   // Get commission plans
-  const { data: commissionPlans } = await supabase.from("commission_plans").select("*").order("name")
+  const { data: commissionPlans } = await supabase
+    .from("commission_plans")
+    .select("*")
+    .order("split_percentage", { ascending: false })
 
   return (
     <div className="space-y-6">

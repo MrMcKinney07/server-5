@@ -3,6 +3,8 @@ import type { Agent } from "@/lib/types/database"
 
 export interface CurrentAgent extends Agent {
   user_id: string
+  Role: string
+  team_id: string | null
 }
 
 export async function isDatabaseSetup(): Promise<boolean> {
@@ -35,7 +37,6 @@ export async function getCurrentAgent(): Promise<CurrentAgent | null> {
     if (agentError.code === "PGRST205") {
       return null
     }
-    console.log("[v0] Agent query error:", agentError)
     return null
   }
 
@@ -53,7 +54,6 @@ export async function getCurrentAgent(): Promise<CurrentAgent | null> {
       .single()
 
     if (insertError || !newAgent) {
-      console.log("[v0] Agent insert error:", insertError)
       return null
     }
 
@@ -64,7 +64,9 @@ export async function getCurrentAgent(): Promise<CurrentAgent | null> {
       full_name: newAgent.Name,
       phone: newAgent.Phone,
       role: newAgent.Role,
+      Role: newAgent.Role,
       user_id: user.id,
+      team_id: null,
     } as CurrentAgent
   }
 
@@ -75,7 +77,9 @@ export async function getCurrentAgent(): Promise<CurrentAgent | null> {
     full_name: agent.Name,
     phone: agent.Phone,
     role: agent.Role,
+    Role: agent.Role,
     user_id: user.id,
+    team_id: agent.team_id || null,
   } as CurrentAgent
 }
 

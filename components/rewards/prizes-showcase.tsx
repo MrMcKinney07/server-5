@@ -8,7 +8,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Gift, Sparkles, Zap, Trophy } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
-export function PrizesShowcase({ agentXP }: { agentXP: number }) {
+interface PrizesShowcaseProps {
+  totalXP: number
+  seasonXP: number
+  bankXP: number
+  agentId: string
+}
+
+export function PrizesShowcase({ totalXP, seasonXP, bankXP, agentId }: PrizesShowcaseProps) {
   const [prizes, setPrizes] = useState<any[]>([])
   const [selectedPrize, setSelectedPrize] = useState<any>(null)
   const [redeeming, setRedeeming] = useState(false)
@@ -34,69 +41,87 @@ export function PrizesShowcase({ agentXP }: { agentXP: number }) {
 
     setRedeeming(true)
 
-    // Get current agent
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) return
+    try {
+      if (bankXP < selectedPrize.xp_cost) {
+        toast({
+          title: "Insufficient XP Bank Balance",
+          description: `You need ${selectedPrize.xp_cost - bankXP} more XP in your bank. Cash out your season XP first.`,
+          variant: "destructive",
+        })
+        setRedeeming(false)
+        return
+      }
 
-    // Check if agent has enough XP
-    if (agentXP < selectedPrize.xp_cost) {
+      const newBankXP = bankXP - selectedPrize.xp_cost
+
+      const { error: xpError } = await supabase
+        .from("agents")
+        .update({
+          exp_bank: newBankXP,
+        })
+        .eq("id", agentId)
+
+      if (xpError) throw xpError
+
+      const { error: orderError } = await supabase.from("store_orders").insert({
+        user_id: agentId,
+        item_id: selectedPrize.id,
+        item_name: selectedPrize.name,
+        cost: selectedPrize.xp_cost,
+        metadata: {
+          bank_xp_used: selectedPrize.xp_cost,
+          season_xp_used: 0,
+        },
+      })
+
+      if (orderError) throw orderError
+
+      const { error: ledgerError } = await supabase.from("xp_ledger").insert({
+        user_id: agentId,
+        amount: -selectedPrize.xp_cost,
+        kind: "REDEEM",
+        source: "store",
+        note: `Redeemed: ${selectedPrize.name}`,
+        season_id: new Date().toISOString().slice(0, 7),
+      })
+
+      if (ledgerError) throw ledgerError
+
+      const { error: redemptionError } = await supabase.from("prize_redemptions").insert({
+        prize_id: selectedPrize.id,
+        agent_id: agentId,
+      })
+
+      if (redemptionError) throw redemptionError
+
+      if (selectedPrize.quantity_available !== null) {
+        await supabase
+          .from("rewards_prizes")
+          .update({ quantity_available: selectedPrize.quantity_available - 1 })
+          .eq("id", selectedPrize.id)
+      }
+
       toast({
-        title: "Insufficient XP",
-        description: `You need ${selectedPrize.xp_cost - agentXP} more XP to redeem this prize.`,
+        title: "Prize redeemed!",
+        description: `You've successfully redeemed ${selectedPrize.name}. A broker will contact you soon.`,
+      })
+
+      setSelectedPrize(null)
+      setRedeeming(false)
+      fetchPrizes()
+      window.location.reload()
+    } catch (error) {
+      console.error("Redemption error:", error)
+      toast({
+        title: "Redemption failed",
+        description: "There was an error processing your redemption. Please try again.",
         variant: "destructive",
       })
       setRedeeming(false)
-      return
     }
-
-    // Create redemption record
-    const { error: redemptionError } = await supabase.from("prize_redemptions").insert([
-      {
-        prize_id: selectedPrize.id,
-        agent_id: user.id,
-      },
-    ])
-
-    if (redemptionError) {
-      toast({ title: "Error redeeming prize", variant: "destructive" })
-      setRedeeming(false)
-      return
-    }
-
-    // Deduct XP from agent
-    const { error: xpError } = await supabase
-      .from("agents")
-      .update({ exp: agentXP - selectedPrize.xp_cost })
-      .eq("id", user.id)
-
-    if (xpError) {
-      toast({ title: "Error updating XP", variant: "destructive" })
-      setRedeeming(false)
-      return
-    }
-
-    // Update prize quantity if limited
-    if (selectedPrize.quantity_available !== null) {
-      await supabase
-        .from("rewards_prizes")
-        .update({ quantity_available: selectedPrize.quantity_available - 1 })
-        .eq("id", selectedPrize.id)
-    }
-
-    toast({
-      title: "Prize redeemed!",
-      description: `You've successfully redeemed ${selectedPrize.name}. A broker will contact you soon.`,
-    })
-
-    setSelectedPrize(null)
-    setRedeeming(false)
-    fetchPrizes()
-    window.location.reload() // Refresh to update XP display
   }
 
-  const canAfford = (prize: any) => agentXP >= prize.xp_cost
+  const canAfford = (prize: any) => bankXP >= prize.xp_cost
   const isAvailable = (prize: any) => prize.quantity_available === null || prize.quantity_available > 0
 
   return (
@@ -113,10 +138,8 @@ export function PrizesShowcase({ agentXP }: { agentXP: number }) {
                 affordable && available ? "border-2 border-primary/50 shadow-lg shadow-primary/20" : "opacity-60"
               }`}
             >
-              {/* Animated background gradient */}
               <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-              {/* Floating particles effect */}
               <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <Sparkles className="absolute top-4 right-4 h-4 w-4 text-yellow-400 animate-pulse" />
                 <Zap
@@ -125,7 +148,6 @@ export function PrizesShowcase({ agentXP }: { agentXP: number }) {
                 />
               </div>
 
-              {/* Prize image */}
               <div className="relative h-56 overflow-hidden">
                 {prize.image_url ? (
                   <img
@@ -139,19 +161,16 @@ export function PrizesShowcase({ agentXP }: { agentXP: number }) {
                   </div>
                 )}
 
-                {/* Category badge */}
                 <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-black/70 backdrop-blur-sm text-white text-xs font-semibold uppercase tracking-wide">
                   {prize.category}
                 </div>
 
-                {/* XP cost badge */}
                 <div className="absolute top-3 right-3 px-4 py-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold shadow-lg shadow-orange-500/50">
                   <span className="text-lg">{prize.xp_cost}</span>
                   <span className="text-xs ml-1">XP</span>
                 </div>
               </div>
 
-              {/* Prize content */}
               <div className="relative p-6 space-y-4">
                 <div className="space-y-2">
                   <h3 className="text-xl font-bold leading-tight line-clamp-2 group-hover:text-primary transition-colors">
@@ -163,7 +182,6 @@ export function PrizesShowcase({ agentXP }: { agentXP: number }) {
                   )}
                 </div>
 
-                {/* Availability */}
                 {prize.quantity_available !== null && (
                   <div className="flex items-center gap-2 text-sm">
                     <Trophy className="h-4 w-4 text-primary" />
@@ -173,7 +191,6 @@ export function PrizesShowcase({ agentXP }: { agentXP: number }) {
                   </div>
                 )}
 
-                {/* Redeem button */}
                 <Button
                   className="w-full"
                   disabled={!affordable || !available}
@@ -183,7 +200,7 @@ export function PrizesShowcase({ agentXP }: { agentXP: number }) {
                   {!available ? (
                     "Out of Stock"
                   ) : !affordable ? (
-                    `Need ${prize.xp_cost - agentXP} more XP`
+                    `Need ${prize.xp_cost - bankXP} more Bank XP`
                   ) : (
                     <>
                       <Gift className="h-4 w-4 mr-2" />
@@ -193,7 +210,6 @@ export function PrizesShowcase({ agentXP }: { agentXP: number }) {
                 </Button>
               </div>
 
-              {/* Shine effect */}
               {affordable && available && (
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none" />
               )}
@@ -212,7 +228,6 @@ export function PrizesShowcase({ agentXP }: { agentXP: number }) {
         </Card>
       )}
 
-      {/* Redemption confirmation dialog */}
       <Dialog open={!!selectedPrize} onOpenChange={() => setSelectedPrize(null)}>
         <DialogContent>
           <DialogHeader>
@@ -240,11 +255,17 @@ export function PrizesShowcase({ agentXP }: { agentXP: number }) {
 
               <div className="space-y-2 text-sm">
                 <p>
-                  Your current XP: <span className="font-bold">{agentXP}</span>
+                  Your XP Bank: <span className="font-bold">{bankXP.toLocaleString()}</span>
                 </p>
                 <p>
-                  XP after redemption: <span className="font-bold">{agentXP - selectedPrize.xp_cost}</span>
+                  Bank balance after redemption:{" "}
+                  <span className="font-bold">{(bankXP - selectedPrize.xp_cost).toLocaleString()}</span>
                 </p>
+                {seasonXP > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Note: Season XP ({seasonXP.toLocaleString()}) must be cashed out before it can be used for prizes.
+                  </p>
+                )}
               </div>
 
               <p className="text-sm text-muted-foreground">

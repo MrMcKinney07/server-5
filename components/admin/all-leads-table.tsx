@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, User, Phone, Mail } from "lucide-react"
 import Link from "next/link"
+import { ManualAssignDialog } from "./manual-assign-dialog"
 
 interface Lead {
   id: string
@@ -19,7 +20,20 @@ interface Lead {
   source: string | null
   created_at: string
   agent_id: string
+  assigned_agent_id?: string | null
   agent?: { id: string; Name: string; Email: string } | null
+}
+
+interface AllLeadsTableProps {
+  leads: Lead[]
+  agents?: Array<{
+    id: string
+    full_name: string | null
+    email: string
+    tier: number
+    is_active: boolean
+  }>
+  adminId?: string
 }
 
 const statusColors: Record<string, string> = {
@@ -31,15 +45,16 @@ const statusColors: Record<string, string> = {
   under_contract: "bg-green-100 text-green-800",
   closed_won: "bg-green-500 text-white",
   closed_lost: "bg-red-100 text-red-800",
+  assigned: "bg-blue-100 text-blue-800",
 }
 
-export function AllLeadsTable({ leads }: { leads: Lead[] }) {
+export function AllLeadsTable({ leads, agents = [], adminId }: AllLeadsTableProps) {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [agentFilter, setAgentFilter] = useState<string>("all")
 
-  // Get unique agents
-  const agents = Array.from(new Map(leads.filter((l) => l.agent).map((l) => [l.agent!.id, l.agent!])).values())
+  // Get unique agents from leads
+  const leadsAgents = Array.from(new Map(leads.filter((l) => l.agent).map((l) => [l.agent!.id, l.agent!])).values())
 
   const filteredLeads = leads.filter((lead) => {
     const matchesSearch =
@@ -73,6 +88,7 @@ export function AllLeadsTable({ leads }: { leads: Lead[] }) {
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
             <SelectItem value="new">New</SelectItem>
+            <SelectItem value="assigned">Assigned</SelectItem>
             <SelectItem value="contacted">Contacted</SelectItem>
             <SelectItem value="qualified">Qualified</SelectItem>
             <SelectItem value="nurturing">Nurturing</SelectItem>
@@ -88,7 +104,7 @@ export function AllLeadsTable({ leads }: { leads: Lead[] }) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Agents</SelectItem>
-            {agents.map((agent) => (
+            {leadsAgents.map((agent) => (
               <SelectItem key={agent.id} value={agent.id}>
                 {agent.Name}
               </SelectItem>
@@ -114,12 +130,17 @@ export function AllLeadsTable({ leads }: { leads: Lead[] }) {
               <TableHead>Type</TableHead>
               <TableHead>Source</TableHead>
               <TableHead>Created</TableHead>
+              {/* Actions column */}
+              {agents.length > 0 && adminId && <TableHead>Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredLeads.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell
+                  colSpan={agents.length > 0 && adminId ? 8 : 7}
+                  className="text-center py-8 text-muted-foreground"
+                >
                   No leads found
                 </TableCell>
               </TableRow>
@@ -166,6 +187,18 @@ export function AllLeadsTable({ leads }: { leads: Lead[] }) {
                   <TableCell className="text-muted-foreground">
                     {new Date(lead.created_at).toLocaleDateString()}
                   </TableCell>
+                  {/* Manual assignment controls */}
+                  {agents.length > 0 && adminId && (
+                    <TableCell>
+                      <ManualAssignDialog
+                        leadId={lead.id}
+                        currentAgentId={lead.assigned_agent_id || lead.agent_id}
+                        agents={agents}
+                        adminId={adminId}
+                        mode={lead.assigned_agent_id || lead.agent_id ? "reassign" : "assign"}
+                      />
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}

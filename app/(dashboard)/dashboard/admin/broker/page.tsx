@@ -11,7 +11,6 @@ import { ExportTools } from "@/components/admin/export-tools"
 export default async function BrokerToolsPage() {
   const agent = await requireAdmin()
 
-  // Only brokers can access this page
   if (agent.role !== "broker") {
     redirect("/dashboard/admin")
   }
@@ -30,8 +29,11 @@ export default async function BrokerToolsPage() {
     .select("*, agent:agents(id, Name, Email)")
     .order("created_at", { ascending: false })
 
-  // Fetch all agents for analytics
-  const { data: allAgents } = await supabase.from("agents").select("*").order("Name")
+  const { data: allAgents } = await supabase
+    .from("agents")
+    .select("id, full_name, email, tier, is_active")
+    .order("tier", { ascending: true })
+    .order("full_name")
 
   // Fetch all missions for this month
   const startOfMonth = new Date()
@@ -41,7 +43,6 @@ export default async function BrokerToolsPage() {
     .select("*, agent:agents(id, Name, Email), template:mission_templates(title, points)")
     .gte("mission_date", startOfMonth.toISOString().split("T")[0])
 
-  // Calculate analytics
   const totalLeads = allLeads?.length || 0
   const newLeads = allLeads?.filter((l) => l.status === "new").length || 0
   const closedLeads = allLeads?.filter((l) => l.status === "closed_won").length || 0
@@ -137,7 +138,7 @@ export default async function BrokerToolsPage() {
               <CardDescription>View and manage leads across all agents</CardDescription>
             </CardHeader>
             <CardContent>
-              <AllLeadsTable leads={allLeads || []} />
+              <AllLeadsTable leads={allLeads || []} agents={allAgents || []} adminId={agent.id} />
             </CardContent>
           </Card>
         </TabsContent>

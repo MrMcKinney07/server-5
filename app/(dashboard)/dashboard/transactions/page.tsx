@@ -13,7 +13,7 @@ export default async function TransactionsPage() {
     .select("*, contact:contacts(*), agent:agents(Name, Email)")
     .order("created_at", { ascending: false })
 
-  if (agent.role !== "admin") {
+  if (agent.Role !== "admin" && agent.Role !== "broker") {
     query = query.eq("agent_id", agent.id)
   }
 
@@ -37,7 +37,7 @@ export default async function TransactionsPage() {
         <div>
           <h1 className="text-2xl font-semibold">Transactions</h1>
           <p className="text-sm text-muted-foreground">
-            {agent.role === "admin" ? "All transactions" : "Your transactions"}
+            {agent.Role === "admin" || agent.Role === "broker" ? "All transactions" : "Your transactions"}
           </p>
         </div>
         <AddTransactionDialog agentId={agent.id} contacts={contacts || []} leads={leads || []} />
@@ -50,7 +50,7 @@ export default async function TransactionsPage() {
             agent: { Name: string; Email: string }
           })[]) || []
         }
-        isAdmin={agent.role === "admin"}
+        isAdmin={agent.Role === "admin" || agent.Role === "broker"}
       />
     </div>
   )

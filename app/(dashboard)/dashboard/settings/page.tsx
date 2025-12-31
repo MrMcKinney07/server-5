@@ -48,32 +48,27 @@ export default async function SettingsPage() {
             {currentPlan ? (
               <>
                 <div className="flex justify-between items-center py-2 border-b">
-                  <span className="text-muted-foreground">Plan Name</span>
-                  <span className="font-medium">{currentPlan.name}</span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b">
                   <span className="text-muted-foreground">Split</span>
                   <span className="font-medium text-emerald-600">
-                    {(currentPlan.split_percentage * 100).toFixed(0)}% /{" "}
-                    {((1 - currentPlan.split_percentage) * 100).toFixed(0)}%
+                    {Number(currentPlan.split_percentage)}% / {100 - Number(currentPlan.split_percentage)}%
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b">
                   <span className="text-muted-foreground">Annual Cap</span>
                   <span className="font-medium">
-                    {currentPlan.cap_amount ? `$${currentPlan.cap_amount.toLocaleString()}` : "No Cap"}
+                    {currentPlan.cap_amount ? `$${Number(currentPlan.cap_amount).toLocaleString()}` : "No Cap"}
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-2">
                   <span className="text-muted-foreground">Transaction Fee</span>
-                  <span className="font-medium">${currentPlan.transaction_fee}</span>
+                  <span className="font-medium">${Number(currentPlan.transaction_fee) || 0}</span>
                 </div>
                 {agentPlan && (
                   <div className="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
                     <p className="text-sm text-amber-800">
                       <span className="font-medium">Cap Progress:</span> $
                       {agentPlan.cap_progress?.toLocaleString() || 0} / $
-                      {currentPlan.cap_amount?.toLocaleString() || "∞"}
+                      {currentPlan.cap_amount ? Number(currentPlan.cap_amount).toLocaleString() : "∞"}
                     </p>
                     <p className="text-sm text-amber-800 mt-1">
                       <span className="font-medium">YTD GCI:</span> ${agentPlan.ytd_gci?.toLocaleString() || 0}

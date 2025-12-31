@@ -8,7 +8,11 @@ export default async function ContactsPage() {
   const agent = await requireAuth()
   const supabase = await createClient()
 
-  const { data: contacts } = await supabase.from("contacts").select("*").order("created_at", { ascending: false })
+  const { data: contacts } = await supabase
+    .from("contacts")
+    .select("*")
+    .eq("agent_id", agent.id)
+    .order("created_at", { ascending: false })
 
   return (
     <div className="space-y-6">

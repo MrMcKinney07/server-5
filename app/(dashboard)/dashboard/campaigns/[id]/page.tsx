@@ -5,9 +5,9 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import { CampaignDetails } from "@/components/campaigns/campaign-details"
-import { CampaignStepsList } from "@/components/campaigns/campaign-steps-list"
-import { AddStepDialog } from "@/components/campaigns/add-step-dialog"
+import { CampaignTimelineBuilder } from "@/components/campaigns/campaign-timeline-builder"
 import { CampaignEnrollmentsList } from "@/components/campaigns/campaign-enrollments-list"
+import { CampaignActivityLog } from "@/components/campaigns/campaign-activity-log"
 
 interface CampaignPageProps {
   params: Promise<{ id: string }>
@@ -18,11 +18,7 @@ export default async function CampaignPage({ params }: CampaignPageProps) {
   await requireAuth()
   const supabase = await createClient()
 
-  const { data: campaign } = await supabase
-    .from("campaigns")
-    .select("*, owner:agents!owner_id(Name, Email)")
-    .eq("id", id)
-    .single()
+  const { data: campaign } = await supabase.from("campaigns").select("*").eq("id", id).single()
 
   if (!campaign) {
     notFound()
@@ -46,6 +42,7 @@ export default async function CampaignPage({ params }: CampaignPageProps) {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center gap-4">
         <Link href="/dashboard/campaigns">
           <Button variant="ghost" size="icon">
@@ -55,19 +52,20 @@ export default async function CampaignPage({ params }: CampaignPageProps) {
         <div className="flex-1">
           <h1 className="text-2xl font-semibold">{campaign.name}</h1>
           <p className="text-sm text-muted-foreground">
-            {activeCount} active, {completedCount} completed enrollments
+            {steps?.length || 0} events • {activeCount} active, {completedCount} completed enrollments
           </p>
         </div>
-        <AddStepDialog campaignId={id} nextStepNumber={(steps?.length || 0) + 1} />
       </div>
 
+      {/* Main Content - Timeline Builder is now primary */}
       <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-6">
+          <CampaignTimelineBuilder steps={steps || []} campaignId={id} />
+          <CampaignEnrollmentsList enrollments={enrollments || []} />
+        </div>
         <div className="space-y-6">
           <CampaignDetails campaign={campaign} />
-        </div>
-        <div className="lg:col-span-2 space-y-6">
-          <CampaignStepsList steps={steps || []} campaignId={id} />
-          <CampaignEnrollmentsList enrollments={enrollments || []} />
+          <CampaignActivityLog campaignId={id} />
         </div>
       </div>
     </div>

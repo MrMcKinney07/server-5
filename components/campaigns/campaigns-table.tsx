@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
-import { MoreHorizontal, Pencil, Trash2, Mail, Users } from "lucide-react"
+import { MoreHorizontal, Pencil, Trash2, Mail, Users, MessageSquare, Send } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 interface Campaign {
@@ -15,6 +15,8 @@ interface Campaign {
   name: string
   description: string | null
   is_active: boolean
+  channel?: string
+  type?: string
   created_at: string
   owner: { Name: string; Email: string } | null
   steps: { count: number }[]
@@ -23,6 +25,60 @@ interface Campaign {
 
 interface CampaignsTableProps {
   campaigns: Campaign[]
+}
+
+function ChannelBadge({ channel }: { channel?: string }) {
+  switch (channel) {
+    case "SMS":
+      return (
+        <Badge variant="outline" className="gap-1 bg-green-50 text-green-700 border-green-200">
+          <MessageSquare className="h-3 w-3" />
+          SMS
+        </Badge>
+      )
+    case "EMAIL":
+      return (
+        <Badge variant="outline" className="gap-1 bg-blue-50 text-blue-700 border-blue-200">
+          <Mail className="h-3 w-3" />
+          Email
+        </Badge>
+      )
+    case "BOTH":
+      return (
+        <Badge variant="outline" className="gap-1 bg-purple-50 text-purple-700 border-purple-200">
+          <Mail className="h-3 w-3" />
+          <MessageSquare className="h-3 w-3" />
+          Both
+        </Badge>
+      )
+    default:
+      return (
+        <Badge variant="outline" className="gap-1">
+          <Mail className="h-3 w-3" />
+          Email
+        </Badge>
+      )
+  }
+}
+
+function TypeBadge({ type }: { type?: string }) {
+  switch (type) {
+    case "BROADCAST":
+      return (
+        <Badge variant="secondary" className="gap-1">
+          <Send className="h-3 w-3" />
+          Broadcast
+        </Badge>
+      )
+    case "SEQUENCE":
+    default:
+      return (
+        <Badge variant="secondary" className="gap-1">
+          <Send className="h-3 w-3" />
+          Sequence
+        </Badge>
+      )
+  }
 }
 
 export function CampaignsTable({ campaigns }: CampaignsTableProps) {
@@ -60,6 +116,8 @@ export function CampaignsTable({ campaigns }: CampaignsTableProps) {
         <TableHeader>
           <TableRow>
             <TableHead>Campaign</TableHead>
+            <TableHead>Channel</TableHead>
+            <TableHead>Type</TableHead>
             <TableHead>Steps</TableHead>
             <TableHead>Enrolled</TableHead>
             <TableHead>Status</TableHead>
@@ -77,6 +135,12 @@ export function CampaignsTable({ campaigns }: CampaignsTableProps) {
                 {campaign.description && (
                   <p className="text-sm text-muted-foreground truncate max-w-xs">{campaign.description}</p>
                 )}
+              </TableCell>
+              <TableCell>
+                <ChannelBadge channel={campaign.channel} />
+              </TableCell>
+              <TableCell>
+                <TypeBadge type={campaign.type} />
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-1 text-muted-foreground">

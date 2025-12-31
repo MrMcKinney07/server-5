@@ -13,6 +13,8 @@ export interface Agent {
   tier: number
   is_active: boolean
   created_at: string
+  team_id?: string | null
+  exp?: number
 }
 
 export type ContactType = "buyer" | "seller" | "both" | "investor" | "referral" | "other"

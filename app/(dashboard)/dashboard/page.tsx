@@ -23,24 +23,38 @@ import {
 import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
 import { LeadActionsWidget } from "@/components/dashboard/lead-actions-widget"
+import { OfficeLeaderboardHero } from "@/components/dashboard/office-leaderboard-hero"
 
 const PRESTIGE_LEVELS = [
-  { name: "Rookie", minPoints: 0, icon: Shield, color: "text-gray-500", bg: "bg-gray-100" },
-  { name: "Rising Star", minPoints: 50, icon: Star, color: "text-blue-500", bg: "bg-blue-100" },
-  { name: "Achiever", minPoints: 150, icon: Zap, color: "text-emerald-500", bg: "bg-emerald-100" },
-  { name: "Champion", minPoints: 300, icon: Award, color: "text-amber-500", bg: "bg-amber-100" },
-  { name: "Elite", minPoints: 500, icon: Flame, color: "text-orange-500", bg: "bg-orange-100" },
-  { name: "Legend", minPoints: 750, icon: Crown, color: "text-purple-500", bg: "bg-purple-100" },
-  { name: "Grand Master", minPoints: 1000, icon: Trophy, color: "text-yellow-500", bg: "bg-yellow-100" },
+  {
+    name: "Bronze",
+    minPoints: 0,
+    icon: Shield,
+    color: "text-amber-700",
+    bg: "bg-amber-50",
+  },
+  {
+    name: "Silver",
+    minPoints: 150,
+    icon: Star,
+    color: "text-slate-500",
+    bg: "bg-slate-50",
+  },
+  {
+    name: "Gold",
+    minPoints: 350,
+    icon: Trophy,
+    color: "text-yellow-500",
+    bg: "bg-yellow-50",
+  },
+  {
+    name: "Platinum",
+    minPoints: 600,
+    icon: Crown,
+    color: "text-cyan-400",
+    bg: "bg-cyan-50",
+  },
 ]
-
-function getPrestigeLevel(points: number) {
-  let level = PRESTIGE_LEVELS[0]
-  for (const l of PRESTIGE_LEVELS) {
-    if (points >= l.minPoints) level = l
-  }
-  return level
-}
 
 const MILESTONES = [
   { id: "first_mission", name: "First Steps", description: "Complete your first mission", requirement: 1, icon: Star },
@@ -82,6 +96,14 @@ const MILESTONES = [
     type: "points",
   },
 ]
+
+function getPrestigeLevel(points: number) {
+  let level = PRESTIGE_LEVELS[0]
+  for (const l of PRESTIGE_LEVELS) {
+    if (points >= l.minPoints) level = l
+  }
+  return level
+}
 
 export default async function DashboardPage() {
   const agent = await requireAuth()
@@ -138,7 +160,7 @@ export default async function DashboardPage() {
   const sortedLeaderboard = Array.from(leaderboardMap.entries())
     .map(([id, data]) => ({ id, ...data }))
     .sort((a, b) => b.points - a.points)
-    .slice(0, 5)
+    .slice(0, 10)
 
   const allRanked = Array.from(leaderboardMap.entries())
     .map(([id, data]) => ({ id, ...data }))
@@ -159,18 +181,25 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Welcome Header */}
-      <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-emerald-500 rounded-xl p-6 text-white">
+      <OfficeLeaderboardHero
+        leaderboard={sortedLeaderboard}
+        currentUserId={agent.id}
+        currentUserRank={myRank}
+        currentUserPoints={myPoints}
+      />
+
+      {/* Welcome Header - Now smaller, below leaderboard */}
+      <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-emerald-500 rounded-xl p-4 text-white">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Welcome back, {agent.full_name || "Agent"}!</h1>
-            <p className="text-white/80 mt-1">Your real estate command center</p>
+            <h1 className="text-xl font-bold">Welcome back, {agent.full_name || "Agent"}!</h1>
+            <p className="text-white/80 text-sm">Your real estate command center</p>
           </div>
-          <div className={`flex items-center gap-2 px-4 py-2 rounded-lg bg-white/20 backdrop-blur`}>
-            <PrestigeIcon className="h-6 w-6" />
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/20 backdrop-blur`}>
+            <PrestigeIcon className="h-5 w-5" />
             <div>
-              <p className="text-xs text-white/70">Monthly Rank</p>
-              <p className="font-bold">{myPrestige.name}</p>
+              <p className="text-xs text-white/70">Level</p>
+              <p className="font-bold text-sm">{myPrestige.name}</p>
             </div>
           </div>
         </div>
@@ -244,7 +273,7 @@ export default async function DashboardPage() {
       <LeadActionsWidget agentId={agent.id} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Column - Missions and Leaderboard */}
+        {/* Left Column - Missions */}
         <div className="space-y-6">
           {/* Today's Missions - Clickable */}
           <Link href="/dashboard/missions" className="block">
@@ -253,7 +282,7 @@ export default async function DashboardPage() {
                 <CardTitle className="flex items-center gap-2">
                   <Target className="h-5 w-5 text-amber-500" />
                   Today's Missions
-                  <span className="ml-auto text-sm font-normal text-amber-500">Click to manage →</span>
+                  <span className="ml-auto text-sm font-normal text-amber-500">Click to manage</span>
                 </CardTitle>
                 <CardDescription>Complete your daily missions to earn points</CardDescription>
               </CardHeader>
@@ -296,75 +325,6 @@ export default async function DashboardPage() {
             </Card>
           </Link>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Trophy className="h-5 w-5 text-emerald-500" />
-                Monthly Leaderboard
-              </CardTitle>
-              <CardDescription>Top performers this month (resets monthly)</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {sortedLeaderboard.length > 0 ? (
-                <div className="space-y-3">
-                  {sortedLeaderboard.map((entry, index) => {
-                    const prestige = getPrestigeLevel(entry.points)
-                    const EntryIcon = prestige.icon
-                    return (
-                      <div
-                        key={entry.id}
-                        className={`flex items-center gap-3 p-3 rounded-lg ${
-                          entry.id === agent.id ? "bg-emerald-50 border border-emerald-200" : "bg-gray-50"
-                        }`}
-                      >
-                        <div
-                          className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${
-                            index === 0
-                              ? "bg-gradient-to-br from-yellow-300 to-yellow-500 text-yellow-900 shadow-lg"
-                              : index === 1
-                                ? "bg-gradient-to-br from-gray-200 to-gray-400 text-gray-700 shadow"
-                                : index === 2
-                                  ? "bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow"
-                                  : "bg-gray-200 text-gray-600"
-                          }`}
-                        >
-                          {index === 0 ? <Crown className="h-5 w-5" /> : index + 1}
-                        </div>
-                        <div className="flex-1">
-                          <p className={`font-medium ${entry.id === agent.id ? "text-emerald-700" : ""}`}>
-                            {entry.name} {entry.id === agent.id && "(You)"}
-                          </p>
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <EntryIcon className={`h-3 w-3 ${prestige.color}`} />
-                            <span>{prestige.name}</span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm font-semibold text-emerald-600">{entry.points} pts</div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-6 text-muted-foreground">
-                  <Trophy className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p>No completed missions this month</p>
-                  <p className="text-sm">Complete missions to get on the leaderboard!</p>
-                </div>
-              )}
-              <Link
-                href="/dashboard/rewards"
-                className="block text-center text-sm text-emerald-600 hover:underline font-medium mt-4"
-              >
-                View Full Rewards Page →
-              </Link>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right Column - Quick Actions, Achievements, Activity */}
-        <div className="space-y-6">
           {/* Quick Actions */}
           <Card>
             <CardHeader>
@@ -405,7 +365,10 @@ export default async function DashboardPage() {
               </Link>
             </CardContent>
           </Card>
+        </div>
 
+        {/* Right Column - Achievements, Activity */}
+        <div className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -440,7 +403,7 @@ export default async function DashboardPage() {
                 href="/dashboard/rewards"
                 className="block text-center text-sm text-purple-600 hover:underline font-medium mt-4"
               >
-                View All Achievements →
+                View All Achievements
               </Link>
             </CardContent>
           </Card>
@@ -457,25 +420,39 @@ export default async function DashboardPage() {
             <CardContent>
               {recentActivities && recentActivities.length > 0 ? (
                 <div className="space-y-4">
-                  {recentActivities.map((activity: any) => (
-                    <div key={activity.id} className="flex items-center gap-3">
-                      <div className="p-2 bg-blue-100 rounded-lg">
-                        {activity.activity_type === "call" ? (
-                          <Phone className="h-4 w-4 text-blue-600" />
-                        ) : activity.activity_type === "email" ? (
-                          <Mail className="h-4 w-4 text-blue-600" />
-                        ) : (
-                          <Calendar className="h-4 w-4 text-blue-600" />
-                        )}
+                  {recentActivities.map((activity: any) => {
+                    const Icon =
+                      activity.type === "call"
+                        ? Phone
+                        : activity.type === "email"
+                          ? Mail
+                          : activity.type === "meeting"
+                            ? Calendar
+                            : TrendingUp
+                    return (
+                      <div key={activity.id} className="flex gap-3">
+                        <div
+                          className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                            activity.type === "call"
+                              ? "bg-blue-100 text-blue-600"
+                              : activity.type === "email"
+                                ? "bg-emerald-100 text-emerald-600"
+                                : activity.type === "meeting"
+                                  ? "bg-purple-100 text-purple-600"
+                                  : "bg-gray-100 text-gray-600"
+                          }`}
+                        >
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium line-clamp-1">{activity.description || activity.notes}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{activity.subject || "Activity"}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-6 text-muted-foreground">

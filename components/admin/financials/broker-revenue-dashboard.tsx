@@ -168,26 +168,24 @@ export function BrokerRevenueDashboard({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Plan Name</TableHead>
-                    <TableHead className="text-right">Split</TableHead>
+                    <TableHead>Split</TableHead>
                     <TableHead className="text-right">Cap</TableHead>
                     <TableHead className="text-right">Trans Fee</TableHead>
-                    <TableHead className="text-right">E&O</TableHead>
-                    <TableHead className="text-right">Tech Fee</TableHead>
+                    <TableHead className="text-right">Monthly Fee</TableHead>
                     <TableHead>Default</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {commissionPlans.map((plan) => (
                     <TableRow key={plan.id}>
-                      <TableCell className="font-medium">{plan.name}</TableCell>
-                      <TableCell className="text-right">{plan.default_split_percent}%</TableCell>
-                      <TableCell className="text-right">
-                        {plan.annual_cap ? formatCurrency(plan.annual_cap) : "No cap"}
+                      <TableCell className="font-medium">
+                        {plan.split_percentage}% / {100 - Number(plan.split_percentage)}%
                       </TableCell>
-                      <TableCell className="text-right">{formatCurrency(plan.transaction_fee)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(plan.e_and_o_fee)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(plan.tech_fee)}</TableCell>
+                      <TableCell className="text-right">
+                        {plan.cap_amount ? formatCurrency(Number(plan.cap_amount)) : "No cap"}
+                      </TableCell>
+                      <TableCell className="text-right">{formatCurrency(Number(plan.transaction_fee) || 0)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(Number(plan.monthly_fee) || 0)}</TableCell>
                       <TableCell>{plan.is_default ? "Yes" : "No"}</TableCell>
                     </TableRow>
                   ))}

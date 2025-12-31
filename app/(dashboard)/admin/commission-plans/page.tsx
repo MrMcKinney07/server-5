@@ -11,7 +11,10 @@ export default async function AdminCommissionPlansPage() {
     redirect("/dashboard")
   }
 
-  const { data: commissionPlans } = await supabase.from("commission_plans").select("*").order("name")
+  const { data: commissionPlans } = await supabase
+    .from("commission_plans")
+    .select("*")
+    .order("split_percentage", { ascending: false })
 
   const { data: agents } = await supabase.from("agents").select("*").order("Name")
 

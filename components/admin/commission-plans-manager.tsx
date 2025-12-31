@@ -26,7 +26,6 @@ import { toast } from "sonner"
 
 interface CommissionPlan {
   id: string
-  name: string
   description: string | null
   split_percentage: number
   cap_amount: number | null
@@ -67,7 +66,6 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
   const [isAssigning, setIsAssigning] = useState(false)
 
   const [planForm, setPlanForm] = useState({
-    name: "",
     description: "",
     split_percentage: "70",
     cap_amount: "",
@@ -96,7 +94,6 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
     setIsCreating(true)
     try {
       const { error } = await supabase.from("commission_plans").insert({
-        name: planForm.name,
         description: planForm.description || null,
         split_percentage: Number.parseFloat(planForm.split_percentage) / 100,
         cap_amount: planForm.cap_amount ? Number.parseFloat(planForm.cap_amount) : null,
@@ -110,7 +107,6 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
 
       toast.success("Commission plan created successfully")
       setPlanForm({
-        name: "",
         description: "",
         split_percentage: "70",
         cap_amount: "",
@@ -135,7 +131,6 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
       const { error } = await supabase
         .from("commission_plans")
         .update({
-          name: planForm.name,
           description: planForm.description || null,
           split_percentage: Number.parseFloat(planForm.split_percentage) / 100,
           cap_amount: planForm.cap_amount ? Number.parseFloat(planForm.cap_amount) : null,
@@ -190,7 +185,6 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
   const startEdit = (plan: CommissionPlan) => {
     setEditingPlan(plan)
     setPlanForm({
-      name: plan.name,
       description: plan.description || "",
       split_percentage: (plan.split_percentage * 100).toString(),
       cap_amount: plan.cap_amount?.toString() || "",
@@ -230,15 +224,6 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
                   </DialogHeader>
                   <div className="space-y-4">
                     <div className="grid gap-4 md:grid-cols-2">
-                      <div>
-                        <Label htmlFor="name">Plan Name</Label>
-                        <Input
-                          id="name"
-                          placeholder="e.g., 70/30 Standard"
-                          value={planForm.name}
-                          onChange={(e) => setPlanForm((prev) => ({ ...prev, name: e.target.value }))}
-                        />
-                      </div>
                       <div>
                         <Label htmlFor="split">Agent Split %</Label>
                         <Input
@@ -317,7 +302,7 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
 
                     <Button
                       onClick={editingPlan ? handleUpdatePlan : handleCreatePlan}
-                      disabled={isCreating || !planForm.name || !planForm.split_percentage}
+                      disabled={isCreating || !planForm.split_percentage}
                       className="w-full"
                     >
                       {editingPlan ? "Update Plan" : "Create Plan"}
@@ -331,7 +316,6 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Plan Name</TableHead>
                   <TableHead>Split</TableHead>
                   <TableHead>Cap</TableHead>
                   <TableHead>Monthly Fee</TableHead>
@@ -344,15 +328,12 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
                 {commissionPlans.map((plan) => (
                   <TableRow key={plan.id}>
                     <TableCell className="font-medium">
-                      {plan.name}
+                      {(plan.split_percentage * 100).toFixed(0)}% / {(100 - plan.split_percentage * 100).toFixed(0)}%
                       {plan.is_default && (
                         <Badge variant="secondary" className="ml-2">
                           Default
                         </Badge>
                       )}
-                    </TableCell>
-                    <TableCell>
-                      {(plan.split_percentage * 100).toFixed(0)}% / {(100 - plan.split_percentage * 100).toFixed(0)}%
                     </TableCell>
                     <TableCell>{plan.cap_amount ? formatCurrency(plan.cap_amount) : "No cap"}</TableCell>
                     <TableCell>{formatCurrency(plan.monthly_fee)}</TableCell>
@@ -376,14 +357,6 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
                           </DialogHeader>
                           <div className="space-y-4">
                             <div className="grid gap-4 md:grid-cols-2">
-                              <div>
-                                <Label htmlFor="edit-name">Plan Name</Label>
-                                <Input
-                                  id="edit-name"
-                                  value={planForm.name}
-                                  onChange={(e) => setPlanForm((prev) => ({ ...prev, name: e.target.value }))}
-                                />
-                              </div>
                               <div>
                                 <Label htmlFor="edit-split">Agent Split %</Label>
                                 <Input
@@ -572,28 +545,31 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {agentPlans.map((ap) => (
-                  <TableRow key={ap.id}>
-                    <TableCell className="font-medium">{ap.agent?.Name || "Unknown"}</TableCell>
-                    <TableCell>{ap.plan?.name || "Unknown Plan"}</TableCell>
-                    <TableCell>{ap.plan ? `${(ap.plan.split_percentage * 100).toFixed(0)}%` : "N/A"}</TableCell>
-                    <TableCell>{new Date(ap.effective_date).toLocaleDateString()}</TableCell>
-                    <TableCell>{formatCurrency(ap.ytd_gci)}</TableCell>
+                {agentPlans.map((assignment) => (
+                  <TableRow key={assignment.id}>
+                    <TableCell className="font-medium">{assignment.agent?.Name}</TableCell>
                     <TableCell>
-                      {ap.plan?.cap_amount ? (
+                      {assignment.plan
+                        ? `${(assignment.plan.split_percentage * 100).toFixed(0)}% / ${(100 - assignment.plan.split_percentage * 100).toFixed(0)}%`
+                        : "N/A"}
+                    </TableCell>
+                    <TableCell>{new Date(assignment.effective_date).toLocaleDateString()}</TableCell>
+                    <TableCell>{formatCurrency(assignment.ytd_gci)}</TableCell>
+                    <TableCell>
+                      {assignment.plan?.cap_amount ? (
                         <div className="flex items-center gap-2">
                           <div className="flex-1">
                             <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
                               <div
                                 className="h-full bg-emerald-500"
                                 style={{
-                                  width: `${Math.min((ap.cap_progress / ap.plan.cap_amount) * 100, 100)}%`,
+                                  width: `${Math.min((assignment.cap_progress / assignment.plan.cap_amount) * 100, 100)}%`,
                                 }}
                               />
                             </div>
                           </div>
                           <span className="text-sm text-muted-foreground">
-                            {formatCurrency(ap.cap_progress)} / {formatCurrency(ap.plan.cap_amount)}
+                            {formatCurrency(assignment.cap_progress)} / {formatCurrency(assignment.plan.cap_amount)}
                           </span>
                         </div>
                       ) : (

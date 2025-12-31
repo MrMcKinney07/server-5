@@ -12,24 +12,25 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const now = new Date().toISOString()
+  const now = new Date()
   const results = { processed: 0, emails: 0, sms: 0, propertyRecs: 0, errors: [] as string[] }
 
   try {
-    // Get all active enrollments that are due
     const { data: dueEnrollments, error: fetchError } = await supabase
       .from("lead_campaign_enrollments")
       .select(`
         *,
         lead:leads(*),
-        campaign:campaigns(*, owner:agents!owner_id(full_name, email))
+        campaign:campaigns(
+          *,
+          owner:agents!owner_id(Name, Email)
+        )
       `)
       .eq("status", "active")
-      .lte("next_run_at", now)
+      .lte("next_run_at", now.toISOString())
       .limit(100)
 
     if (fetchError) {
-      console.error("Error fetching enrollments:", fetchError)
       return NextResponse.json({ error: fetchError.message }, { status: 500 })
     }
 
@@ -39,17 +40,21 @@ export async function GET(request: Request) {
 
     for (const enrollment of dueEnrollments) {
       try {
-        const nextStepNumber = enrollment.current_step + 1
+        if (!enrollment.campaign || !enrollment.lead) {
+          continue
+        }
+
+        const nextStepNumber = (enrollment.current_step || 0) + 1
 
         // Get the next step
-        const { data: step } = await supabase
+        const { data: step, error: stepError } = await supabase
           .from("campaign_steps")
           .select("*")
           .eq("campaign_id", enrollment.campaign_id)
           .eq("step_number", nextStepNumber)
           .single()
 
-        if (!step) {
+        if (stepError || !step) {
           // No more steps - mark as completed
           await supabase
             .from("lead_campaign_enrollments")
@@ -68,8 +73,11 @@ export async function GET(request: Request) {
         }
 
         const lead = enrollment.lead
+        const campaign = enrollment.campaign
         let content = step.body || ""
         let subject = step.subject || ""
+
+        const agentName = campaign.owner?.Name || "McKinney Realty Team"
 
         // AI personalization if enabled
         if (step.ai_personalize && lead) {
@@ -83,11 +91,13 @@ Lead Info:
 - Property Interest: ${lead.property_interest || "Not specified"}
 - Timeline: ${lead.timeline || "Not specified"}
 
+Agent Name: ${agentName}
+
 Original Content:
 ${content}
 
 Instructions:
-- Replace any placeholders like {{first_name}} with actual values
+- Replace any placeholders like {{first_name}}, {{agent_name}} with actual values
 - Make the message feel personal and relevant
 - Keep the same general structure and call-to-action
 - For SMS, keep under 160 characters
@@ -111,31 +121,22 @@ Return ONLY the personalized message, nothing else.
               subject = subjectText
             }
           } catch (aiError) {
-            console.error("AI personalization error:", aiError)
             // Fall back to manual placeholder replacement
-            content = content
-              .replace(/\{\{first_name\}\}/g, lead.first_name || "")
-              .replace(/\{\{last_name\}\}/g, lead.last_name || "")
-              .replace(/\{\{property_interest\}\}/g, lead.property_interest || "your area")
-              .replace(/\{\{budget\}\}/g, lead.budget_max ? `$${lead.budget_max.toLocaleString()}` : "your budget")
+            content = replacePlaceholders(content, lead, agentName)
+            subject = replacePlaceholders(subject, lead, agentName)
           }
         } else if (lead) {
           // Manual placeholder replacement
-          content = content
-            .replace(/\{\{first_name\}\}/g, lead.first_name || "")
-            .replace(/\{\{last_name\}\}/g, lead.last_name || "")
-            .replace(/\{\{property_interest\}\}/g, lead.property_interest || "your area")
-            .replace(/\{\{budget\}\}/g, lead.budget_max ? `$${lead.budget_max.toLocaleString()}` : "your budget")
-
-          subject = subject
-            .replace(/\{\{first_name\}\}/g, lead.first_name || "")
-            .replace(/\{\{last_name\}\}/g, lead.last_name || "")
+          content = replacePlaceholders(content, lead, agentName)
+          subject = replacePlaceholders(subject, lead, agentName)
         }
 
-        // Execute the step based on type
-        if (step.type === "email" && lead?.email) {
+        const campaignChannel = campaign.channel || "EMAIL"
+
+        // Execute the step based on type AND campaign channel
+        if ((step.type === "email" || campaignChannel === "EMAIL" || campaignChannel === "BOTH") && lead?.email) {
           // Send email via Resend
-          await fetch("https://api.resend.com/emails", {
+          const emailRes = await fetch("https://api.resend.com/emails", {
             method: "POST",
             headers: {
               Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
@@ -144,38 +145,51 @@ Return ONLY the personalized message, nothing else.
             body: JSON.stringify({
               from: "McKinney Realty <noreply@mckinneyrealtyco.com>",
               to: lead.email,
-              subject: subject,
+              subject: subject || "Message from McKinney Realty",
               html: `<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
                 <p>${content.replace(/\n/g, "<br>")}</p>
                 <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
                 <p style="color: #666; font-size: 12px;">
-                  ${enrollment.campaign?.owner?.full_name || "McKinney Realty Team"}<br>
+                  ${agentName}<br>
                   McKinney Realty Co.
                 </p>
               </div>`,
             }),
           })
-          results.emails++
-        } else if (step.type === "sms" && lead?.phone) {
+
+          if (emailRes.ok) {
+            results.emails++
+          }
+        }
+
+        if ((step.type === "sms" || campaignChannel === "SMS" || campaignChannel === "BOTH") && lead?.phone) {
           // Send SMS via Twilio
           const twilioAuth = Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString(
             "base64",
           )
 
-          await fetch(`https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`, {
-            method: "POST",
-            headers: {
-              Authorization: `Basic ${twilioAuth}`,
-              "Content-Type": "application/x-www-form-urlencoded",
+          const smsRes = await fetch(
+            `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Basic ${twilioAuth}`,
+                "Content-Type": "application/x-www-form-urlencoded",
+              },
+              body: new URLSearchParams({
+                To: lead.phone,
+                From: process.env.TWILIO_PHONE_NUMBER!,
+                Body: content,
+              }),
             },
-            body: new URLSearchParams({
-              To: lead.phone,
-              From: process.env.TWILIO_PHONE_NUMBER!,
-              Body: content,
-            }),
-          })
-          results.sms++
-        } else if (step.type === "property_recommendation" && lead?.email) {
+          )
+
+          if (smsRes.ok) {
+            results.sms++
+          }
+        }
+
+        if (step.type === "property_recommendation" && lead?.email) {
           // Get property recommendations based on lead preferences
           const { data: properties } = await supabase
             .from("properties")
@@ -223,7 +237,7 @@ Return ONLY the personalized message, nothing else.
                   </p>
                   <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
                   <p style="color: #666; font-size: 12px;">
-                    ${enrollment.campaign?.owner?.full_name || "McKinney Realty Team"}<br>
+                    ${agentName}<br>
                     McKinney Realty Co.
                   </p>
                 </div>`,
@@ -239,7 +253,7 @@ Return ONLY the personalized message, nothing else.
           campaign_id: enrollment.campaign_id,
           step_id: step.id,
           event: `${step.type}_sent`,
-          info: { step_number: nextStepNumber, ai_personalized: step.ai_personalize },
+          info: { step_number: nextStepNumber, ai_personalized: step.ai_personalize, channel: campaignChannel },
         })
 
         // Get next step to calculate next_run_at
@@ -250,7 +264,9 @@ Return ONLY the personalized message, nothing else.
           .eq("step_number", nextStepNumber + 1)
           .single()
 
-        const nextRunAt = nextStep ? new Date(Date.now() + nextStep.delay_hours * 60 * 60 * 1000).toISOString() : null
+        const nextRunAt = nextStep
+          ? new Date(Date.now() + (nextStep.delay_hours || 1) * 60 * 60 * 1000).toISOString()
+          : null
 
         // Update enrollment
         await supabase
@@ -264,7 +280,6 @@ Return ONLY the personalized message, nothing else.
 
         results.processed++
       } catch (stepError) {
-        console.error("Error processing enrollment:", enrollment.id, stepError)
         results.errors.push(`Enrollment ${enrollment.id}: ${stepError}`)
       }
     }
@@ -274,7 +289,16 @@ Return ONLY the personalized message, nothing else.
       ...results,
     })
   } catch (error) {
-    console.error("Campaign cron error:", error)
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }
+}
+
+function replacePlaceholders(text: string, lead: any, agentName: string): string {
+  return text
+    .replace(/\{\{first_name\}\}/gi, lead.first_name || "")
+    .replace(/\{\{last_name\}\}/gi, lead.last_name || "")
+    .replace(/\{\{agent_name\}\}/gi, agentName)
+    .replace(/\{\{property_interest\}\}/gi, lead.property_interest || "your area")
+    .replace(/\{\{budget\}\}/gi, lead.budget_max ? `$${lead.budget_max.toLocaleString()}` : "your budget")
+    .replace(/\{\{timeline\}\}/gi, lead.timeline || "soon")
 }
