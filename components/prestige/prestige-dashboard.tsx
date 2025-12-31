@@ -60,6 +60,7 @@ interface PrestigeDashboardProps {
   agent: any
   seasonXP: number
   bankXP: number
+  lifetimeXP: number
   prestigeTier: number
   prestigeIconUrl?: string | null
   recentEvents: any[]
@@ -70,6 +71,7 @@ export function PrestigeDashboard({
   agent,
   seasonXP,
   bankXP,
+  lifetimeXP,
   prestigeTier,
   prestigeIconUrl,
   recentEvents,
@@ -77,8 +79,8 @@ export function PrestigeDashboard({
 }: PrestigeDashboardProps) {
   const [isCashingOut, setIsCashingOut] = useState(false)
 
-  const level = Math.floor(bankXP / 1000) + 1
-  const progressToNext = bankXP % 1000
+  const level = Math.floor(lifetimeXP / 1000) + 1
+  const progressToNext = lifetimeXP % 1000
   const progressPercent = (progressToNext / 1000) * 100
 
   const currentTier =
@@ -139,10 +141,10 @@ export function PrestigeDashboard({
             <h1 className="text-3xl font-bold text-white mb-1">
               {agent?.first_name || agent?.FirstName || "Agent"}'s Prestige
             </h1>
-            <p className="text-slate-400">{bankXP.toLocaleString()} lifetime XP banked</p>
+            <p className="text-slate-400">{lifetimeXP.toLocaleString()} lifetime XP earned</p>
             {nextTier && (
               <p className="text-sm text-slate-500 mt-2">
-                {(nextTier.minLevel * 1000 - bankXP).toLocaleString()} XP until {nextTier.name} tier
+                {(nextTier.minLevel * 1000 - lifetimeXP).toLocaleString()} XP until {nextTier.name} tier
               </p>
             )}
           </div>
@@ -181,25 +183,12 @@ export function PrestigeDashboard({
                 <span className="text-sm font-medium text-slate-300">XP Bank</span>
               </div>
               <Badge variant="outline" className="border-amber-500/30 text-amber-400">
-                Level {level}
+                Spendable
               </Badge>
             </div>
             <div className="space-y-2">
               <div className="text-4xl font-bold text-white">{bankXP.toLocaleString()}</div>
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span>Progress to Level {level + 1}</span>
-                  <span>
-                    {progressToNext}/{1000}
-                  </span>
-                </div>
-                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all duration-500"
-                    style={{ width: `${progressPercent}%` }}
-                  />
-                </div>
-              </div>
+              <p className="text-xs text-slate-400">Use in Prize Shop</p>
             </div>
           </div>
         </Card>
@@ -293,7 +282,7 @@ export function PrestigeDashboard({
                 <Star className="h-5 w-5 text-amber-400" />
                 Level Progress
               </h2>
-              <p className="text-sm text-slate-400 mt-1">Level up by cashing out season XP</p>
+              <p className="text-sm text-slate-400 mt-1">Based on lifetime XP earned</p>
             </div>
             <div className="text-right">
               <div className={`text-3xl font-bold ${currentTier.textColor}`}>Level {level}</div>

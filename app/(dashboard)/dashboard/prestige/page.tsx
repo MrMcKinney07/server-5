@@ -11,7 +11,7 @@ export default async function PrestigePage() {
 
   const seasonXP = agent.exp_season || 0
   const bankXP = agent.exp_bank || 0
-  const totalXP = seasonXP + bankXP
+  const lifetimeXP = agent.lifetime_xp || 0
 
   const currentSeason = new Date().toISOString().slice(0, 7) // YYYY-MM format
 
@@ -60,6 +60,7 @@ export default async function PrestigePage() {
             agent={agent}
             seasonXP={seasonXP}
             bankXP={bankXP}
+            lifetimeXP={lifetimeXP}
             prestigeTier={agent.prestige_tier || 1}
             prestigeIconUrl={agent.prestige_icon_url}
             recentEvents={recentEvents || []}
@@ -68,7 +69,7 @@ export default async function PrestigePage() {
         </TabsContent>
 
         <TabsContent value="prizes" className="space-y-6">
-          <PrizesShowcase totalXP={totalXP} seasonXP={seasonXP} bankXP={bankXP} agentId={agent.id} />
+          <PrizesShowcase bankXP={bankXP} agentId={agent.id} />
         </TabsContent>
       </Tabs>
     </div>
