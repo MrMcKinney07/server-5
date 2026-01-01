@@ -1,42 +1,39 @@
-/**
- * Email sending service placeholder.
- *
- * To integrate a real email provider:
- * 1. Install the provider SDK (e.g., @sendgrid/mail, resend, nodemailer)
- * 2. Configure API key via environment variable
- * 3. Replace the placeholder implementation below
- *
- * Example providers:
- * - Resend: https://resend.com/docs
- * - SendGrid: https://docs.sendgrid.com
- * - AWS SES: https://docs.aws.amazon.com/ses
- */
+import { Resend } from "resend"
 
 export interface EmailOptions {
   to: string
   subject: string
   body: string
   html?: string
+  from?: string
 }
 
+const resend = new Resend(process.env.RESEND_API_KEY)
+
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
-  // PLACEHOLDER: Replace with actual email provider
-  console.log("[Email Service] Would send email:", {
-    to: options.to,
-    subject: options.subject,
-    bodyPreview: options.body.substring(0, 100) + "...",
-  })
+  if (!process.env.RESEND_API_KEY) {
+    console.error("[Email Service] RESEND_API_KEY not configured")
+    return false
+  }
 
-  // Example Resend implementation:
-  // import { Resend } from 'resend'
-  // const resend = new Resend(process.env.RESEND_API_KEY)
-  // await resend.emails.send({
-  //   from: 'McKinney One <noreply@mckinneyone.com>',
-  //   to: options.to,
-  //   subject: options.subject,
-  //   text: options.body,
-  //   html: options.html,
-  // })
+  try {
+    const { data, error } = await resend.emails.send({
+      from: options.from || "McKinney One <noreply@resend.dev>",
+      to: options.to,
+      subject: options.subject,
+      text: options.body,
+      html: options.html || options.body.replace(/\n/g, "<br>"),
+    })
 
-  return true
+    if (error) {
+      console.error("[Email Service] Failed to send email:", error)
+      return false
+    }
+
+    console.log("[Email Service] Email sent successfully:", data?.id)
+    return true
+  } catch (error) {
+    console.error("[Email Service] Error sending email:", error)
+    return false
+  }
 }

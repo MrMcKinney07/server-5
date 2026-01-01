@@ -13,6 +13,7 @@ import { EnrollCampaignDialog } from "@/components/leads/enroll-campaign-dialog"
 import { SavedPropertiesList } from "@/components/leads/saved-properties-list"
 import { AddPropertyDialog } from "@/components/leads/add-property-dialog"
 import { PropertyEngagementAnalytics } from "@/components/leads/property-engagement-analytics"
+import { LeadCRMActions } from "@/components/leads/lead-crm-actions"
 
 interface LeadPageProps {
   params: Promise<{ id: string }>
@@ -37,8 +38,12 @@ export default async function LeadPage({ params }: LeadPageProps) {
 
   const { data: enrollments } = await supabase
     .from("lead_campaign_enrollments")
-    .select("*, campaign:campaigns(id, name)")
+    .select(`
+      *,
+      campaign:campaigns(id, name, description, is_active)
+    `)
     .eq("lead_id", id)
+    .order("created_at", { ascending: false })
 
   const { data: savedProperties } = await supabase
     .from("saved_properties")
@@ -136,6 +141,8 @@ export default async function LeadPage({ params }: LeadPageProps) {
         <AddLeadActivityDialog leadId={id} agentId={agent.id} />
       </div>
 
+      <LeadCRMActions lead={lead} agentId={agent.id} />
+
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Left Column - Lead Info */}
         <div className="space-y-6">
@@ -229,29 +236,67 @@ export default async function LeadPage({ params }: LeadPageProps) {
             </CardContent>
           </Card>
 
-          {enrollments && enrollments.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Zap className="h-4 w-4" />
-                  Active Campaigns
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {enrollments.map((enrollment) => (
-                  <div key={enrollment.id} className="flex items-center justify-between p-2 bg-muted rounded-lg">
-                    <div>
-                      <p className="text-sm font-medium">{enrollment.campaign?.name}</p>
-                      <p className="text-xs text-muted-foreground">Step {enrollment.current_step}</p>
+          {/* Active Campaigns */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Zap className="h-4 w-4" />
+                Active Campaigns
+              </CardTitle>
+              <CardDescription>
+                {enrollments && enrollments.length > 0
+                  ? `${enrollments.length} campaign${enrollments.length !== 1 ? "s" : ""} enrolled`
+                  : "No campaigns enrolled yet"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {enrollments && enrollments.length > 0 ? (
+                enrollments.map((enrollment) => (
+                  <div
+                    key={enrollment.id}
+                    className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100 hover:border-blue-200 transition-colors"
+                  >
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">
+                        {enrollment.campaign?.name || "Unknown Campaign"}
+                      </p>
+                      {enrollment.campaign?.description && (
+                        <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{enrollment.campaign.description}</p>
+                      )}
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline" className="text-xs">
+                          Step {enrollment.current_step || 1}
+                        </Badge>
+                        {enrollment.next_run_at && (
+                          <span className="text-xs text-muted-foreground">
+                            Next: {new Date(enrollment.next_run_at).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <Badge variant={enrollment.status === "active" ? "default" : "secondary"}>
+                    <Badge
+                      variant={enrollment.status === "active" ? "default" : "secondary"}
+                      className={
+                        enrollment.status === "active"
+                          ? "bg-green-500 hover:bg-green-600"
+                          : enrollment.status === "paused"
+                            ? "bg-amber-500 hover:bg-amber-600"
+                            : "bg-gray-500"
+                      }
+                    >
                       {enrollment.status}
                     </Badge>
                   </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
+                ))
+              ) : (
+                <div className="text-center py-6 text-muted-foreground">
+                  <Zap className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No campaigns enrolled</p>
+                  <p className="text-xs mt-1">Click "Enroll in Campaign" above to get started</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Right Column - Activities, Properties & Notes */}

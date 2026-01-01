@@ -90,18 +90,6 @@ export default function LaunchingPage() {
       className="min-h-screen bg-black flex items-center justify-center overflow-hidden relative"
       style={{ perspective: "1000px" }}
     >
-      <div className="absolute inset-0 pointer-events-none z-50">
-        <div
-          className="absolute text-9xl"
-          style={{
-            animation: "eagleFly 3s ease-in-out forwards",
-            filter: "drop-shadow(0 0 30px rgba(251, 191, 36, 0.6))",
-          }}
-        >
-          🦅
-        </div>
-      </div>
-
       <div className="absolute inset-0 pointer-events-none z-20">
         {fireworks.map((firework) => (
           <div
@@ -156,18 +144,6 @@ export default function LaunchingPage() {
               }}
             />
           ))}
-      </div>
-
-      <div className="absolute bottom-0 left-0 right-0 flex justify-center items-end gap-1 h-32 opacity-60">
-        {Array.from({ length: 40 }).map((_, i) => (
-          <div
-            key={`bar-${i}`}
-            className="w-2 bg-gradient-to-t from-cyan-500 via-blue-500 to-violet-500 rounded-t"
-            style={{
-              animation: `visualizer 0.3s ease-in-out ${i * 0.05}s infinite alternate`,
-            }}
-          />
-        ))}
       </div>
 
       <div className="absolute inset-0" style={{ transformStyle: "preserve-3d" }}>
@@ -382,51 +358,25 @@ export default function LaunchingPage() {
           to { opacity: 1; transform: translateY(0); }
         }
         @keyframes visualizer {
-          0% { height: 10%; }
-          100% { height: 100%; }
+          from { height: 20%; }
+          to { height: 80%; }
         }
         @keyframes fireworkLaunch {
-          0% { transform: scaleY(0); opacity: 1; }
-          100% { transform: scaleY(1); opacity: 0; }
+          to { transform: translateY(-80px); opacity: 0; }
         }
         @keyframes fireworkExplode {
-          0% { 
-            transform: translate(0, 0) scale(1); 
-            opacity: 1; 
-          }
-          100% { 
+          to { 
             transform: translate(var(--travel-x), var(--travel-y)) scale(0); 
             opacity: 0; 
           }
         }
         @keyframes fireworkGlow {
-          0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
-          50% { transform: translate(-50%, -50%) scale(2); opacity: 0.8; }
-          100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
+          0% { opacity: 0; transform: scale(0.5); }
+          50% { opacity: 1; transform: scale(2); }
+          100% { opacity: 0; transform: scale(3); }
         }
         @keyframes sparkleRain {
-          0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-          100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
-        }
-        @keyframes eagleFly {
-          0% {
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%) scale(0.1) rotateY(0deg) translateZ(-500px);
-            opacity: 0;
-          }
-          30% {
-            opacity: 1;
-          }
-          70% {
-            opacity: 1;
-          }
-          100% {
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%) scale(4) rotateY(15deg) translateZ(300px);
-            opacity: 0;
-          }
+          to { transform: translateY(110vh); opacity: 0; }
         }
       `}</style>
     </div>

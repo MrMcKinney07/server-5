@@ -168,11 +168,13 @@ export function CampaignEventBox({
       return
     }
 
+    const safeStepNumber = Math.floor(stepNumber)
+
     const delayHours = scheduleType === "delay" ? (delayUnit === "days" ? delayValue * 24 : delayValue) : 0
 
     const baseData = {
       campaign_id: campaignId,
-      step_number: stepNumber,
+      step_number: safeStepNumber,
       delay_hours: delayHours,
       schedule_type: scheduleType,
       schedule_day_of_week: scheduleType === "weekly" ? dayOfWeek : null,
@@ -185,6 +187,16 @@ export function CampaignEventBox({
 
     try {
       if (messageType === "both") {
+        const { data: existingSteps } = await supabase
+          .from("campaign_steps")
+          .select("step_number")
+          .eq("campaign_id", campaignId)
+          .order("step_number", { ascending: false })
+          .limit(1)
+
+        const maxStepNumber =
+          existingSteps && existingSteps.length > 0 ? Math.floor(existingSteps[0].step_number) : safeStepNumber
+
         if (step) {
           const { error: updateError } = await supabase
             .from("campaign_steps")
@@ -203,7 +215,7 @@ export function CampaignEventBox({
 
           const { error: insertError } = await supabase.from("campaign_steps").insert({
             ...baseData,
-            step_number: stepNumber + 0.5,
+            step_number: maxStepNumber + 1,
             type: "sms",
             subject: null,
             body: smsBody,
@@ -228,7 +240,7 @@ export function CampaignEventBox({
 
           const { error: insertError2 } = await supabase.from("campaign_steps").insert({
             ...baseData,
-            step_number: stepNumber + 1,
+            step_number: maxStepNumber + 1,
             type: "sms",
             subject: null,
             body: smsBody,

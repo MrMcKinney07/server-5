@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { Rocket, Shield, Target, Zap, UserPlus } from "lucide-react"
+import { Shield, Target, Zap, UserPlus } from "lucide-react"
+import Image from "next/image"
 
 export default function SignUpPage() {
   const [fullName, setFullName] = useState("")
@@ -80,10 +81,13 @@ export default function SignUpPage() {
         <div className="relative z-10 flex flex-col justify-center px-12 xl:px-20">
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
-                <Rocket className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-3xl font-bold text-white tracking-tight">M1</span>
+              <Image
+                src="/images/m1-crm-logo-bottom-left.png"
+                alt="M1 CRM"
+                width={120}
+                height={120}
+                className="drop-shadow-2xl"
+              />
             </div>
             <h1 className="text-5xl xl:text-6xl font-bold text-white leading-tight mb-4">
               Join the
@@ -124,12 +128,14 @@ export default function SignUpPage() {
       {/* Right side - Sign up form */}
       <div className="flex-1 flex items-center justify-center p-6 md:p-10 bg-slate-50 dark:bg-slate-950">
         <div className="w-full max-w-md">
-          {/* Mobile logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
-              <Rocket className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-2xl font-bold tracking-tight">M1 Command Center</span>
+            <Image
+              src="/images/m1-crm-logo-bottom-left.png"
+              alt="M1 CRM"
+              width={80}
+              height={80}
+              className="drop-shadow-xl"
+            />
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-slate-900/50 p-8 border border-slate-200 dark:border-slate-800">

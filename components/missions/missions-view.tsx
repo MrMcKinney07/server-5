@@ -1,9 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { createBrowserClient } from "@/lib/supabase/client"
-import type { AgentMission, MissionTemplate } from "@/lib/types/database"
+import { selectDailyMissions, completeMission } from "@/app/actions/missions"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -18,82 +17,78 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Target, CheckCircle2, Camera, Upload, Clock, Zap, AlertCircle } from "lucide-react"
+import { Target, CheckCircle2, Clock, Zap, AlertCircle } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
-interface MissionsViewProps {
-  todayMissions: (AgentMission & { template?: MissionTemplate })[]
-  templates: MissionTemplate[]
-  agentId: string
-  today: string
+interface MissionItem {
+  id: string
+  status: string
+  completed_at?: string
+  notes?: string
+  photo_url?: string
+  mission_templates: {
+    id: string
+    title: string
+    description: string
+    xp_reward: number
+  }
 }
 
-const categoryColors: Record<string, string> = {
-  prospecting: "bg-blue-100 text-blue-800 border-blue-200",
-  follow_up: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  learning: "bg-purple-100 text-purple-800 border-purple-200",
-  marketing: "bg-rose-100 text-rose-800 border-rose-200",
-  general: "bg-gray-100 text-gray-800 border-gray-200",
+interface MissionTemplate {
+  id: string
+  title: string
+  description: string
+  xp_reward: number
+  active_days: number[]
+}
+
+interface MissionsViewProps {
+  missions: MissionItem[]
+  templates: MissionTemplate[]
 }
 
 const REQUIRED_MISSIONS = 3
 
-export function MissionsView({ todayMissions, templates, agentId, today }: MissionsViewProps) {
-  const [completingMission, setCompletingMission] = useState<(AgentMission & { template?: MissionTemplate }) | null>(
-    null,
-  )
+export function MissionsView({ missions, templates }: MissionsViewProps) {
+  const [completingMission, setCompletingMission] = useState<MissionItem | null>(null)
   const [notes, setNotes] = useState("")
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [selectMissionsOpen, setSelectMissionsOpen] = useState(false)
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([])
   const router = useRouter()
+  const { toast } = useToast()
+  const todayMissionsRef = useRef<HTMLDivElement>(null)
+  const [shouldScrollToMissions, setShouldScrollToMissions] = useState(false)
 
-  const hasEnoughMissions = todayMissions.length >= REQUIRED_MISSIONS
-  const needsMoreMissions = todayMissions.length < REQUIRED_MISSIONS
-  const missionsNeeded = REQUIRED_MISSIONS - todayMissions.length
+  const hasEnoughMissions = missions.length >= REQUIRED_MISSIONS
+  const needsMoreMissions = missions.length < REQUIRED_MISSIONS
+  const missionsNeeded = REQUIRED_MISSIONS - missions.length
 
-  // Get IDs of templates already assigned today (to exclude from selection)
-  const alreadyAssignedTemplateIds = todayMissions.map((m) => m.template_id)
+  const alreadyAssignedTemplateIds = missions.map((m) => m.mission_templates.id)
   const availableTemplates = templates.filter((t) => !alreadyAssignedTemplateIds.includes(t.id))
 
   const handleCompleteMission = async () => {
     if (!completingMission) return
     setIsLoading(true)
 
-    const supabase = createBrowserClient()
+    const result = await completeMission(completingMission.id, notes, photoFile ? "photo-url-here" : undefined)
 
-    let photoUrl = null
-    if (photoFile) {
-      const fileExt = photoFile.name.split(".").pop()
-      const fileName = `${agentId}/${completingMission.id}-${Date.now()}.${fileExt}`
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("mission-photos")
-        .upload(fileName, photoFile)
-
-      if (!uploadError && uploadData) {
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from("mission-photos").getPublicUrl(fileName)
-        photoUrl = publicUrl
-      }
-    }
-
-    const { error } = await supabase
-      .from("agent_missions")
-      .update({
-        status: "completed",
-        completed_at: new Date().toISOString(),
-        points_earned: completingMission.template?.points || 10,
-        notes: notes || null,
-        photo_url: photoUrl,
+    if (result.success) {
+      toast({
+        title: "Mission Complete!",
+        description: `You earned ${result.xpEarned} XP!`,
       })
-      .eq("id", completingMission.id)
-
-    if (!error) {
       setCompletingMission(null)
       setNotes("")
       setPhotoFile(null)
       router.refresh()
+    } else {
+      toast({
+        title: "Error",
+        description: result.error || "Failed to complete mission",
+        variant: "destructive",
+      })
     }
 
     setIsLoading(false)
@@ -114,53 +109,64 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
   const handleSubmitMissions = async () => {
     if (selectedTemplateIds.length !== missionsNeeded) return
     setIsLoading(true)
-    const supabase = createBrowserClient()
 
-    const missions = selectedTemplateIds.map((templateId) => ({
-      agent_id: agentId,
-      template_id: templateId,
-      mission_date: today,
-      status: "pending",
-    }))
+    const result = await selectDailyMissions(selectedTemplateIds)
 
-    const { error } = await supabase.from("agent_missions").insert(missions)
-
-    if (!error) {
+    if (result.success) {
       setSelectMissionsOpen(false)
       setSelectedTemplateIds([])
+      setShouldScrollToMissions(true)
       router.refresh()
+      toast({
+        title: "Missions Selected!",
+        description: "Your daily missions have been added. Complete them to earn XP!",
+      })
+    } else {
+      toast({
+        title: "Error",
+        description: result.error || "Failed to save missions",
+        variant: "destructive",
+      })
     }
 
     setIsLoading(false)
   }
 
+  useEffect(() => {
+    if (shouldScrollToMissions && todayMissionsRef.current) {
+      todayMissionsRef.current.scrollIntoView({ behavior: "smooth", block: "start" })
+      setShouldScrollToMissions(false)
+    }
+  }, [shouldScrollToMissions, missions.length])
+
   return (
     <div className="space-y-6">
       {needsMoreMissions && (
-        <Card className="border-amber-300 bg-amber-50">
+        <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50">
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-amber-500 text-white flex items-center justify-center">
+              <div className="w-12 h-12 rounded-full bg-blue-500 text-white flex items-center justify-center shadow-lg">
                 <AlertCircle className="h-6 w-6" />
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-amber-900">
-                  {todayMissions.length === 0
+                <h3 className="font-semibold text-blue-900">
+                  {missions.length === 0
                     ? "Select Your Daily Missions"
                     : `Select ${missionsNeeded} More Mission${missionsNeeded > 1 ? "s" : ""}`}
                 </h3>
-                <p className="text-sm text-amber-700">
-                  {todayMissions.length === 0
-                    ? `Choose ${REQUIRED_MISSIONS} missions to complete today. Once selected, you cannot change them.`
-                    : `You have ${todayMissions.length} mission${todayMissions.length > 1 ? "s" : ""} selected. Select ${missionsNeeded} more to complete your daily set.`}
+                <p className="text-sm text-blue-700">
+                  {missions.length === 0
+                    ? `Choose ${REQUIRED_MISSIONS} missions to complete today.`
+                    : `You have ${missions.length} mission${missions.length > 1 ? "s" : ""} selected. Select ${missionsNeeded} more.`}
                 </p>
               </div>
               <Button
+                data-select-missions-button
                 onClick={() => {
                   setSelectedTemplateIds([])
                   setSelectMissionsOpen(true)
                 }}
-                className="bg-amber-500 hover:bg-amber-600"
+                className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 shadow-md"
               >
                 Select {missionsNeeded} Mission{missionsNeeded > 1 ? "s" : ""}
               </Button>
@@ -169,44 +175,41 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
         </Card>
       )}
 
-      {/* Today's Missions */}
-      <Card>
+      <Card ref={todayMissionsRef}>
         <CardHeader>
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-amber-500" />
-              Today's Missions
-            </CardTitle>
-            <CardDescription>
-              {hasEnoughMissions
-                ? "Complete these missions to earn points"
-                : `Select ${missionsNeeded} more mission${missionsNeeded > 1 ? "s" : ""} to complete your daily set`}
-            </CardDescription>
-          </div>
+          <CardTitle className="flex items-center gap-2">
+            <Target className="h-5 w-5 text-blue-500" />
+            Today's Missions
+          </CardTitle>
+          <CardDescription>
+            {hasEnoughMissions
+              ? "Complete these missions to earn XP"
+              : `Select ${missionsNeeded} more mission${missionsNeeded > 1 ? "s" : ""} to complete your set`}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          {todayMissions.length > 0 ? (
+          {missions.length > 0 ? (
             <div className="space-y-4">
-              {todayMissions.map((mission) => (
+              {missions.map((mission) => (
                 <div
                   key={mission.id}
                   className={`flex items-start gap-4 p-4 rounded-lg border ${
                     mission.status === "completed"
                       ? "bg-emerald-50 border-emerald-200"
-                      : "bg-white border-gray-200 hover:border-amber-300"
+                      : "bg-blue-50 border-blue-200 shadow-sm"
                   }`}
                 >
                   <div
                     className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
                       mission.status === "completed"
                         ? "bg-emerald-500 text-white"
-                        : "bg-amber-100 text-amber-600 font-bold"
+                        : "bg-blue-100 text-blue-600 font-bold border border-blue-200"
                     }`}
                   >
                     {mission.status === "completed" ? (
                       <CheckCircle2 className="h-6 w-6" />
                     ) : (
-                      <span>{mission.template?.points || 10}</span>
+                      <span>{mission.mission_templates.xp_reward}</span>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -215,20 +218,9 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
                         <h3
                           className={`font-medium ${mission.status === "completed" ? "line-through text-gray-500" : ""}`}
                         >
-                          {mission.template?.title || "Mission"}
+                          {mission.mission_templates.title}
                         </h3>
-                        <p className="text-sm text-muted-foreground mt-1">{mission.template?.description}</p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <Badge variant="outline" className={categoryColors[mission.template?.category || "general"]}>
-                            {mission.template?.category}
-                          </Badge>
-                          {mission.template?.requires_photo && (
-                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                              <Camera className="h-3 w-3 mr-1" />
-                              Photo Required
-                            </Badge>
-                          )}
-                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">{mission.mission_templates.description}</p>
                       </div>
                       {mission.status !== "completed" && (
                         <Button
@@ -243,8 +235,8 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
                     {mission.status === "completed" && mission.completed_at && (
                       <p className="text-xs text-emerald-600 mt-2 flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        Completed {new Date(mission.completed_at).toLocaleTimeString()}
-                        {mission.points_earned && ` • +${mission.points_earned} points`}
+                        Completed {new Date(mission.completed_at).toLocaleTimeString()} • +
+                        {mission.mission_templates.xp_reward} XP
                       </p>
                     )}
                   </div>
@@ -255,7 +247,7 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
             <div className="text-center py-12 text-muted-foreground">
               <Target className="h-16 w-16 mx-auto mb-4 opacity-30" />
               <p className="text-lg font-medium">No missions selected yet</p>
-              <p className="text-sm mt-1">Select {REQUIRED_MISSIONS} missions to start earning points today</p>
+              <p className="text-sm mt-1">Select {REQUIRED_MISSIONS} missions to start earning XP today</p>
             </div>
           )}
         </CardContent>
@@ -266,37 +258,9 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Complete Mission</DialogTitle>
-            <DialogDescription>{completingMission?.template?.title}</DialogDescription>
+            <DialogDescription>{completingMission?.mission_templates.title}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            {completingMission?.template?.requires_photo && (
-              <div className="space-y-2">
-                <Label>Photo Proof (Required)</Label>
-                <div className="border-2 border-dashed rounded-lg p-4 text-center">
-                  {photoFile ? (
-                    <div className="space-y-2">
-                      <p className="text-sm text-emerald-600">{photoFile.name}</p>
-                      <Button variant="outline" size="sm" onClick={() => setPhotoFile(null)}>
-                        Remove
-                      </Button>
-                    </div>
-                  ) : (
-                    <label className="cursor-pointer">
-                      <div className="flex flex-col items-center gap-2">
-                        <Upload className="h-8 w-8 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">Click to upload photo</span>
-                      </div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
-                      />
-                    </label>
-                  )}
-                </div>
-              </div>
-            )}
             <div className="space-y-2">
               <Label>Notes (Optional)</Label>
               <Textarea
@@ -306,11 +270,10 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
                 rows={3}
               />
             </div>
-            <div className="flex items-center gap-2 p-3 bg-amber-50 rounded-lg">
-              <Zap className="h-5 w-5 text-amber-600" />
-              <span className="text-sm text-amber-800">
-                You'll earn <strong>{completingMission?.template?.points || 10} points</strong> for completing this
-                mission
+            <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-100">
+              <Zap className="h-5 w-5 text-blue-600" />
+              <span className="text-sm text-blue-800">
+                You'll earn <strong>{completingMission?.mission_templates.xp_reward} XP</strong> for completing this
               </span>
             </div>
           </div>
@@ -320,7 +283,7 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
             </Button>
             <Button
               onClick={handleCompleteMission}
-              disabled={isLoading || (completingMission?.template?.requires_photo && !photoFile)}
+              disabled={isLoading}
               className="bg-emerald-500 hover:bg-emerald-600"
             >
               {isLoading ? "Completing..." : "Mark Complete"}
@@ -329,7 +292,7 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
         </DialogContent>
       </Dialog>
 
-      {/* Select Missions Dialog - Only show available templates not already assigned */}
+      {/* Select Missions Dialog */}
       <Dialog open={selectMissionsOpen} onOpenChange={setSelectMissionsOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -337,15 +300,12 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
               Select {missionsNeeded} Mission{missionsNeeded > 1 ? "s" : ""}
             </DialogTitle>
             <DialogDescription>
-              {todayMissions.length === 0
-                ? `Choose exactly ${REQUIRED_MISSIONS} missions to complete today. You cannot change your selection after submitting.`
-                : `You already have ${todayMissions.length} mission${todayMissions.length > 1 ? "s" : ""}. Select ${missionsNeeded} more to complete your daily set.`}
+              Choose missions to complete today. You'll earn XP for each completed mission.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            {/* Selection counter */}
-            <div className="mb-4 p-3 bg-amber-50 rounded-lg flex items-center justify-between">
-              <span className="text-sm text-amber-800">
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg flex items-center justify-between border border-blue-100">
+              <span className="text-sm text-blue-800">
                 Selected: <strong>{selectedTemplateIds.length}</strong> of {missionsNeeded}
               </span>
               {selectedTemplateIds.length === missionsNeeded && (
@@ -365,10 +325,10 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
                       onClick={() => !isDisabled && toggleTemplateSelection(template.id)}
                       className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors ${
                         isSelected
-                          ? "border-amber-500 bg-amber-50"
+                          ? "border-blue-500 bg-blue-50 shadow-sm"
                           : isDisabled
                             ? "border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed"
-                            : "border-gray-200 hover:border-amber-300 hover:bg-amber-50/50"
+                            : "border-gray-200 hover:border-blue-300 hover:bg-blue-50/50"
                       }`}
                     >
                       <Checkbox checked={isSelected} disabled={isDisabled} className="pointer-events-none" />
@@ -376,18 +336,9 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
                         <h4 className="font-medium">{template.title}</h4>
                         <p className="text-sm text-muted-foreground">{template.description}</p>
                         <div className="flex items-center gap-2 mt-2">
-                          <Badge variant="outline" className={categoryColors[template.category || "general"]}>
-                            {template.category}
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                            {template.xp_reward} XP
                           </Badge>
-                          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                            {template.points} pts
-                          </Badge>
-                          {template.requires_photo && (
-                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                              <Camera className="h-3 w-3 mr-1" />
-                              Photo
-                            </Badge>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -395,7 +346,7 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
                 })
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
-                  <p>No more mission templates available.</p>
+                  <p>No more missions available today.</p>
                 </div>
               )}
             </div>
@@ -407,7 +358,7 @@ export function MissionsView({ todayMissions, templates, agentId, today }: Missi
             <Button
               onClick={handleSubmitMissions}
               disabled={isLoading || selectedTemplateIds.length !== missionsNeeded}
-              className="bg-amber-500 hover:bg-amber-600"
+              className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600"
             >
               {isLoading ? "Submitting..." : `Confirm ${missionsNeeded} Mission${missionsNeeded > 1 ? "s" : ""}`}
             </Button>

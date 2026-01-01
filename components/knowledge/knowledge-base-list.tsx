@@ -74,12 +74,12 @@ export function KnowledgeBaseList({ articles, categories }: KnowledgeBaseListPro
 
 function ArticleCard({ article }: { article: KnowledgeArticleWithRelations }) {
   const categoryLabels: Record<string, string> = {
-    lead_handling: "Lead Handling",
-    listings: "Listings",
-    transactions: "Transactions",
-    open_house: "Open Houses",
-    training: "Training",
-    general: "General",
+    lead_handling: "Lead Mastery",
+    listings: "Listing Excellence",
+    transactions: "Deal Management",
+    open_house: "Open House Strategies",
+    training: "Agent Development",
+    general: "Quick Reference",
   }
 
   return (

@@ -5,6 +5,11 @@ export interface CurrentAgent extends Agent {
   user_id: string
   Role: string
   team_id: string | null
+  exp_season: number
+  exp_bank: number
+  lifetime_xp: number
+  prestige_tier: number
+  prestige_icon_url: string | null
 }
 
 export async function isDatabaseSetup(): Promise<boolean> {
@@ -30,7 +35,11 @@ export async function getCurrentAgent(): Promise<CurrentAgent | null> {
     return null
   }
 
-  const { data: agent, error: agentError } = await supabase.from("agents").select("*").eq("id", user.id).maybeSingle()
+  const { data: agent, error: agentError } = await supabase
+    .from("agents")
+    .select("*, exp_season, exp_bank, lifetime_xp, prestige_tier, prestige_icon_url")
+    .eq("id", user.id)
+    .maybeSingle()
 
   if (agentError) {
     // If table doesn't exist, return null gracefully
@@ -49,6 +58,11 @@ export async function getCurrentAgent(): Promise<CurrentAgent | null> {
         Name: user.user_metadata?.full_name || user.email?.split("@")[0] || "",
         Phone: "",
         Role: "agent",
+        exp_season: 0,
+        exp_bank: 0,
+        lifetime_xp: 0,
+        prestige_tier: 1,
+        prestige_icon_url: null,
       })
       .select()
       .single()
@@ -67,6 +81,11 @@ export async function getCurrentAgent(): Promise<CurrentAgent | null> {
       Role: newAgent.Role,
       user_id: user.id,
       team_id: null,
+      exp_season: newAgent.exp_season,
+      exp_bank: newAgent.exp_bank,
+      lifetime_xp: newAgent.lifetime_xp,
+      prestige_tier: newAgent.prestige_tier,
+      prestige_icon_url: newAgent.prestige_icon_url,
     } as CurrentAgent
   }
 
@@ -80,6 +99,11 @@ export async function getCurrentAgent(): Promise<CurrentAgent | null> {
     Role: agent.Role,
     user_id: user.id,
     team_id: agent.team_id || null,
+    exp_season: agent.exp_season || 0,
+    exp_bank: agent.exp_bank || 0,
+    lifetime_xp: agent.lifetime_xp || 0,
+    prestige_tier: agent.prestige_tier || 1,
+    prestige_icon_url: agent.prestige_icon_url || null,
   } as CurrentAgent
 }
 

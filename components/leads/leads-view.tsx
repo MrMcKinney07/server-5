@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { createBrowserClient } from "@/lib/supabase/client"
@@ -24,6 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Plus, Users, Phone, Mail, Calendar, AlertCircle } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import Link from "next/link"
+import { toast } from "sonner"
 
 interface LeadsViewProps {
   leads: Lead[]
@@ -69,26 +72,46 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
   const router = useRouter()
 
   const handleCreateLead = async () => {
+    if (!formData.first_name.trim() || !formData.last_name.trim()) {
+      toast.error("Please enter first and last name")
+      return
+    }
+
+    if (!formData.email.trim() && !formData.phone.trim()) {
+      toast.error("Please provide at least an email or phone number")
+      return
+    }
+
     setIsLoading(true)
     const supabase = createBrowserClient()
 
-    const { error } = await supabase.from("leads").insert({
-      agent_id: agentId,
-      first_name: formData.first_name,
-      last_name: formData.last_name,
-      email: formData.email || null,
-      phone: formData.phone || null,
-      lead_type: formData.lead_type,
-      source: formData.source,
-      notes: formData.notes || null,
-      property_interest: formData.property_interest || null,
-      budget_min: formData.budget_min ? Number.parseFloat(formData.budget_min) : null,
-      budget_max: formData.budget_max ? Number.parseFloat(formData.budget_max) : null,
-      timeline: formData.timeline || null,
-      status: "new",
-    })
+    const { data, error } = await supabase
+      .from("leads")
+      .insert({
+        agent_id: agentId,
+        first_name: formData.first_name.trim(),
+        last_name: formData.last_name.trim(),
+        email: formData.email.trim() || null,
+        phone: formData.phone.trim() || null,
+        lead_type: formData.lead_type,
+        source: formData.source,
+        notes: formData.notes.trim() || null,
+        property_interest: formData.property_interest.trim() || null,
+        budget_min: formData.budget_min ? Number.parseFloat(formData.budget_min) : null,
+        budget_max: formData.budget_max ? Number.parseFloat(formData.budget_max) : null,
+        timeline: formData.timeline.trim() || null,
+        status: "new",
+      })
+      .select()
 
-    if (!error) {
+    if (error) {
+      toast.error(`Failed to create lead: ${error.message}`)
+      setIsLoading(false)
+      return
+    }
+
+    if (!error && data) {
+      toast.success("Lead created successfully!")
       setCreateDialogOpen(false)
       setFormData({
         first_name: "",
@@ -109,10 +132,19 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
     setIsLoading(false)
   }
 
+  const handleRowClick = (leadId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    router.push(`/dashboard/leads/${leadId}`)
+  }
+
   const renderLeadRow = (lead: Lead) => (
-    <TableRow key={lead.id} className="hover:bg-gray-50">
+    <TableRow key={lead.id} className="hover:bg-gray-50 cursor-pointer" onClick={(e) => handleRowClick(lead.id, e)}>
       <TableCell>
-        <Link href={`/dashboard/leads/${lead.id}`} className="font-medium text-blue-600 hover:underline">
+        <Link
+          href={`/dashboard/leads/${lead.id}`}
+          className="font-medium text-blue-600 hover:underline"
+          onClick={(e) => e.stopPropagation()}
+        >
           {lead.first_name} {lead.last_name}
         </Link>
       </TableCell>
@@ -311,11 +343,30 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
       </Card>
 
       {/* Create Lead Dialog */}
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-2xl">
+      <Dialog
+        open={createDialogOpen}
+        onOpenChange={(open) => {
+          // Only allow closing via Cancel button or successful submission
+          if (!open && !isLoading) {
+            setCreateDialogOpen(false)
+          }
+        }}
+      >
+        <DialogContent
+          className="max-w-2xl"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => {
+            if (!isLoading) {
+              setCreateDialogOpen(false)
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Add New Lead</DialogTitle>
-            <DialogDescription>Enter the lead's information to add them to your pipeline</DialogDescription>
+            <DialogDescription>
+              Enter the lead's information to add them to your pipeline. At least name and one contact method (email or
+              phone) required.
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
@@ -325,6 +376,7 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
                   value={formData.first_name}
                   onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                   placeholder="John"
+                  onFocus={(e) => e.stopPropagation()}
                 />
               </div>
               <div className="space-y-2">
@@ -333,26 +385,29 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
                   value={formData.last_name}
                   onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                   placeholder="Smith"
+                  onFocus={(e) => e.stopPropagation()}
                 />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Email</Label>
+                <Label>Email *</Label>
                 <Input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="john@example.com"
+                  onFocus={(e) => e.stopPropagation()}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Phone</Label>
+                <Label>Phone *</Label>
                 <Input
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   placeholder="(555) 123-4567"
+                  onFocus={(e) => e.stopPropagation()}
                 />
               </div>
             </div>
@@ -438,12 +493,17 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setCreateDialogOpen(false)} disabled={isLoading}>
               Cancel
             </Button>
             <Button
               onClick={handleCreateLead}
-              disabled={isLoading || !formData.first_name || !formData.last_name}
+              disabled={
+                isLoading ||
+                !formData.first_name.trim() ||
+                !formData.last_name.trim() ||
+                (!formData.email.trim() && !formData.phone.trim())
+              }
               className="bg-blue-600 hover:bg-blue-700"
             >
               {isLoading ? "Creating..." : "Create Lead"}

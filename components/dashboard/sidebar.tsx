@@ -2,7 +2,18 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Users, Home, Settings, Target, Mail, DollarSign, Shield, Trophy } from "lucide-react"
+import {
+  LayoutDashboard,
+  Users,
+  Home,
+  Settings,
+  Target,
+  Mail,
+  DollarSign,
+  Shield,
+  Trophy,
+  BookOpen,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const navItems = [
@@ -12,6 +23,7 @@ const navItems = [
   { label: "Campaigns", href: "/dashboard/campaigns", icon: Mail, color: "text-rose-400" },
   { label: "Properties", href: "/dashboard/properties", icon: Home, color: "text-emerald-400" },
   { label: "Earnings", href: "/dashboard/earnings", icon: DollarSign, color: "text-emerald-400" },
+  { label: "Knowledge Base", href: "/dashboard/knowledge", icon: BookOpen, color: "text-violet-400" },
   { label: "Prestige", href: "/dashboard/prestige", icon: Trophy, color: "text-amber-400" },
   { label: "Settings", href: "/dashboard/settings", icon: Settings, color: "text-slate-400" },
 ]
@@ -31,8 +43,8 @@ export function DashboardSidebar({ agentRole }: DashboardSidebarProps) {
 
       <div className="h-16 flex items-center px-6 border-b border-white/5">
         <Link href="/dashboard" className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center shadow-lg shadow-cyan-500/30">
-            <span className="text-white font-bold text-sm">M1</span>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center">
+            <img src="/images/m1-crm-logo-bottom-left.png" alt="M1 CRM Logo" className="w-full h-full object-contain" />
           </div>
           <span className="font-semibold text-lg text-white tracking-tight">McKinney One</span>
         </Link>

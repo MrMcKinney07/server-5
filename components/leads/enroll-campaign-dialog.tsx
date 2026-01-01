@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Mail, Zap } from "lucide-react"
+import { toast } from "sonner"
 
 interface Campaign {
   id: string
@@ -41,12 +42,15 @@ export function EnrollCampaignDialog({ leadId, leadName, enrolledCampaignIds }: 
 
   useEffect(() => {
     async function fetchCampaigns() {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("campaigns")
         .select("id, name, description, is_active")
         .eq("is_active", true)
         .order("name")
-      setCampaigns(data || [])
+
+      if (!error) {
+        setCampaigns(data || [])
+      }
     }
     if (open) {
       fetchCampaigns()
@@ -56,7 +60,9 @@ export function EnrollCampaignDialog({ leadId, leadName, enrolledCampaignIds }: 
   const availableCampaigns = campaigns.filter((c) => !enrolledCampaignIds.includes(c.id))
 
   async function handleEnroll() {
-    if (!selectedCampaignId) return
+    if (!selectedCampaignId) {
+      return
+    }
     setLoading(true)
 
     // Get the first step's delay to calculate next_run_at
@@ -65,7 +71,7 @@ export function EnrollCampaignDialog({ leadId, leadName, enrolledCampaignIds }: 
       .select("delay_hours")
       .eq("campaign_id", selectedCampaignId)
       .eq("step_number", 1)
-      .single()
+      .maybeSingle()
 
     const nextRunAt = new Date()
     nextRunAt.setHours(nextRunAt.getHours() + (firstStep?.delay_hours || 0))
@@ -86,15 +92,15 @@ export function EnrollCampaignDialog({ leadId, leadName, enrolledCampaignIds }: 
         event: "enrolled",
         info: { enrolled_by: "manual" },
       })
-    }
-
-    setLoading(false)
-
-    if (!error) {
+      toast.success("Lead enrolled in campaign successfully!")
       setOpen(false)
       setSelectedCampaignId("")
       router.refresh()
+    } else {
+      toast.error("Failed to enroll: " + error.message)
     }
+
+    setLoading(false)
   }
 
   return (

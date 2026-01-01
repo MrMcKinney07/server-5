@@ -18,9 +18,8 @@ interface Campaign {
   channel?: string
   type?: string
   created_at: string
-  owner: { Name: string; Email: string } | null
-  steps: { count: number }[]
-  enrollments: { count: number }[]
+  stepsCount: number
+  enrollmentsCount: number
 }
 
 interface CampaignsTableProps {
@@ -144,14 +143,14 @@ export function CampaignsTable({ campaigns }: CampaignsTableProps) {
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-1 text-muted-foreground">
-                  <span className="font-medium text-foreground">{campaign.steps?.[0]?.count || 0}</span>
+                  <span className="font-medium text-foreground">{campaign.stepsCount}</span>
                   steps
                 </div>
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-1 text-muted-foreground">
                   <Users className="h-4 w-4" />
-                  <span className="font-medium text-foreground">{campaign.enrollments?.[0]?.count || 0}</span>
+                  <span className="font-medium text-foreground">{campaign.enrollmentsCount}</span>
                 </div>
               </TableCell>
               <TableCell>
