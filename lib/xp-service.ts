@@ -17,7 +17,7 @@ export async function grantXP(userId: string, amount: number, reason: string, ty
     return { success: false, error: "Agent not found" }
   }
 
-  // Check if season needs reset
+  // Check if season needs reset (automatic reset on 1st of month)
   let seasonXP = agent.exp_season || 0
   if (agent.season_id !== currentSeason) {
     seasonXP = 0 // Reset for new season
@@ -25,17 +25,16 @@ export async function grantXP(userId: string, amount: number, reason: string, ty
 
   // Calculate new values
   const newSeasonXP = seasonXP + amount
-  const newBankXP = (agent.exp_bank || 0) + amount
   const newLifetimeXP = (agent.lifetime_xp || 0) + amount
+  const newBankXP = (agent.exp_bank || 0) + amount
   const newPrestigeTier = getPrestigeTier(newLifetimeXP)
 
-  // Update agent
   const { error: updateError } = await supabase
     .from("agents")
     .update({
       exp_season: newSeasonXP,
-      exp_bank: newBankXP,
       lifetime_xp: newLifetimeXP,
+      exp_bank: newBankXP,
       prestige_tier: newPrestigeTier,
       season_id: currentSeason,
       last_season_reset: agent.season_id !== currentSeason ? new Date().toISOString() : agent.last_season_reset,
@@ -56,22 +55,14 @@ export async function grantXP(userId: string, amount: number, reason: string, ty
     season_id: currentSeason,
   })
 
-  // Log to xp_ledger (bank tracking)
-  await supabase.from("xp_ledger").insert({
-    user_id: userId,
-    amount,
-    kind: "EARN",
-    season_id: currentSeason,
-    source: type,
-    note: reason,
-  })
-
   return {
     success: true,
     newSeasonXP,
-    newBankXP,
     newLifetimeXP,
+    newBankXP,
     prestigeTier: newPrestigeTier,
     tierChanged: newPrestigeTier !== agent.prestige_tier,
   }
 }
+
+export const addXP = grantXP

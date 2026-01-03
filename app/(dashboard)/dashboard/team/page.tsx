@@ -21,48 +21,66 @@ export default async function TeamDashboardPage() {
     ? await supabase.from("agents").select("*").eq("team_id", agent.team_id)
     : { data: [] }
 
-  // Get team stats - simplified query
   const currentMonth = new Date().getMonth() + 1
   const currentYear = new Date().getFullYear()
   const startOfMonth = `${currentYear}-${String(currentMonth).padStart(2, "0")}-01`
 
-  const { data: memberMissions } = agent.team_id
+  const { data: memberMissionSets } = agent.team_id
     ? await supabase
-        .from("agent_missions")
-        .select("agent_id, points_earned, status")
+        .from("daily_mission_sets")
+        .select(`
+          user_id,
+          daily_mission_items(status, mission_templates(xp_reward))
+        `)
         .in(
-          "agent_id",
+          "user_id",
           (members || []).map((m) => m.id),
         )
         .gte("mission_date", startOfMonth)
     : { data: [] }
 
-  // Calculate member stats from missions
   const memberStats = (members || []).map((m) => {
-    const agentMissions = (memberMissions || []).filter((mission) => mission.agent_id === m.id)
-    const completedMissions = agentMissions.filter((mission) => mission.status === "completed")
+    const agentSets = (memberMissionSets || []).filter((set) => set.user_id === m.id)
+    const allItems = agentSets.flatMap((set) => set.daily_mission_items || [])
+    const completedItems = allItems.filter((item: any) => item.status === "completed")
     return {
       agent_id: m.id,
-      missions_completed: completedMissions.length,
-      points_earned: completedMissions.reduce((sum, mission) => sum + (mission.points_earned || 0), 0),
+      missions_completed: completedItems.length,
+      points_earned: completedItems.reduce(
+        (sum: number, item: any) => sum + (item.mission_templates?.xp_reward || 0),
+        0,
+      ),
     }
   })
 
-  // Get recent missions completion
   const today = new Date().toISOString().split("T")[0]
   const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
 
-  const { data: recentMissions } = agent.team_id
+  const { data: recentMissionSets } = agent.team_id
     ? await supabase
-        .from("agent_missions")
-        .select("*, template:mission_templates(*)")
+        .from("daily_mission_sets")
+        .select(`
+          *,
+          daily_mission_items(*, mission_templates(*))
+        `)
         .in(
-          "agent_id",
+          "user_id",
           (members || []).map((m) => m.id),
         )
         .gte("mission_date", threeDaysAgo)
         .lte("mission_date", today)
     : { data: [] }
+
+  // Flatten the structure for the component
+  const recentMissions =
+    recentMissionSets?.flatMap((set) =>
+      (set.daily_mission_items || []).map((item: any) => ({
+        ...item,
+        agent_id: set.user_id,
+        mission_date: set.mission_date,
+        template: item.mission_templates,
+      })),
+    ) || []
 
   return (
     <div className="space-y-6">

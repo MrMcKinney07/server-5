@@ -18,7 +18,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
 
   try {
     const { data, error } = await resend.emails.send({
-      from: options.from || "McKinney One <noreply@resend.dev>",
+      from: options.from || "McKinney Realty Co <noreply@mckinneyrealtyco.com>",
       to: options.to,
       subject: options.subject,
       text: options.body,

@@ -13,42 +13,51 @@ export default async function RewardsPage() {
     redirect("/auth/login")
   }
 
-  const { data: completedMissions } = await supabase
-    .from("agent_missions")
-    .select("points_earned, completed_at, template_id, mission_templates(title, category, points)")
-    .eq("agent_id", agent.id)
+  const { data: completedMissionItems } = await supabase
+    .from("daily_mission_items")
+    .select(`
+      *,
+      completed_at,
+      mission_templates(title, category, xp_reward),
+      daily_mission_sets!inner(user_id)
+    `)
+    .eq("daily_mission_sets.user_id", agent.id)
     .eq("status", "completed")
     .order("completed_at", { ascending: false })
 
-  // Calculate total XP from missions
-  const totalXP = completedMissions?.reduce((sum, m) => sum + (m.points_earned || 0), 0) || 0
+  const totalXP = completedMissionItems?.reduce((sum, item) => sum + (item.mission_templates?.xp_reward || 0), 0) || 0
 
   // Get this month's XP
   const startOfMonth = new Date()
   startOfMonth.setDate(1)
   startOfMonth.setHours(0, 0, 0, 0)
   const monthlyXP =
-    completedMissions
-      ?.filter((m) => m.completed_at && new Date(m.completed_at) >= startOfMonth)
-      .reduce((sum, m) => sum + (m.points_earned || 0), 0) || 0
+    completedMissionItems
+      ?.filter((item) => item.completed_at && new Date(item.completed_at) >= startOfMonth)
+      .reduce((sum, item) => sum + (item.mission_templates?.xp_reward || 0), 0) || 0
 
-  // Get XP leaderboard from all agents' completed missions
-  const { data: allAgentMissions } = await supabase
-    .from("agent_missions")
-    .select("agent_id, points_earned, agents(id, Name, Email)")
+  const { data: allCompletedItems } = await supabase
+    .from("daily_mission_items")
+    .select(`
+      *,
+      mission_templates(xp_reward),
+      daily_mission_sets!inner(user_id, agents(id, Name, Email))
+    `)
     .eq("status", "completed")
 
   // Aggregate XP by agent for leaderboard
   const agentXPMap = new Map<string, { agent: any; total_xp: number }>()
-  allAgentMissions?.forEach((m) => {
-    if (m.agent_id && m.agents) {
-      const existing = agentXPMap.get(m.agent_id)
+  allCompletedItems?.forEach((item) => {
+    const userId = (item.daily_mission_sets as any)?.user_id
+    const agent = (item.daily_mission_sets as any)?.agents
+    if (userId && agent) {
+      const existing = agentXPMap.get(userId)
       if (existing) {
-        existing.total_xp += m.points_earned || 0
+        existing.total_xp += item.mission_templates?.xp_reward || 0
       } else {
-        agentXPMap.set(m.agent_id, {
-          agent: m.agents,
-          total_xp: m.points_earned || 0,
+        agentXPMap.set(userId, {
+          agent,
+          total_xp: item.mission_templates?.xp_reward || 0,
         })
       }
     }
@@ -63,11 +72,11 @@ export default async function RewardsPage() {
     total_xp: totalXP,
     monthly_xp: monthlyXP,
     level: Math.floor(totalXP / 100) + 1,
-    missions_completed: completedMissions?.length || 0,
+    missions_completed: completedMissionItems?.length || 0,
   }
 
-  const { data: agentData } = await supabase.from("agents").select("exp").eq("id", agent.id).single()
-  const currentAgentXP = (agentData?.exp || 0) + totalXP
+  const { data: agentData } = await supabase.from("agents").select("exp_bank, lifetime_xp").eq("id", agent.id).single()
+  const currentAgentXP = agentData?.exp_bank || 0
 
   return (
     <div className="space-y-6">
@@ -86,7 +95,7 @@ export default async function RewardsPage() {
           <RewardsDashboard
             agent={agent}
             agentXP={agentXP}
-            completedMissions={completedMissions || []}
+            completedMissions={completedMissionItems || []}
             xpLeaderboard={xpLeaderboard}
           />
         </TabsContent>

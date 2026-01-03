@@ -19,36 +19,47 @@ export default async function AdminDashboardPage() {
   startOfMonth.setDate(1)
 
   // Fetch mission stats for today
-  const [{ data: todayMissions }, { data: allAgents }, { data: missionTemplates }, { data: weekMissions }] =
+  const [{ data: todayMissionSets }, { data: allAgents }, { data: missionTemplates }, { data: weekMissionSets }] =
     await Promise.all([
-      supabase.from("agent_missions").select("*").eq("mission_date", today),
+      supabase.from("daily_mission_sets").select("*, daily_mission_items(*)").eq("mission_date", today),
       supabase.from("agents").select("*"),
       supabase.from("mission_templates").select("*").eq("is_active", true).order("category"),
       supabase
-        .from("agent_missions")
-        .select("*, agent:agents(id, Name, Email)")
+        .from("daily_mission_sets")
+        .select(`
+          *,
+          agent:agents(id, Name, Email),
+          daily_mission_items(*, mission_templates(xp_reward))
+        `)
         .gte("mission_date", startOfWeek.toISOString().split("T")[0]),
     ])
 
-  // Calculate stats
-  const totalTodayMissions = todayMissions?.length || 0
-  const completedTodayMissions = todayMissions?.filter((m) => m.status === "completed").length || 0
+  const totalTodayMissions =
+    todayMissionSets?.reduce((sum, set) => sum + (set.daily_mission_items?.length || 0), 0) || 0
+  const completedTodayMissions =
+    todayMissionSets?.reduce(
+      (sum, set) => sum + (set.daily_mission_items?.filter((item: any) => item.status === "completed").length || 0),
+      0,
+    ) || 0
   const completionRate = totalTodayMissions > 0 ? Math.round((completedTodayMissions / totalTodayMissions) * 100) : 0
 
-  // Calculate leaderboard from week missions
   const agentStats = new Map<string, { name: string; email: string; completed: number; points: number }>()
 
-  weekMissions?.forEach((mission) => {
-    if (mission.status === "completed" && mission.agent) {
-      const agentId = mission.agent_id
+  weekMissionSets?.forEach((set) => {
+    const completedItems = set.daily_mission_items?.filter((item: any) => item.status === "completed") || []
+    if (completedItems.length > 0 && set.agent) {
+      const agentId = set.user_id
       const current = agentStats.get(agentId) || {
-        name: (mission.agent as { Name?: string })?.Name || "Unknown",
-        email: (mission.agent as { Email?: string })?.Email || "",
+        name: (set.agent as { Name?: string })?.Name || "Unknown",
+        email: (set.agent as { Email?: string })?.Email || "",
         completed: 0,
         points: 0,
       }
-      current.completed += 1
-      current.points += mission.points_earned || 0
+      current.completed += completedItems.length
+      current.points += completedItems.reduce(
+        (sum: number, item: any) => sum + (item.mission_templates?.xp_reward || 0),
+        0,
+      )
       agentStats.set(agentId, current)
     }
   })

@@ -1,114 +1,98 @@
 "use client"
 
 import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Trophy, TrendingUp, Coins, Calendar, ArrowRight, Star, Zap, Clock } from "lucide-react"
-import { useState } from "react"
+import { Trophy, TrendingUp, Calendar, Star, Zap, Clock, ShoppingBag } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import Image from "next/image"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 
 const PRESTIGE_TIERS = [
   {
     name: "Bronze",
-    minLevel: 1,
-    maxLevel: 9,
+    minXP: 0,
+    maxXP: 999,
     color: "from-amber-700 to-amber-900",
     textColor: "text-amber-600",
     logo: "/images/3c16b4fb-dbe6-4656-a916.jpeg",
   },
   {
     name: "Silver",
-    minLevel: 10,
-    maxLevel: 24,
+    minXP: 1000,
+    maxXP: 4999,
     color: "from-slate-400 to-slate-600",
     textColor: "text-slate-400",
     logo: "/images/f2bb9722-b820-4840-9c40.jpeg",
   },
   {
     name: "Gold",
-    minLevel: 25,
-    maxLevel: 49,
+    minXP: 5000,
+    maxXP: 9999,
     color: "from-amber-400 to-amber-600",
     textColor: "text-amber-400",
     logo: "/images/819b9862-0cd7-4d17-8f1b.jpeg",
   },
   {
     name: "Platinum",
-    minLevel: 50,
-    maxLevel: 99,
+    minXP: 10000,
+    maxXP: 24999,
     color: "from-slate-300 to-blue-400",
     textColor: "text-blue-300",
     logo: "/images/f2bb9722-b820-4840-9c40.jpeg",
   },
   {
     name: "Diamond",
-    minLevel: 100,
-    maxLevel: 999,
+    minXP: 25000,
+    maxXP: 999999,
     color: "from-blue-400 to-purple-500",
     textColor: "text-blue-400",
     logo: "/images/04e7c452-75ef-424e-9c71.jpeg",
   },
 ]
 
-function getPrestigeTier(level: number) {
-  return PRESTIGE_TIERS.find((tier) => level >= tier.minLevel && level <= tier.maxLevel) || PRESTIGE_TIERS[0]
+function getTierFromXP(xp: number) {
+  return PRESTIGE_TIERS.find((tier) => xp >= tier.minXP && xp <= tier.maxXP) || PRESTIGE_TIERS[0]
 }
 
 interface PrestigeDashboardProps {
   agent: any
   seasonXP: number
-  bankXP: number
   lifetimeXP: number
+  bankXP: number
   prestigeTier: number
   prestigeIconUrl?: string | null
   recentEvents: any[]
-  recentLedger: any[]
+  recentLedger?: any[]
 }
 
 export function PrestigeDashboard({
   agent,
   seasonXP,
-  bankXP,
   lifetimeXP,
+  bankXP,
   prestigeTier,
   prestigeIconUrl,
   recentEvents,
   recentLedger,
 }: PrestigeDashboardProps) {
-  const [isCashingOut, setIsCashingOut] = useState(false)
-
-  const level = Math.floor(lifetimeXP / 1000) + 1
-  const progressToNext = lifetimeXP % 1000
-  const progressPercent = (progressToNext / 1000) * 100
-
-  const currentTier =
-    PRESTIGE_TIERS.find((t) => t.minLevel <= prestigeTier && prestigeTier <= t.maxLevel) || PRESTIGE_TIERS[0]
+  const currentTier = getTierFromXP(lifetimeXP)
   const nextTierIndex = PRESTIGE_TIERS.findIndex((t) => t.name === currentTier.name) + 1
   const nextTier = PRESTIGE_TIERS[nextTierIndex]
 
-  const handleCashOut = async () => {
-    if (seasonXP === 0) return
+  // Calculate progress to next tier
+  const xpInCurrentTier = lifetimeXP - currentTier.minXP
+  const tierRange = currentTier.maxXP - currentTier.minXP + 1
+  const progressPercent = Math.min((xpInCurrentTier / tierRange) * 100, 100)
 
-    setIsCashingOut(true)
-    try {
-      const response = await fetch("/api/prestige/cash-out", {
-        method: "POST",
-      })
-
-      if (response.ok) {
-        window.location.reload()
-      }
-    } catch (error) {
-      console.error("Cash out failed:", error)
-    } finally {
-      setIsCashingOut(false)
-    }
-  }
+  // Calculate days until season reset
+  const now = new Date()
+  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+  const daysUntilReset = Math.ceil((nextMonth.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
 
   return (
     <div className="space-y-6">
+      {/* Hero Card */}
       <Card className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-slate-700/50">
         <div className="absolute inset-0 overflow-hidden">
           <div
@@ -134,9 +118,6 @@ export function PrestigeDashboard({
               <Badge className={`bg-gradient-to-r ${currentTier.color} text-white border-0`}>
                 {currentTier.name} Tier
               </Badge>
-              <Badge variant="outline" className="border-slate-600 text-slate-300">
-                Level {level}
-              </Badge>
             </div>
             <h1 className="text-3xl font-bold text-white mb-1">
               {agent?.first_name || agent?.FirstName || "Agent"}'s Prestige
@@ -144,15 +125,16 @@ export function PrestigeDashboard({
             <p className="text-slate-400">{lifetimeXP.toLocaleString()} lifetime XP earned</p>
             {nextTier && (
               <p className="text-sm text-slate-500 mt-2">
-                {(nextTier.minLevel * 1000 - lifetimeXP).toLocaleString()} XP until {nextTier.name} tier
+                {(nextTier.minXP - lifetimeXP).toLocaleString()} XP until {nextTier.name} tier
               </p>
             )}
           </div>
         </div>
       </Card>
 
-      {/* Hero Stats */}
+      {/* Stats Cards - Now 3 cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Season XP Card */}
         <Card className="bg-gradient-to-br from-cyan-500/10 via-blue-500/10 to-purple-500/10 border-cyan-500/20 backdrop-blur-sm">
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
@@ -163,66 +145,68 @@ export function PrestigeDashboard({
                 <span className="text-sm font-medium text-slate-300">Season XP</span>
               </div>
               <Badge variant="outline" className="border-cyan-500/30 text-cyan-400">
-                Current Season
+                Leaderboard
               </Badge>
             </div>
             <div className="space-y-2">
               <div className="text-4xl font-bold text-white">{seasonXP.toLocaleString()}</div>
-              <p className="text-xs text-slate-400">Resets on the 1st of each month</p>
+              <p className="text-xs text-slate-400">
+                Resets in {daysUntilReset} day{daysUntilReset !== 1 ? "s" : ""} (1st of month)
+              </p>
             </div>
           </div>
         </Card>
 
+        {/* Lifetime XP Card */}
         <Card className="bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-red-500/10 border-amber-500/20 backdrop-blur-sm">
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <div className="p-2 rounded-lg bg-amber-500/20">
-                  <Coins className="h-5 w-5 text-amber-400" />
+                  <TrendingUp className="h-5 w-5 text-amber-400" />
                 </div>
-                <span className="text-sm font-medium text-slate-300">XP Bank</span>
+                <span className="text-sm font-medium text-slate-300">Lifetime XP</span>
               </div>
               <Badge variant="outline" className="border-amber-500/30 text-amber-400">
-                Spendable
+                Prestige
+              </Badge>
+            </div>
+            <div className="space-y-2">
+              <div className="text-4xl font-bold text-white">{lifetimeXP.toLocaleString()}</div>
+              <p className="text-xs text-slate-400">Never resets - determines your tier</p>
+            </div>
+          </div>
+        </Card>
+
+        {/* Spendable XP Card */}
+        <Card className="bg-gradient-to-br from-emerald-500/10 via-green-500/10 to-teal-500/10 border-emerald-500/20 backdrop-blur-sm">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-emerald-500/20">
+                  <ShoppingBag className="h-5 w-5 text-emerald-400" />
+                </div>
+                <span className="text-sm font-medium text-slate-300">Spendable XP</span>
+              </div>
+              <Badge variant="outline" className="border-emerald-500/30 text-emerald-400">
+                Rewards
               </Badge>
             </div>
             <div className="space-y-2">
               <div className="text-4xl font-bold text-white">{bankXP.toLocaleString()}</div>
-              <p className="text-xs text-slate-400">Use in Prize Shop</p>
+              <p className="text-xs text-slate-400">Available to spend on prizes</p>
             </div>
-          </div>
-        </Card>
-
-        {/* Cash Out Card */}
-        <Card className="bg-gradient-to-br from-green-500/10 via-emerald-500/10 to-teal-500/10 border-green-500/20 backdrop-blur-sm">
-          <div className="p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-2 rounded-lg bg-green-500/20">
-                <TrendingUp className="h-5 w-5 text-green-400" />
-              </div>
-              <span className="text-sm font-medium text-slate-300">Cash Out</span>
-            </div>
-            <div className="space-y-3">
-              <p className="text-sm text-slate-400">Transfer your season XP to your permanent XP bank at month end.</p>
-              <Button
-                onClick={handleCashOut}
-                disabled={seasonXP === 0 || isCashingOut}
-                className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white border-0"
-              >
-                {isCashingOut ? (
-                  <>Processing...</>
-                ) : (
-                  <>
-                    Cash Out {seasonXP.toLocaleString()} XP
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </>
-                )}
+            <Link href="/dashboard/rewards">
+              <Button size="sm" className="w-full mt-3 bg-emerald-600 hover:bg-emerald-700">
+                <ShoppingBag className="h-4 w-4 mr-2" />
+                Browse Rewards
               </Button>
-            </div>
+            </Link>
           </div>
         </Card>
       </div>
 
+      {/* Tier Progression */}
       <Card className="bg-slate-900/60 backdrop-blur-sm border-slate-700/50">
         <div className="p-6">
           <h2 className="text-xl font-bold text-white flex items-center gap-2 mb-6">
@@ -230,9 +214,9 @@ export function PrestigeDashboard({
             Prestige Tier Progression
           </h2>
           <div className="flex flex-wrap justify-center gap-4">
-            {PRESTIGE_TIERS.map((tier, index) => {
+            {PRESTIGE_TIERS.map((tier) => {
               const isCurrentTier = tier.name === currentTier.name
-              const isUnlocked = prestigeTier >= tier.minLevel
+              const isUnlocked = lifetimeXP >= tier.minXP
               return (
                 <div
                   key={tier.name}
@@ -265,7 +249,7 @@ export function PrestigeDashboard({
                     )}
                   </div>
                   <span className={`font-bold ${isUnlocked ? tier.textColor : "text-slate-600"}`}>{tier.name}</span>
-                  <span className="text-xs text-slate-500">Lvl {tier.minLevel}+</span>
+                  <span className="text-xs text-slate-500">{tier.minXP.toLocaleString()}+ XP</span>
                 </div>
               )
             })}
@@ -273,20 +257,24 @@ export function PrestigeDashboard({
         </div>
       </Card>
 
-      {/* Level Progress Bar */}
+      {/* Progress Bar */}
       <Card className="bg-slate-900/60 backdrop-blur-sm border-slate-700/50">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
                 <Star className="h-5 w-5 text-amber-400" />
-                Level Progress
+                Progress to Next Tier
               </h2>
               <p className="text-sm text-slate-400 mt-1">Based on lifetime XP earned</p>
             </div>
             <div className="text-right">
-              <div className={`text-3xl font-bold ${currentTier.textColor}`}>Level {level}</div>
-              <div className="text-xs text-slate-400">{(1000 - progressToNext).toLocaleString()} XP to next level</div>
+              <div className={`text-3xl font-bold ${currentTier.textColor}`}>{currentTier.name}</div>
+              {nextTier && (
+                <div className="text-xs text-slate-400">
+                  {(nextTier.minXP - lifetimeXP).toLocaleString()} XP to {nextTier.name}
+                </div>
+              )}
             </div>
           </div>
 
@@ -300,36 +288,78 @@ export function PrestigeDashboard({
               </div>
             </div>
             <div className="flex justify-between mt-2 text-xs text-slate-400">
-              <span>Level {level}</span>
-              <span>{progressToNext.toLocaleString()} / 1,000 XP</span>
-              <span>Level {level + 1}</span>
+              <span>
+                {currentTier.name} ({currentTier.minXP.toLocaleString()} XP)
+              </span>
+              <span>{lifetimeXP.toLocaleString()} XP</span>
+              {nextTier && (
+                <span>
+                  {nextTier.name} ({nextTier.minXP.toLocaleString()} XP)
+                </span>
+              )}
             </div>
           </div>
         </div>
       </Card>
 
-      {/* Transaction History */}
+      {/* XP History */}
       <Card className="bg-slate-900/60 backdrop-blur-sm border-slate-700/50">
         <div className="p-6">
-          <Tabs defaultValue="events" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-slate-800/50">
-              <TabsTrigger value="events">
-                <Zap className="h-4 w-4 mr-2" />
-                Season Events
-              </TabsTrigger>
-              <TabsTrigger value="ledger">
-                <Coins className="h-4 w-4 mr-2" />
-                Bank Transactions
-              </TabsTrigger>
-            </TabsList>
+          <h2 className="text-xl font-bold text-white flex items-center gap-2 mb-4">
+            <Zap className="h-5 w-5 text-cyan-400" />
+            Recent XP Activity
+          </h2>
 
-            <TabsContent value="events" className="space-y-3 mt-4">
-              {recentEvents.length === 0 ? (
-                <div className="text-center py-8 text-slate-400">No XP events this season yet</div>
+          <div className="space-y-3">
+            {recentEvents.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">No XP events yet</div>
+            ) : (
+              recentEvents.map((event) => (
+                <div
+                  key={event.id}
+                  className="flex items-center justify-between p-4 bg-slate-800/30 border border-slate-700/30 rounded-lg hover:bg-slate-800/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-cyan-500/20">
+                      <Star className="h-4 w-4 text-cyan-400" />
+                    </div>
+                    <div>
+                      <div className="font-medium text-white">{event.reason}</div>
+                      <div className="text-xs text-slate-400 flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {formatDistanceToNow(new Date(event.created_at), { addSuffix: true })}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-bold text-cyan-400">+{event.amount.toLocaleString()}</div>
+                    <Badge variant="outline" className="text-xs border-cyan-500/30 text-cyan-400">
+                      {event.type}
+                    </Badge>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </Card>
+
+      {/* Ledger History */}
+      {recentLedger && (
+        <Card className="bg-slate-900/60 backdrop-blur-sm border-slate-700/50">
+          <div className="p-6">
+            <h2 className="text-xl font-bold text-white flex items-center gap-2 mb-4">
+              <Zap className="h-5 w-5 text-cyan-400" />
+              Recent Ledger Activity
+            </h2>
+
+            <div className="space-y-3">
+              {recentLedger.length === 0 ? (
+                <div className="text-center py-8 text-slate-400">No ledger events yet</div>
               ) : (
-                recentEvents.map((event) => (
+                recentLedger.map((ledger) => (
                   <div
-                    key={event.id}
+                    key={ledger.id}
                     className="flex items-center justify-between p-4 bg-slate-800/30 border border-slate-700/30 rounded-lg hover:bg-slate-800/50 transition-colors"
                   >
                     <div className="flex items-center gap-3">
@@ -337,94 +367,28 @@ export function PrestigeDashboard({
                         <Star className="h-4 w-4 text-cyan-400" />
                       </div>
                       <div>
-                        <div className="font-medium text-white">{event.reason}</div>
+                        <div className="font-medium text-white">{ledger.reason}</div>
                         <div className="text-xs text-slate-400 flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          {formatDistanceToNow(new Date(event.created_at), { addSuffix: true })}
+                          {formatDistanceToNow(new Date(ledger.created_at), { addSuffix: true })}
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-lg font-bold text-cyan-400">+{event.amount.toLocaleString()}</div>
+                      <div className="text-lg font-bold text-cyan-400">
+                        {ledger.amount > 0 ? `+${ledger.amount.toLocaleString()}` : `${ledger.amount.toLocaleString()}`}
+                      </div>
                       <Badge variant="outline" className="text-xs border-cyan-500/30 text-cyan-400">
-                        {event.type}
+                        {ledger.type}
                       </Badge>
                     </div>
                   </div>
                 ))
               )}
-            </TabsContent>
-
-            <TabsContent value="ledger" className="space-y-3 mt-4">
-              {recentLedger.length === 0 ? (
-                <div className="text-center py-8 text-slate-400">No bank transactions yet</div>
-              ) : (
-                recentLedger.map((entry) => (
-                  <div
-                    key={entry.id}
-                    className="flex items-center justify-between p-4 bg-slate-800/30 border border-slate-700/30 rounded-lg hover:bg-slate-800/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`p-2 rounded-lg ${
-                          entry.kind === "EARN"
-                            ? "bg-green-500/20"
-                            : entry.kind === "REDEEM"
-                              ? "bg-red-500/20"
-                              : "bg-amber-500/20"
-                        }`}
-                      >
-                        <Coins
-                          className={`h-4 w-4 ${
-                            entry.kind === "EARN"
-                              ? "text-green-400"
-                              : entry.kind === "REDEEM"
-                                ? "text-red-400"
-                                : "text-amber-400"
-                          }`}
-                        />
-                      </div>
-                      <div>
-                        <div className="font-medium text-white">{entry.note || "Transaction"}</div>
-                        <div className="text-xs text-slate-400 flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {formatDistanceToNow(new Date(entry.created_at), { addSuffix: true })}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div
-                        className={`text-lg font-bold ${
-                          entry.kind === "EARN"
-                            ? "text-green-400"
-                            : entry.kind === "REDEEM"
-                              ? "text-red-400"
-                              : "text-amber-400"
-                        }`}
-                      >
-                        {entry.amount > 0 ? "+" : ""}
-                        {entry.amount.toLocaleString()}
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className={`text-xs ${
-                          entry.kind === "EARN"
-                            ? "border-green-500/30 text-green-400"
-                            : entry.kind === "REDEEM"
-                              ? "border-red-500/30 text-red-400"
-                              : "border-amber-500/30 text-amber-400"
-                        }`}
-                      >
-                        {entry.kind}
-                      </Badge>
-                    </div>
-                  </div>
-                ))
-              )}
-            </TabsContent>
-          </Tabs>
-        </div>
-      </Card>
+            </div>
+          </div>
+        </Card>
+      )}
     </div>
   )
 }

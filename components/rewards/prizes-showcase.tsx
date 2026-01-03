@@ -9,13 +9,11 @@ import { Gift, Sparkles, Zap, Trophy } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 interface PrizesShowcaseProps {
-  totalXP: number
-  seasonXP: number
   bankXP: number
   agentId: string
 }
 
-export function PrizesShowcase({ totalXP, seasonXP, bankXP, agentId }: PrizesShowcaseProps) {
+export function PrizesShowcase({ bankXP, agentId }: PrizesShowcaseProps) {
   const [prizes, setPrizes] = useState<any[]>([])
   const [selectedPrize, setSelectedPrize] = useState<any>(null)
   const [redeeming, setRedeeming] = useState(false)
@@ -44,8 +42,8 @@ export function PrizesShowcase({ totalXP, seasonXP, bankXP, agentId }: PrizesSho
     try {
       if (bankXP < selectedPrize.xp_cost) {
         toast({
-          title: "Insufficient XP Bank Balance",
-          description: `You need ${selectedPrize.xp_cost - bankXP} more XP in your bank. Cash out your season XP first.`,
+          title: "Insufficient XP",
+          description: `You need ${selectedPrize.xp_cost - bankXP} more XP. Complete missions and activities to earn more!`,
           variant: "destructive",
         })
         setRedeeming(false)
@@ -200,7 +198,7 @@ export function PrizesShowcase({ totalXP, seasonXP, bankXP, agentId }: PrizesSho
                   {!available ? (
                     "Out of Stock"
                   ) : !affordable ? (
-                    `Need ${prize.xp_cost - bankXP} more Bank XP`
+                    `Need ${(prize.xp_cost - bankXP).toLocaleString()} more XP`
                   ) : (
                     <>
                       <Gift className="h-4 w-4 mr-2" />
@@ -255,17 +253,12 @@ export function PrizesShowcase({ totalXP, seasonXP, bankXP, agentId }: PrizesSho
 
               <div className="space-y-2 text-sm">
                 <p>
-                  Your XP Bank: <span className="font-bold">{bankXP.toLocaleString()}</span>
+                  Your Spendable XP: <span className="font-bold">{bankXP.toLocaleString()}</span>
                 </p>
                 <p>
-                  Bank balance after redemption:{" "}
+                  Balance after redemption:{" "}
                   <span className="font-bold">{(bankXP - selectedPrize.xp_cost).toLocaleString()}</span>
                 </p>
-                {seasonXP > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    Note: Season XP ({seasonXP.toLocaleString()}) must be cashed out before it can be used for prizes.
-                  </p>
-                )}
               </div>
 
               <p className="text-sm text-muted-foreground">

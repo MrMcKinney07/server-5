@@ -7,6 +7,7 @@ import { Shield, Users, Target, TrendingUp, DollarSign } from "lucide-react"
 import { AllLeadsTable } from "@/components/admin/all-leads-table"
 import { BrokerAnalytics } from "@/components/admin/broker-analytics"
 import { ExportTools } from "@/components/admin/export-tools"
+import { ImportLeadsTool } from "@/components/admin/import-leads-tool"
 
 export default async function BrokerToolsPage() {
   const agent = await requireAdmin()
@@ -29,18 +30,21 @@ export default async function BrokerToolsPage() {
     .select("*, agent:agents(id, Name, Email)")
     .order("created_at", { ascending: false })
 
-  const { data: allAgents } = await supabase
-    .from("agents")
-    .select("id, full_name, email, tier, is_active")
-    .order("tier", { ascending: true })
-    .order("full_name")
+  const { data: allAgents } = await supabase.from("agents").select("id, Name, Email, Role, lifetime_xp").order("Name")
 
   // Fetch all missions for this month
   const startOfMonth = new Date()
   startOfMonth.setDate(1)
   const { data: monthMissions } = await supabase
-    .from("agent_missions")
-    .select("*, agent:agents(id, Name, Email), template:mission_templates(title, points)")
+    .from("daily_mission_sets")
+    .select(`
+      *,
+      agent:agents(id, Name, Email),
+      daily_mission_items(
+        *,
+        mission_templates(title, xp_reward)
+      )
+    `)
     .gte("mission_date", startOfMonth.toISOString().split("T")[0])
 
   const totalLeads = allLeads?.length || 0
@@ -125,10 +129,11 @@ export default async function BrokerToolsPage() {
 
       {/* Tabs */}
       <Tabs defaultValue="leads" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
+        <TabsList className="grid w-full grid-cols-4 lg:w-[500px]">
           <TabsTrigger value="leads">All Leads</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="export">Export</TabsTrigger>
+          <TabsTrigger value="import">Import</TabsTrigger>
         </TabsList>
 
         <TabsContent value="leads">
@@ -154,6 +159,10 @@ export default async function BrokerToolsPage() {
 
         <TabsContent value="export">
           <ExportTools leads={allLeads || []} transactions={allTransactions || []} agents={allAgents || []} />
+        </TabsContent>
+
+        <TabsContent value="import">
+          <ImportLeadsTool agentId={agent.id} />
         </TabsContent>
       </Tabs>
     </div>

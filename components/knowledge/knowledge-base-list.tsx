@@ -83,7 +83,7 @@ function ArticleCard({ article }: { article: KnowledgeArticleWithRelations }) {
   }
 
   return (
-    <Link href={`/dashboard/knowledge/${article.slug}`}>
+    <Link href={`/dashboard/knowledge/${article.id}`}>
       <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between gap-2">

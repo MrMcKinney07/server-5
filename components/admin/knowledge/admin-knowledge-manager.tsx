@@ -47,13 +47,6 @@ export function AdminKnowledgeManager({ articles, missionTemplates }: AdminKnowl
   const [editingArticle, setEditingArticle] = useState<KnowledgeArticleWithRelations | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  const generateSlug = (title: string) => {
-    return title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "")
-  }
-
   const handleAddArticle = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsLoading(true)
@@ -63,7 +56,6 @@ export function AdminKnowledgeManager({ articles, missionTemplates }: AdminKnowl
 
     const { error } = await supabase.from("knowledge_articles").insert({
       title,
-      slug: generateSlug(title),
       content: formData.get("content") as string,
       category: formData.get("category") as string,
       related_mission_template_id: (formData.get("related_mission_template_id") as string) || null,

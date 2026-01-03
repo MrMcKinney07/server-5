@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/auth"
 import { LeadsView } from "@/components/leads/leads-view"
+import { LeadActionsWidget } from "@/components/dashboard/lead-actions-widget"
 import type { Lead } from "@/lib/types/database"
 
 interface LeadsPageProps {
@@ -41,6 +42,8 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
           </div>
         </div>
       </div>
+
+      <LeadActionsWidget agentId={agent.id} />
 
       <LeadsView leads={(leads as Lead[]) || []} agentId={agent.id} needsFollowUp={needsFollowUp as Lead[]} />
     </div>

@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Users, Phone, Mail, Calendar, AlertCircle } from "lucide-react"
+import { Plus, Users, Phone, Mail, Calendar, AlertCircle, Search } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import Link from "next/link"
 import { toast } from "sonner"
@@ -56,6 +56,7 @@ const typeColors: Record<string, string> = {
 export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
@@ -70,6 +71,19 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
     timeline: "",
   })
   const router = useRouter()
+
+  const filteredLeads = leads.filter((lead) => {
+    if (!searchQuery.trim()) return true
+    const query = searchQuery.toLowerCase()
+    return (
+      lead.first_name?.toLowerCase().includes(query) ||
+      lead.last_name?.toLowerCase().includes(query) ||
+      lead.email?.toLowerCase().includes(query) ||
+      lead.phone?.toLowerCase().includes(query) ||
+      lead.source?.toLowerCase().includes(query) ||
+      lead.property_interest?.toLowerCase().includes(query)
+    )
+  })
 
   const handleCreateLead = async () => {
     if (!formData.first_name.trim() || !formData.last_name.trim()) {
@@ -245,18 +259,38 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
           </Button>
         </CardHeader>
         <CardContent>
+          <div className="mb-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+              <Input
+                type="text"
+                placeholder="Search leads by name, email, phone, or source..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            {searchQuery && (
+              <p className="text-sm text-muted-foreground mt-2">
+                Found {filteredLeads.length} lead{filteredLeads.length !== 1 ? "s" : ""}
+              </p>
+            )}
+          </div>
+
           <Tabs defaultValue="all">
             <TabsList className="mb-4">
-              <TabsTrigger value="all">All ({leads.length})</TabsTrigger>
-              <TabsTrigger value="new">New ({leads.filter((l) => l.status === "new").length})</TabsTrigger>
-              <TabsTrigger value="active">Active ({leads.filter((l) => l.status === "active").length})</TabsTrigger>
+              <TabsTrigger value="all">All ({filteredLeads.length})</TabsTrigger>
+              <TabsTrigger value="new">New ({filteredLeads.filter((l) => l.status === "new").length})</TabsTrigger>
+              <TabsTrigger value="active">
+                Active ({filteredLeads.filter((l) => l.status === "active").length})
+              </TabsTrigger>
               <TabsTrigger value="nurturing">
-                Nurturing ({leads.filter((l) => l.status === "nurturing").length})
+                Nurturing ({filteredLeads.filter((l) => l.status === "nurturing").length})
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="all">
-              {leads.length > 0 ? (
+              {filteredLeads.length > 0 ? (
                 <div className="border rounded-lg">
                   <Table>
                     <TableHeader>
@@ -270,14 +304,16 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
                         <TableHead>Created</TableHead>
                       </TableRow>
                     </TableHeader>
-                    <TableBody>{leads.map(renderLeadRow)}</TableBody>
+                    <TableBody>{filteredLeads.map(renderLeadRow)}</TableBody>
                   </Table>
                 </div>
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
                   <Users className="h-16 w-16 mx-auto mb-4 opacity-30" />
-                  <p className="text-lg font-medium">No leads yet</p>
-                  <p className="text-sm">Click "Add Lead" to create your first lead</p>
+                  <p className="text-lg font-medium">{searchQuery ? "No leads found" : "No leads yet"}</p>
+                  <p className="text-sm">
+                    {searchQuery ? "Try adjusting your search" : 'Click "Add Lead" to create your first lead'}
+                  </p>
                 </div>
               )}
             </TabsContent>
@@ -296,7 +332,7 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
                       <TableHead>Created</TableHead>
                     </TableRow>
                   </TableHeader>
-                  <TableBody>{leads.filter((l) => l.status === "new").map(renderLeadRow)}</TableBody>
+                  <TableBody>{filteredLeads.filter((l) => l.status === "new").map(renderLeadRow)}</TableBody>
                 </Table>
               </div>
             </TabsContent>
@@ -315,7 +351,7 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
                       <TableHead>Created</TableHead>
                     </TableRow>
                   </TableHeader>
-                  <TableBody>{leads.filter((l) => l.status === "active").map(renderLeadRow)}</TableBody>
+                  <TableBody>{filteredLeads.filter((l) => l.status === "active").map(renderLeadRow)}</TableBody>
                 </Table>
               </div>
             </TabsContent>
@@ -334,7 +370,7 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
                       <TableHead>Created</TableHead>
                     </TableRow>
                   </TableHeader>
-                  <TableBody>{leads.filter((l) => l.status === "nurturing").map(renderLeadRow)}</TableBody>
+                  <TableBody>{filteredLeads.filter((l) => l.status === "nurturing").map(renderLeadRow)}</TableBody>
                 </Table>
               </div>
             </TabsContent>

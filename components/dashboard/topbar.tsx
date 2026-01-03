@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button"
-import { Bell, Search, Zap, Coins } from "lucide-react"
+import { Bell, Zap, Coins } from "lucide-react"
 import { UserMenu } from "@/components/dashboard/user-menu"
 import type { CurrentAgent } from "@/lib/auth"
 import { Badge } from "@/components/ui/badge"
@@ -19,17 +19,7 @@ export function DashboardTopbar({ agent }: DashboardTopbarProps) {
       {/* Top highlight */}
       <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[rgba(255,255,255,0.05)] to-transparent" />
 
-      <div className="flex items-center gap-4">
-        {/* Glass search input */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-          <input
-            type="text"
-            placeholder="Search..."
-            className="h-9 w-64 rounded-full bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] pl-9 pr-4 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 transition-all duration-200"
-          />
-        </div>
-      </div>
+      <div className="flex items-center gap-4">{/* Spacer for layout balance */}</div>
 
       <div className="flex items-center gap-4">
         <Link href="/dashboard/prestige">

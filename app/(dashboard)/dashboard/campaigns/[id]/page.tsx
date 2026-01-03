@@ -8,6 +8,7 @@ import { CampaignDetails } from "@/components/campaigns/campaign-details"
 import { CampaignTimelineBuilder } from "@/components/campaigns/campaign-timeline-builder"
 import { CampaignEnrollmentsList } from "@/components/campaigns/campaign-enrollments-list"
 import { CampaignActivityLog } from "@/components/campaigns/campaign-activity-log"
+import { CampaignLeadEnrollment } from "@/components/campaigns/campaign-lead-enrollment"
 
 interface CampaignPageProps {
   params: Promise<{ id: string }>
@@ -61,6 +62,7 @@ export default async function CampaignPage({ params }: CampaignPageProps) {
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
           <CampaignTimelineBuilder steps={steps || []} campaignId={id} />
+          <CampaignLeadEnrollment campaignId={id} campaignName={campaign.name} />
           <CampaignEnrollmentsList enrollments={enrollments || []} />
         </div>
         <div className="space-y-6">

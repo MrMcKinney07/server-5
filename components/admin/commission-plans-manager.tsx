@@ -26,13 +26,15 @@ import { toast } from "sonner"
 
 interface CommissionPlan {
   id: string
+  name: string
   description: string | null
   split_percentage: number
-  cap_amount: number | null
+  marketing_fund_threshold: number | null
   monthly_fee: number
   transaction_fee: number
   is_default: boolean
   is_active: boolean
+  created_at: string
 }
 
 interface Agent {
@@ -66,11 +68,12 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
   const [isAssigning, setIsAssigning] = useState(false)
 
   const [planForm, setPlanForm] = useState({
+    name: "",
     description: "",
     split_percentage: "70",
-    cap_amount: "",
+    marketing_fund_threshold: "20000",
     monthly_fee: "0",
-    transaction_fee: "0",
+    transaction_fee: "499",
     is_default: false,
     is_active: true,
   })
@@ -94,9 +97,10 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
     setIsCreating(true)
     try {
       const { error } = await supabase.from("commission_plans").insert({
+        name: planForm.name,
         description: planForm.description || null,
-        split_percentage: Number.parseFloat(planForm.split_percentage) / 100,
-        cap_amount: planForm.cap_amount ? Number.parseFloat(planForm.cap_amount) : null,
+        split_percentage: Number.parseFloat(planForm.split_percentage),
+        marketing_fund_threshold: Number.parseFloat(planForm.marketing_fund_threshold),
         monthly_fee: Number.parseFloat(planForm.monthly_fee),
         transaction_fee: Number.parseFloat(planForm.transaction_fee),
         is_default: planForm.is_default,
@@ -107,11 +111,12 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
 
       toast.success("Commission plan created successfully")
       setPlanForm({
+        name: "",
         description: "",
         split_percentage: "70",
-        cap_amount: "",
+        marketing_fund_threshold: "20000",
         monthly_fee: "0",
-        transaction_fee: "0",
+        transaction_fee: "499",
         is_default: false,
         is_active: true,
       })
@@ -131,12 +136,12 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
       const { error } = await supabase
         .from("commission_plans")
         .update({
+          name: planForm.name,
           description: planForm.description || null,
-          split_percentage: Number.parseFloat(planForm.split_percentage) / 100,
-          cap_amount: planForm.cap_amount ? Number.parseFloat(planForm.cap_amount) : null,
+          split_percentage: Number.parseFloat(planForm.split_percentage),
+          marketing_fund_threshold: Number.parseFloat(planForm.marketing_fund_threshold),
           monthly_fee: Number.parseFloat(planForm.monthly_fee),
           transaction_fee: Number.parseFloat(planForm.transaction_fee),
-          is_default: planForm.is_default,
           is_active: planForm.is_active,
         })
         .eq("id", editingPlan.id)
@@ -183,16 +188,18 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
   }
 
   const startEdit = (plan: CommissionPlan) => {
-    setEditingPlan(plan)
     setPlanForm({
+      name: plan.name,
       description: plan.description || "",
-      split_percentage: (plan.split_percentage * 100).toString(),
-      cap_amount: plan.cap_amount?.toString() || "",
+      split_percentage: plan.split_percentage.toString(),
+      marketing_fund_threshold: (plan.marketing_fund_threshold || 0).toString(),
       monthly_fee: plan.monthly_fee.toString(),
       transaction_fee: plan.transaction_fee.toString(),
       is_default: plan.is_default,
       is_active: plan.is_active,
     })
+    setEditingPlan(plan)
+    setIsCreating(true)
   }
 
   return (
@@ -224,17 +231,24 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
                   </DialogHeader>
                   <div className="space-y-4">
                     <div className="grid gap-4 md:grid-cols-2">
-                      <div>
+                      <div className="space-y-2">
                         <Label htmlFor="split">Agent Split %</Label>
-                        <Input
-                          id="split"
-                          type="number"
-                          min="0"
-                          max="100"
-                          placeholder="70"
+                        <Select
                           value={planForm.split_percentage}
-                          onChange={(e) => setPlanForm((prev) => ({ ...prev, split_percentage: e.target.value }))}
-                        />
+                          onValueChange={(value) => setPlanForm({ ...planForm, split_percentage: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select split" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="70">70% / 30% (Agent / Company)</SelectItem>
+                            <SelectItem value="80">80% / 20% (Agent / Company)</SelectItem>
+                            <SelectItem value="85">85% / 15% (Agent / Company)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Agent receives this percentage, company receives the rest
+                        </p>
                       </div>
                     </div>
 
@@ -244,39 +258,45 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
                         id="description"
                         placeholder="Describe this commission plan..."
                         value={planForm.description}
-                        onChange={(e) => setPlanForm((prev) => ({ ...prev, description: e.target.value }))}
+                        onChange={(e) => setPlanForm({ ...planForm, description: e.target.value })}
                       />
                     </div>
 
                     <div className="grid gap-4 md:grid-cols-3">
                       <div>
-                        <Label htmlFor="cap">Annual Cap ($)</Label>
+                        <Label htmlFor="cap">Marketing Fund Threshold ($)</Label>
                         <Input
                           id="cap"
                           type="number"
-                          placeholder="Optional"
-                          value={planForm.cap_amount}
-                          onChange={(e) => setPlanForm((prev) => ({ ...prev, cap_amount: e.target.value }))}
+                          min="0"
+                          placeholder="20000"
+                          value={planForm.marketing_fund_threshold}
+                          onChange={(e) => setPlanForm({ ...planForm, marketing_fund_threshold: e.target.value })}
                         />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Amount agent contributes to company marketing fund (default: $20,000)
+                        </p>
                       </div>
                       <div>
                         <Label htmlFor="monthly">Monthly Fee ($)</Label>
                         <Input
                           id="monthly"
                           type="number"
+                          min="0"
                           placeholder="0"
                           value={planForm.monthly_fee}
-                          onChange={(e) => setPlanForm((prev) => ({ ...prev, monthly_fee: e.target.value }))}
+                          onChange={(e) => setPlanForm({ ...planForm, monthly_fee: e.target.value })}
                         />
                       </div>
                       <div>
-                        <Label htmlFor="transaction">Transaction Fee ($)</Label>
+                        <Label htmlFor="transactionFee">Transaction Fee ($)</Label>
                         <Input
-                          id="transaction"
+                          id="transactionFee"
                           type="number"
-                          placeholder="0"
+                          min="0"
+                          placeholder="499"
                           value={planForm.transaction_fee}
-                          onChange={(e) => setPlanForm((prev) => ({ ...prev, transaction_fee: e.target.value }))}
+                          onChange={(e) => setPlanForm({ ...planForm, transaction_fee: e.target.value })}
                         />
                       </div>
                     </div>
@@ -286,7 +306,7 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
                         <Switch
                           id="default"
                           checked={planForm.is_default}
-                          onCheckedChange={(checked) => setPlanForm((prev) => ({ ...prev, is_default: checked }))}
+                          onCheckedChange={(checked) => setPlanForm({ ...planForm, is_default: checked })}
                         />
                         <Label htmlFor="default">Set as default plan</Label>
                       </div>
@@ -294,7 +314,7 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
                         <Switch
                           id="active"
                           checked={planForm.is_active}
-                          onCheckedChange={(checked) => setPlanForm((prev) => ({ ...prev, is_active: checked }))}
+                          onCheckedChange={(checked) => setPlanForm({ ...planForm, is_active: checked })}
                         />
                         <Label htmlFor="active">Active</Label>
                       </div>
@@ -316,8 +336,8 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Split</TableHead>
-                  <TableHead>Cap</TableHead>
+                  <TableHead>Split %</TableHead>
+                  <TableHead>Marketing Fund</TableHead>
                   <TableHead>Monthly Fee</TableHead>
                   <TableHead>Transaction Fee</TableHead>
                   <TableHead>Status</TableHead>
@@ -328,14 +348,16 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
                 {commissionPlans.map((plan) => (
                   <TableRow key={plan.id}>
                     <TableCell className="font-medium">
-                      {(plan.split_percentage * 100).toFixed(0)}% / {(100 - plan.split_percentage * 100).toFixed(0)}%
+                      {plan.split_percentage.toFixed(0)}%
                       {plan.is_default && (
                         <Badge variant="secondary" className="ml-2">
                           Default
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell>{plan.cap_amount ? formatCurrency(plan.cap_amount) : "No cap"}</TableCell>
+                    <TableCell>
+                      {plan.marketing_fund_threshold ? formatCurrency(plan.marketing_fund_threshold) : "None"}
+                    </TableCell>
                     <TableCell>{formatCurrency(plan.monthly_fee)}</TableCell>
                     <TableCell>{formatCurrency(plan.transaction_fee)}</TableCell>
                     <TableCell>
@@ -357,16 +379,24 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
                           </DialogHeader>
                           <div className="space-y-4">
                             <div className="grid gap-4 md:grid-cols-2">
-                              <div>
+                              <div className="space-y-2">
                                 <Label htmlFor="edit-split">Agent Split %</Label>
-                                <Input
-                                  id="edit-split"
-                                  type="number"
+                                <Select
                                   value={planForm.split_percentage}
-                                  onChange={(e) =>
-                                    setPlanForm((prev) => ({ ...prev, split_percentage: e.target.value }))
-                                  }
-                                />
+                                  onValueChange={(value) => setPlanForm({ ...planForm, split_percentage: value })}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select split" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="70">70% / 30% (Agent / Company)</SelectItem>
+                                    <SelectItem value="80">80% / 20% (Agent / Company)</SelectItem>
+                                    <SelectItem value="85">85% / 15% (Agent / Company)</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Agent receives this percentage, company receives the rest
+                                </p>
                               </div>
                             </div>
 
@@ -375,19 +405,24 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
                               <Textarea
                                 id="edit-description"
                                 value={planForm.description}
-                                onChange={(e) => setPlanForm((prev) => ({ ...prev, description: e.target.value }))}
+                                onChange={(e) => setPlanForm({ ...planForm, description: e.target.value })}
                               />
                             </div>
 
                             <div className="grid gap-4 md:grid-cols-3">
                               <div>
-                                <Label htmlFor="edit-cap">Annual Cap ($)</Label>
+                                <Label htmlFor="edit-cap">Marketing Fund Threshold ($)</Label>
                                 <Input
                                   id="edit-cap"
                                   type="number"
-                                  value={planForm.cap_amount}
-                                  onChange={(e) => setPlanForm((prev) => ({ ...prev, cap_amount: e.target.value }))}
+                                  value={planForm.marketing_fund_threshold}
+                                  onChange={(e) =>
+                                    setPlanForm({ ...planForm, marketing_fund_threshold: e.target.value })
+                                  }
                                 />
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Amount agent contributes to company marketing fund (default: $20,000)
+                                </p>
                               </div>
                               <div>
                                 <Label htmlFor="edit-monthly">Monthly Fee ($)</Label>
@@ -395,18 +430,16 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
                                   id="edit-monthly"
                                   type="number"
                                   value={planForm.monthly_fee}
-                                  onChange={(e) => setPlanForm((prev) => ({ ...prev, monthly_fee: e.target.value }))}
+                                  onChange={(e) => setPlanForm({ ...planForm, monthly_fee: e.target.value })}
                                 />
                               </div>
                               <div>
-                                <Label htmlFor="edit-transaction">Transaction Fee ($)</Label>
+                                <Label htmlFor="edit-transactionFee">Transaction Fee ($)</Label>
                                 <Input
-                                  id="edit-transaction"
+                                  id="edit-transactionFee"
                                   type="number"
                                   value={planForm.transaction_fee}
-                                  onChange={(e) =>
-                                    setPlanForm((prev) => ({ ...prev, transaction_fee: e.target.value }))
-                                  }
+                                  onChange={(e) => setPlanForm({ ...planForm, transaction_fee: e.target.value })}
                                 />
                               </div>
                             </div>
@@ -416,9 +449,7 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
                                 <Switch
                                   id="edit-default"
                                   checked={planForm.is_default}
-                                  onCheckedChange={(checked) =>
-                                    setPlanForm((prev) => ({ ...prev, is_default: checked }))
-                                  }
+                                  onCheckedChange={(checked) => setPlanForm({ ...planForm, is_default: checked })}
                                 />
                                 <Label htmlFor="edit-default">Set as default plan</Label>
                               </div>
@@ -426,9 +457,7 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
                                 <Switch
                                   id="edit-active"
                                   checked={planForm.is_active}
-                                  onCheckedChange={(checked) =>
-                                    setPlanForm((prev) => ({ ...prev, is_active: checked }))
-                                  }
+                                  onCheckedChange={(checked) => setPlanForm({ ...planForm, is_active: checked })}
                                 />
                                 <Label htmlFor="edit-active">Active</Label>
                               </div>
@@ -503,7 +532,7 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
                             .filter((p) => p.is_active)
                             .map((plan) => (
                               <SelectItem key={plan.id} value={plan.id}>
-                                {plan.name} ({(plan.split_percentage * 100).toFixed(0)}%)
+                                {plan.name} ({plan.split_percentage.toFixed(0)}%)
                               </SelectItem>
                             ))}
                         </SelectContent>
@@ -538,7 +567,7 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
                 <TableRow>
                   <TableHead>Agent</TableHead>
                   <TableHead>Plan</TableHead>
-                  <TableHead>Split</TableHead>
+                  <TableHead>Split %</TableHead>
                   <TableHead>Effective Date</TableHead>
                   <TableHead>YTD GCI</TableHead>
                   <TableHead>Cap Progress</TableHead>
@@ -548,28 +577,25 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
                 {agentPlans.map((assignment) => (
                   <TableRow key={assignment.id}>
                     <TableCell className="font-medium">{assignment.agent?.Name}</TableCell>
-                    <TableCell>
-                      {assignment.plan
-                        ? `${(assignment.plan.split_percentage * 100).toFixed(0)}% / ${(100 - assignment.plan.split_percentage * 100).toFixed(0)}%`
-                        : "N/A"}
-                    </TableCell>
+                    <TableCell>{assignment.plan ? `${assignment.plan.split_percentage.toFixed(0)}%` : "N/A"}</TableCell>
                     <TableCell>{new Date(assignment.effective_date).toLocaleDateString()}</TableCell>
                     <TableCell>{formatCurrency(assignment.ytd_gci)}</TableCell>
                     <TableCell>
-                      {assignment.plan?.cap_amount ? (
+                      {assignment.plan?.marketing_fund_threshold ? (
                         <div className="flex items-center gap-2">
                           <div className="flex-1">
                             <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
                               <div
                                 className="h-full bg-emerald-500"
                                 style={{
-                                  width: `${Math.min((assignment.cap_progress / assignment.plan.cap_amount) * 100, 100)}%`,
+                                  width: `${Math.min((assignment.cap_progress / assignment.plan.marketing_fund_threshold) * 100, 100)}%`,
                                 }}
                               />
                             </div>
                           </div>
                           <span className="text-sm text-muted-foreground">
-                            {formatCurrency(assignment.cap_progress)} / {formatCurrency(assignment.plan.cap_amount)}
+                            {formatCurrency(assignment.cap_progress)} /{" "}
+                            {formatCurrency(assignment.plan.marketing_fund_threshold)}
                           </span>
                         </div>
                       ) : (

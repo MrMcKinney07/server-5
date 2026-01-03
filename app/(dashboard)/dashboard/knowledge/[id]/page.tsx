@@ -3,8 +3,8 @@ import { requireAuth } from "@/lib/auth"
 import { redirect, notFound } from "next/navigation"
 import { KnowledgeArticleView } from "@/components/knowledge/knowledge-article-view"
 
-export default async function KnowledgeArticlePage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params
+export default async function KnowledgeArticlePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const supabase = await createServerClient()
   const agent = await requireAuth()
 
@@ -15,7 +15,7 @@ export default async function KnowledgeArticlePage({ params }: { params: Promise
   const { data: article } = await supabase
     .from("knowledge_articles")
     .select("*, created_by_agent:agents(*), related_mission_template:mission_templates(*)")
-    .eq("slug", slug)
+    .eq("id", id)
     .eq("is_published", true)
     .single()
 
@@ -23,10 +23,9 @@ export default async function KnowledgeArticlePage({ params }: { params: Promise
     notFound()
   }
 
-  // Get related articles in same category
   const { data: relatedArticles } = await supabase
     .from("knowledge_articles")
-    .select("id, title, slug")
+    .select("id, title")
     .eq("category", article.category)
     .eq("is_published", true)
     .neq("id", article.id)

@@ -105,6 +105,27 @@ export function CreateCampaignDialog() {
 
     const { data, error: insertError } = await supabase.from("campaigns").insert(insertData).select().single()
 
+    if (data?.id) {
+      // Get agent information for welcome email
+      const { data: agentData } = await supabase.from("agents").select("full_name, email").eq("id", user.id).single()
+
+      if (agentData?.email) {
+        // Send welcome email in background (don't block UI)
+        fetch("/api/campaigns/welcome-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            campaignId: data.id,
+            campaignName: name,
+            agentName: agentData.full_name,
+            agentEmail: agentData.email,
+            campaignType,
+            channel,
+          }),
+        }).catch((err) => console.error("Failed to send welcome email:", err))
+      }
+    }
+
     setLoading(false)
 
     if (insertError) {
@@ -135,7 +156,7 @@ export function CreateCampaignDialog() {
           New Campaign
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto text-slate-900 dark:text-slate-100">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Create Campaign</DialogTitle>
@@ -159,12 +180,16 @@ export function CreateCampaignDialog() {
             {/* BASICS TAB */}
             <TabsContent value="basics" className="space-y-4 mt-4">
               <div className="grid gap-2">
-                <Label htmlFor="name">Campaign Name</Label>
+                <Label htmlFor="name" className="text-slate-900 dark:text-slate-100">
+                  Campaign Name
+                </Label>
                 <Input id="name" name="name" placeholder="e.g., New Buyer Nurture" required />
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="description">Description (optional)</Label>
+                <Label htmlFor="description" className="text-slate-900 dark:text-slate-100">
+                  Description (optional)
+                </Label>
                 <Textarea
                   id="description"
                   name="description"
@@ -174,7 +199,7 @@ export function CreateCampaignDialog() {
               </div>
 
               <div className="grid gap-2">
-                <Label>Campaign Type</Label>
+                <Label className="text-slate-900 dark:text-slate-100">Campaign Type</Label>
                 <Select value={campaignType} onValueChange={setCampaignType}>
                   <SelectTrigger>
                     <SelectValue />
@@ -202,7 +227,7 @@ export function CreateCampaignDialog() {
               </div>
 
               <div className="grid gap-2">
-                <Label>Message Channel</Label>
+                <Label className="text-slate-900 dark:text-slate-100">Message Channel</Label>
                 <div className="grid grid-cols-3 gap-2">
                   <Button
                     type="button"
@@ -241,7 +266,7 @@ export function CreateCampaignDialog() {
             {/* SCHEDULE TAB */}
             <TabsContent value="schedule" className="space-y-4 mt-4">
               <div className="grid gap-2">
-                <Label className="flex items-center gap-2">
+                <Label className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
                   <Clock className="h-4 w-4" />
                   Send Time
                 </Label>
@@ -250,7 +275,7 @@ export function CreateCampaignDialog() {
               </div>
 
               <div className="grid gap-2">
-                <Label className="flex items-center gap-2">
+                <Label className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
                   <Calendar className="h-4 w-4" />
                   Send Days
                 </Label>
@@ -272,7 +297,7 @@ export function CreateCampaignDialog() {
               </div>
 
               <div className="grid gap-2">
-                <Label className="flex items-center gap-2">
+                <Label className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
                   <Shield className="h-4 w-4" />
                   Quiet Hours (Do Not Disturb)
                 </Label>
@@ -305,7 +330,7 @@ export function CreateCampaignDialog() {
               </div>
 
               <div className="grid gap-2">
-                <Label className="flex items-center gap-2">
+                <Label className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
                   <Zap className="h-4 w-4" />
                   Throttle Rate
                 </Label>
@@ -324,7 +349,7 @@ export function CreateCampaignDialog() {
               </div>
 
               <div className="grid gap-2">
-                <Label>Dedupe Window</Label>
+                <Label className="text-slate-900 dark:text-slate-100">Dedupe Window</Label>
                 <Select value={dedupeWindowDays.toString()} onValueChange={(v) => setDedupeWindowDays(Number(v))}>
                   <SelectTrigger>
                     <SelectValue />

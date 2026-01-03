@@ -25,6 +25,9 @@ import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
 import { LeadActionsWidget } from "@/components/dashboard/lead-actions-widget"
 import { OfficeLeaderboardHero } from "@/components/dashboard/office-leaderboard-hero"
+import { UserBadgeName } from "@/components/prestige/user-badge-name"
+import { getPrestigeTierInfo } from "@/lib/xp-constants"
+import { HustleStreakBadge } from "@/components/dashboard/hustle-streak-badge"
 
 const PRESTIGE_LEVELS = [
   {
@@ -106,36 +109,60 @@ function getPrestigeLevel(points: number) {
   return level
 }
 
+function getPrestigeTier(lifetimeXP: number) {
+  // Prestige levels: Bronze 1-9 (0-90), Silver 10-24 (100-240), Gold 25-49 (250-490), etc.
+  // Each level = 10 XP
+  const levelIndex = Math.floor(lifetimeXP / 10)
+  const level = PRESTIGE_LEVELS.find((l) => levelIndex >= l.minPoints / 10) || PRESTIGE_LEVELS[0]
+  return { levelIndex, level }
+}
+
 export default async function DashboardPage() {
   const agent = await requireAuth()
   const supabase = await createClient()
 
   const now = new Date()
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0]
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0]
+  const year = now.getFullYear()
+  const month = now.getMonth() + 1
+  const monthYear = `${year}-${String(month).padStart(2, "0")}`
+  const today = new Date().toISOString().split("T")[0]
 
-  // Fetch real data
   const [
     { count: leadsCount },
-    { data: todayMissions },
+    { data: todayMissionSet },
     { data: recentActivities },
-    { data: monthlyLeaderboard },
+    monthlyRankingsResponse,
     { data: knowledgeArticles },
   ] = await Promise.all([
     supabase.from("leads").select("*", { count: "exact", head: true }).eq("agent_id", agent.id),
     supabase
-      .from("agent_missions")
-      .select("*, template:mission_templates(*)")
-      .eq("agent_id", agent.id)
-      .eq("mission_date", new Date().toISOString().split("T")[0])
-      .order("created_at"),
+      .from("daily_mission_sets")
+      .select(`
+        id,
+        mission_date,
+        daily_mission_items(
+          id,
+          status,
+          completed_at,
+          mission_templates(id, title, description, xp_reward)
+        )
+      `)
+      .eq("user_id", agent.id)
+      .eq("mission_date", today)
+      .maybeSingle(),
     supabase.from("activities").select("*").eq("agent_id", agent.id).order("created_at", { ascending: false }).limit(5),
     supabase
-      .from("agent_missions")
-      .select("agent_id, points_earned, agents(Name)")
-      .eq("status", "completed")
-      .gte("mission_date", startOfMonth)
-      .lte("mission_date", endOfMonth),
+      .from("monthly_agent_stats")
+      .select(`
+        agent_id,
+        total_xp_earned,
+        missions_completed,
+        rank,
+        agents(Name, lifetime_xp, profile_picture_url)
+      `)
+      .eq("month_year", monthYear)
+      .order("rank", { ascending: true })
+      .limit(10),
     supabase
       .from("knowledge_articles")
       .select("id, title, category, content")
@@ -144,42 +171,92 @@ export default async function DashboardPage() {
       .limit(4),
   ])
 
+  const { data: monthlyRankings } = monthlyRankingsResponse
   const { count: totalCompletedMissions } = await supabase
-    .from("agent_missions")
-    .select("*", { count: "exact", head: true })
-    .eq("agent_id", agent.id)
+    .from("daily_mission_items")
+    .select("*, daily_mission_sets!inner(user_id)", { count: "exact", head: true })
+    .eq("daily_mission_sets.user_id", agent.id)
     .eq("status", "completed")
 
-  const leaderboardMap = new Map<string, { name: string; points: number }>()
-  monthlyLeaderboard?.forEach((mission: any) => {
-    const agentId = mission.agent_id
-    const agentName = mission.agents?.Name || "Unknown"
-    const points = mission.points_earned || 0
+  let leaderboardData = monthlyRankings || []
+  if (!leaderboardData || leaderboardData.length === 0) {
+    const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0]
+    const endOfMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split("T")[0]
 
-    if (leaderboardMap.has(agentId)) {
-      const existing = leaderboardMap.get(agentId)!
-      leaderboardMap.set(agentId, { name: agentName, points: existing.points + points })
-    } else {
-      leaderboardMap.set(agentId, { name: agentName, points })
-    }
-  })
+    const { data: missionStats } = await supabase
+      .from("daily_mission_items")
+      .select(`
+        mission_templates(xp_reward),
+        daily_mission_sets!inner(
+          user_id,
+          mission_date,
+          agents(Name, lifetime_xp, profile_picture_url)
+        )
+      `)
+      .eq("status", "completed")
+      .gte("daily_mission_sets.mission_date", startOfMonth)
+      .lte("daily_mission_sets.mission_date", endOfMonth)
 
-  const sortedLeaderboard = Array.from(leaderboardMap.entries())
-    .map(([id, data]) => ({ id, ...data }))
-    .sort((a, b) => b.points - a.points)
-    .slice(0, 10)
+    const agentStats = new Map()
+    missionStats?.forEach((item: any) => {
+      const userId = item.daily_mission_sets.user_id
+      const xp = item.mission_templates?.xp_reward || 0
+      const name = item.daily_mission_sets.agents?.Name || "Unknown"
+      const lifetimeXp = item.daily_mission_sets.agents?.lifetime_xp || 0
+      const profilePicture = item.daily_mission_sets.agents?.profile_picture_url || null
 
-  const allRanked = Array.from(leaderboardMap.entries())
-    .map(([id, data]) => ({ id, ...data }))
-    .sort((a, b) => b.points - a.points)
-  const myRank = allRanked.findIndex((a) => a.id === agent.id) + 1
-  const myPoints = leaderboardMap.get(agent.id)?.points || 0
+      if (!agentStats.has(userId)) {
+        agentStats.set(userId, {
+          agent_id: userId,
+          total_xp_earned: 0,
+          missions_completed: 0,
+          name,
+          lifetimeXp,
+          profilePicture,
+        })
+      }
+      const stats = agentStats.get(userId)
+      stats.total_xp_earned += xp
+      stats.missions_completed += 1
+    })
+
+    leaderboardData = Array.from(agentStats.values())
+      .sort((a, b) => b.total_xp_earned - a.total_xp_earned)
+      .slice(0, 10)
+      .map((stat, index) => ({
+        agent_id: stat.agent_id,
+        total_xp_earned: stat.total_xp_earned,
+        missions_completed: stat.missions_completed,
+        rank: index + 1,
+        agents: { Name: stat.name, lifetime_xp: stat.lifetimeXp, profile_picture_url: stat.profilePicture },
+      }))
+  }
+
+  const sortedLeaderboard = leaderboardData.map((entry) => ({
+    id: entry.agent_id,
+    name: entry.agents?.Name || "Unknown Agent",
+    points: entry.total_xp_earned,
+    level: getPrestigeTier(entry.agents?.lifetime_xp || 1).level,
+    profilePicture: entry.agents?.profile_picture_url || null,
+  }))
+
+  const { data: myMonthlyStats } = await supabase
+    .from("monthly_agent_stats")
+    .select("rank, total_xp_earned")
+    .eq("agent_id", agent.id)
+    .eq("month_year", monthYear)
+    .maybeSingle()
+
+  const myRank = myMonthlyStats?.rank || 0
+  const myPoints = myMonthlyStats?.total_xp_earned || 0
 
   const myPrestige = getPrestigeLevel(myPoints)
   const PrestigeIcon = myPrestige.icon
+  const prestigeTierInfo = getPrestigeTierInfo(agent.lifetime_xp || 0)
 
-  const completedMissions = todayMissions?.filter((m) => m.status === "completed").length || 0
-  const totalMissions = todayMissions?.length || 0
+  const completedMissions =
+    todayMissionSet?.daily_mission_items?.filter((m: any) => m.status === "completed").length || 0
+  const totalMissions = todayMissionSet?.daily_mission_items?.length || 0
 
   const earnedAchievements = MILESTONES.filter((m) => {
     if (m.type === "points") return myPoints >= m.requirement
@@ -188,6 +265,35 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-xl p-4 text-white">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <UserBadgeName
+              name={agent.full_name || "Agent"}
+              prestigeTier={agent.lifetime_xp || 0}
+              size="lg"
+              showName={false}
+            />
+            <div>
+              <h1 className="text-xl font-bold">Welcome back, {agent.full_name || "Agent"}!</h1>
+              <p className="text-white/70 text-sm">Your real estate command center</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            {/* Hustle Streak Badge */}
+            <HustleStreakBadge />
+            <div className="text-right">
+              <p className="text-xs text-white/60">Prestige Level</p>
+              <p className="font-bold text-sm text-cyan-400">{prestigeTierInfo.name}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-white/60">Monthly Rank</p>
+              <p className="font-bold text-sm text-amber-400">{myRank > 0 ? `#${myRank}` : "--"}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <OfficeLeaderboardHero
         leaderboard={sortedLeaderboard}
         currentUserId={agent.id}
@@ -206,8 +312,8 @@ export default async function DashboardPage() {
             <CardDescription>Complete your daily missions to earn points</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {todayMissions && todayMissions.length > 0 ? (
-              todayMissions.slice(0, 3).map((mission: any) => (
+            {todayMissionSet && todayMissionSet.daily_mission_items.length > 0 ? (
+              todayMissionSet.daily_mission_items.slice(0, 3).map((mission: any) => (
                 <div
                   key={mission.id}
                   className={`flex items-center gap-3 p-3 rounded-lg border ${
@@ -219,13 +325,15 @@ export default async function DashboardPage() {
                       mission.status === "completed" ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-500"
                     }`}
                   >
-                    {mission.status === "completed" ? "✓" : mission.template?.points || 10}
+                    {mission.status === "completed" ? "✓" : mission.mission_templates?.xp_reward || 10}
                   </div>
                   <div className="flex-1">
                     <p className={`font-medium ${mission.status === "completed" ? "line-through text-gray-500" : ""}`}>
-                      {mission.template?.title || "Mission"}
+                      {mission.mission_templates?.title || "Mission"}
                     </p>
-                    <p className="text-xs text-muted-foreground line-clamp-1">{mission.template?.description}</p>
+                    <p className="text-xs text-muted-foreground line-clamp-1">
+                      {mission.mission_templates?.description}
+                    </p>
                   </div>
                 </div>
               ))
@@ -239,6 +347,8 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </Link>
+
+      <LeadActionsWidget agentId={agent.id} />
 
       <Card>
         <CardHeader>
@@ -333,23 +443,6 @@ export default async function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Welcome Header */}
-      <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-emerald-500 rounded-xl p-4 text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold">Welcome back, {agent.full_name || "Agent"}!</h1>
-            <p className="text-white/80 text-sm">Your real estate command center</p>
-          </div>
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/20 backdrop-blur`}>
-            <PrestigeIcon className="h-5 w-5" />
-            <div>
-              <p className="text-xs text-white/70">Level</p>
-              <p className="font-bold text-sm">{myPrestige.name}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
@@ -414,8 +507,6 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-
-      <LeadActionsWidget agentId={agent.id} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Quick Actions */}

@@ -54,21 +54,25 @@ export default async function SettingsPage() {
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b">
-                  <span className="text-muted-foreground">Annual Cap</span>
+                  <span className="text-muted-foreground">Marketing Fund Threshold</span>
                   <span className="font-medium">
-                    {currentPlan.cap_amount ? `$${Number(currentPlan.cap_amount).toLocaleString()}` : "No Cap"}
+                    {currentPlan.marketing_fund_threshold
+                      ? `$${Number(currentPlan.marketing_fund_threshold).toLocaleString()}`
+                      : "No Threshold"}
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-2">
                   <span className="text-muted-foreground">Transaction Fee</span>
-                  <span className="font-medium">${Number(currentPlan.transaction_fee) || 0}</span>
+                  <span className="font-medium">${Number(currentPlan.transaction_fee) || 499}</span>
                 </div>
                 {agentPlan && (
                   <div className="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
                     <p className="text-sm text-amber-800">
-                      <span className="font-medium">Cap Progress:</span> $
+                      <span className="font-medium">Marketing Fund Progress:</span> $
                       {agentPlan.cap_progress?.toLocaleString() || 0} / $
-                      {currentPlan.cap_amount ? Number(currentPlan.cap_amount).toLocaleString() : "∞"}
+                      {currentPlan.marketing_fund_threshold
+                        ? Number(currentPlan.marketing_fund_threshold).toLocaleString()
+                        : "∞"}
                     </p>
                     <p className="text-sm text-amber-800 mt-1">
                       <span className="font-medium">YTD GCI:</span> ${agentPlan.ytd_gci?.toLocaleString() || 0}

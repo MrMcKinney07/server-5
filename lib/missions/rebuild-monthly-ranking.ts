@@ -4,69 +4,75 @@ interface RankingResult {
   agent_id: string
   agent_name: string
   total_points: number
+  missions_completed: number
   rank: number
 }
 
 /**
  * Rebuild monthly rankings for the current month
- * Calculates total_points from agent_daily_missions and updates monthly_agent_stats
+ * Calculates total_points from daily_mission_items and updates monthly_agent_stats
  */
 export async function rebuildMonthlyRanking(): Promise<RankingResult[]> {
   const supabase = await createClient()
 
-  // Get current year and month in America/New_York timezone
-  const nowInNY = new Date().toLocaleString("en-US", {
-    timeZone: "America/New_York",
-  })
-  const nyDate = new Date(nowInNY)
-  const year = nyDate.getFullYear()
-  const month = nyDate.getMonth() + 1 // JavaScript months are 0-indexed
+  // Get current year and month
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth() + 1
 
   // Calculate the date range for the current month
   const startDate = `${year}-${String(month).padStart(2, "0")}-01`
   const endDate = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`
 
-  // Fetch all completed missions for the current month
-  const { data: missions, error: missionsError } = await supabase
-    .from("agent_daily_missions")
-    .select("agent_id, mission1_completed, mission2_completed, mission3_completed")
-    .gte("date", startDate)
-    .lt("date", endDate)
-    .not("released_at", "is", null)
-
-  if (missionsError) {
-    throw new Error(`Failed to fetch missions: ${missionsError.message}`)
-  }
-
-  // Calculate points per agent
-  const agentPoints: Record<string, number> = {}
-
-  for (const mission of missions || []) {
-    const points =
-      (mission.mission1_completed ? 1 : 0) + (mission.mission2_completed ? 1 : 0) + (mission.mission3_completed ? 1 : 0)
-
-    if (!agentPoints[mission.agent_id]) {
-      agentPoints[mission.agent_id] = 0
-    }
-    agentPoints[mission.agent_id] += points
-  }
-
-  // Fetch all active agents to ensure everyone has a stats row
-  const { data: agents, error: agentsError } = await supabase
-    .from("agents")
-    .select("id, full_name")
-    .eq("is_active", true)
+  const { data: agents, error: agentsError } = await supabase.from("agents").select("id, Name")
 
   if (agentsError) {
     throw new Error(`Failed to fetch agents: ${agentsError.message}`)
+  }
+
+  const agentPoints: Record<string, { points: number; completed: number }> = {}
+
+  for (const agent of agents || []) {
+    // Get completed missions for this agent this month
+    const { data: completedMissions, error: missionsError } = await supabase
+      .from("daily_mission_sets")
+      .select(
+        `
+        id,
+        daily_mission_items!inner(
+          id,
+          status
+        )
+      `,
+      )
+      .eq("user_id", agent.id)
+      .gte("mission_date", startDate)
+      .lt("mission_date", endDate)
+
+    if (missionsError) {
+      console.error(`Failed to fetch missions for agent ${agent.id}:`, missionsError)
+      continue
+    }
+
+    let completedCount = 0
+    for (const set of completedMissions || []) {
+      const items = set.daily_mission_items as unknown as Array<{ status: string }>
+      completedCount += items.filter((item) => item.status === "completed").length
+    }
+
+    agentPoints[agent.id] = {
+      points: completedCount, // 1 point per completed mission
+      completed: completedCount,
+    }
   }
 
   // Sort agents by points DESC for ranking
   const sortedAgents = (agents || [])
     .map((agent) => ({
       agent_id: agent.id,
-      agent_name: agent.full_name || "Unknown",
-      total_points: agentPoints[agent.id] || 0,
+      agent_name: agent.Name || "Unknown",
+      total_points: agentPoints[agent.id]?.points || 0,
+      missions_completed: agentPoints[agent.id]?.completed || 0,
     }))
     .sort((a, b) => b.total_points - a.total_points)
 
@@ -84,6 +90,7 @@ export async function rebuildMonthlyRanking(): Promise<RankingResult[]> {
         year,
         month,
         total_points: ranking.total_points,
+        missions_completed: ranking.missions_completed,
         rank: ranking.rank,
         updated_at: new Date().toISOString(),
       },

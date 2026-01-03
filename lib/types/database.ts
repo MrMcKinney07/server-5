@@ -143,7 +143,7 @@ export interface CommissionPlan {
   name: string
   description: string | null
   split_percentage: number
-  cap_amount: number | null
+  marketing_fund_threshold: number | null
   monthly_fee: number
   transaction_fee: number
   is_default: boolean

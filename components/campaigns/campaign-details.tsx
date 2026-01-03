@@ -184,11 +184,15 @@ export function CampaignDetails({ campaign }: CampaignDetailsProps) {
 
             <TabsContent value="basics" className="space-y-3">
               <div className="space-y-2">
-                <Label htmlFor="edit-name">Name</Label>
+                <Label htmlFor="edit-name" className="text-slate-900 dark:text-slate-100">
+                  Name
+                </Label>
                 <Input id="edit-name" value={name} onChange={(e) => setName(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-description">Description</Label>
+                <Label htmlFor="edit-description" className="text-slate-900 dark:text-slate-100">
+                  Description
+                </Label>
                 <Textarea
                   id="edit-description"
                   value={description}
@@ -200,11 +204,11 @@ export function CampaignDetails({ campaign }: CampaignDetailsProps) {
 
             <TabsContent value="schedule" className="space-y-3">
               <div className="space-y-2">
-                <Label>Send Time</Label>
+                <Label className="text-slate-900 dark:text-slate-100">Send Time</Label>
                 <Input type="time" value={sendTime} onChange={(e) => setSendTime(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Send Days</Label>
+                <Label className="text-slate-900 dark:text-slate-100">Send Days</Label>
                 <div className="flex gap-1">
                   {days.map((day) => (
                     <Button
@@ -221,7 +225,7 @@ export function CampaignDetails({ campaign }: CampaignDetailsProps) {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Quiet Hours</Label>
+                <Label className="text-slate-900 dark:text-slate-100">Quiet Hours</Label>
                 <div className="flex items-center gap-2">
                   <Input
                     type="time"
@@ -242,11 +246,11 @@ export function CampaignDetails({ campaign }: CampaignDetailsProps) {
 
             <TabsContent value="advanced" className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label>Stop on Reply</Label>
+                <Label className="text-slate-900 dark:text-slate-100">Stop on Reply</Label>
                 <Switch checked={stopOnReply} onCheckedChange={setStopOnReply} />
               </div>
               <div className="space-y-2">
-                <Label>Throttle Rate</Label>
+                <Label className="text-slate-900 dark:text-slate-100">Throttle Rate</Label>
                 <Select value={throttlePerMinute.toString()} onValueChange={(v) => setThrottlePerMinute(Number(v))}>
                   <SelectTrigger>
                     <SelectValue />
@@ -260,7 +264,7 @@ export function CampaignDetails({ campaign }: CampaignDetailsProps) {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Dedupe Window</Label>
+                <Label className="text-slate-900 dark:text-slate-100">Dedupe Window</Label>
                 <Select value={dedupeWindowDays.toString()} onValueChange={(v) => setDedupeWindowDays(Number(v))}>
                   <SelectTrigger>
                     <SelectValue />

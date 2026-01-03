@@ -9,7 +9,7 @@ import type { KnowledgeArticleWithRelations } from "@/lib/types/database"
 
 interface KnowledgeArticleViewProps {
   article: KnowledgeArticleWithRelations
-  relatedArticles: { id: string; title: string; slug: string }[]
+  relatedArticles: { id: string; title: string }[]
 }
 
 export function KnowledgeArticleView({ article, relatedArticles }: KnowledgeArticleViewProps) {
@@ -90,7 +90,7 @@ export function KnowledgeArticleView({ article, relatedArticles }: KnowledgeArti
                   {relatedArticles.map((related) => (
                     <li key={related.id}>
                       <Link
-                        href={`/dashboard/knowledge/${related.slug}`}
+                        href={`/dashboard/knowledge/${related.id}`}
                         className="text-sm text-primary hover:underline"
                       >
                         {related.title}

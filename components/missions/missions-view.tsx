@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { selectDailyMissions, completeMission } from "@/app/actions/missions"
@@ -17,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Target, CheckCircle2, Clock, Zap, AlertCircle } from "lucide-react"
+import { Target, CheckCircle2, Clock, Zap, AlertCircle, X, ImageIcon } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 interface MissionItem {
@@ -53,6 +55,8 @@ export function MissionsView({ missions, templates }: MissionsViewProps) {
   const [completingMission, setCompletingMission] = useState<MissionItem | null>(null)
   const [notes, setNotes] = useState("")
   const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [selectMissionsOpen, setSelectMissionsOpen] = useState(false)
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([])
@@ -60,6 +64,7 @@ export function MissionsView({ missions, templates }: MissionsViewProps) {
   const { toast } = useToast()
   const todayMissionsRef = useRef<HTMLDivElement>(null)
   const [shouldScrollToMissions, setShouldScrollToMissions] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const hasEnoughMissions = missions.length >= REQUIRED_MISSIONS
   const needsMoreMissions = missions.length < REQUIRED_MISSIONS
@@ -72,7 +77,39 @@ export function MissionsView({ missions, templates }: MissionsViewProps) {
     if (!completingMission) return
     setIsLoading(true)
 
-    const result = await completeMission(completingMission.id, notes, photoFile ? "photo-url-here" : undefined)
+    let photoUrl: string | undefined
+
+    if (photoFile) {
+      setUploadingPhoto(true)
+      const formData = new FormData()
+      formData.append("file", photoFile)
+
+      try {
+        const response = await fetch("/api/missions/upload-photo", {
+          method: "POST",
+          body: formData,
+        })
+
+        if (!response.ok) {
+          throw new Error("Upload failed")
+        }
+
+        const data = await response.json()
+        photoUrl = data.url
+      } catch (error) {
+        toast({
+          title: "Upload Failed",
+          description: "Failed to upload photo. Please try again.",
+          variant: "destructive",
+        })
+        setIsLoading(false)
+        setUploadingPhoto(false)
+        return
+      }
+      setUploadingPhoto(false)
+    }
+
+    const result = await completeMission(completingMission.id, notes, photoUrl)
 
     if (result.success) {
       toast({
@@ -81,7 +118,7 @@ export function MissionsView({ missions, templates }: MissionsViewProps) {
       })
       setCompletingMission(null)
       setNotes("")
-      setPhotoFile(null)
+      removePhoto()
       router.refresh()
     } else {
       toast({
@@ -130,6 +167,44 @@ export function MissionsView({ missions, templates }: MissionsViewProps) {
     }
 
     setIsLoading(false)
+  }
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Invalid File",
+        description: "Please select an image file",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File Too Large",
+        description: "Image must be less than 5MB",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setPhotoFile(file)
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setPhotoPreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const removePhoto = () => {
+    setPhotoFile(null)
+    setPhotoPreview(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
   }
 
   useEffect(() => {
@@ -254,13 +329,60 @@ export function MissionsView({ missions, templates }: MissionsViewProps) {
       </Card>
 
       {/* Complete Mission Dialog */}
-      <Dialog open={!!completingMission} onOpenChange={() => setCompletingMission(null)}>
-        <DialogContent>
+      <Dialog
+        open={!!completingMission}
+        onOpenChange={() => {
+          setCompletingMission(null)
+          setNotes("")
+          removePhoto()
+        }}
+      >
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Complete Mission</DialogTitle>
             <DialogDescription>{completingMission?.mission_templates.title}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Photo (Optional)</Label>
+              <div className="space-y-3">
+                {photoPreview ? (
+                  <div className="relative">
+                    <img
+                      src={photoPreview || "/placeholder.svg"}
+                      alt="Mission preview"
+                      className="w-full h-48 object-cover rounded-lg border"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2"
+                      onClick={removePhoto}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:bg-accent transition-colors"
+                  >
+                    <ImageIcon className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+                    <p className="text-sm font-medium">Upload Photo</p>
+                    <p className="text-xs text-muted-foreground mt-1">Click to select an image (max 5MB)</p>
+                  </div>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handlePhotoSelect}
+                />
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label>Notes (Optional)</Label>
               <Textarea
@@ -278,15 +400,22 @@ export function MissionsView({ missions, templates }: MissionsViewProps) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCompletingMission(null)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCompletingMission(null)
+                setNotes("")
+                removePhoto()
+              }}
+            >
               Cancel
             </Button>
             <Button
               onClick={handleCompleteMission}
-              disabled={isLoading}
+              disabled={isLoading || uploadingPhoto}
               className="bg-emerald-500 hover:bg-emerald-600"
             >
-              {isLoading ? "Completing..." : "Mark Complete"}
+              {uploadingPhoto ? "Uploading..." : isLoading ? "Completing..." : "Mark Complete"}
             </Button>
           </DialogFooter>
         </DialogContent>
