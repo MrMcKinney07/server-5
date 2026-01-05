@@ -146,7 +146,7 @@ export function CreateAgentDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700">
+        <Button variant="green">
           <UserPlus className="h-4 w-4 mr-2" />
           Create Agent Account
         </Button>

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
+import { createClient as createServiceClient } from "@supabase/supabase-js"
 import { NextResponse } from "next/server"
 import { Resend } from "resend"
 import twilio from "twilio"
@@ -15,36 +16,18 @@ export async function GET(request: Request) {
   }
 
   const results = {
-    missionReset: { processed: false, error: null as string | null },
-    morningMissions: { processed: false, error: null as string | null },
+    missionAssignment: { processed: 0, emailed: 0, errors: [] as string[] },
     campaigns: { processed: 0, errors: [] as string[] },
   }
 
-  // Check current time in CT (UTC-6)
-  const now = new Date()
-  const minutes = now.getUTCMinutes()
-  const hours = now.getUTCHours()
-
-  if (hours === 9 && minutes === 0) {
-    try {
-      await resetDailyMissions()
-      results.missionReset.processed = true
-    } catch (error) {
-      results.missionReset.error = error instanceof Error ? error.message : "Unknown error"
-    }
+  try {
+    const assignmentResults = await assignDailyMissionsAndEmail()
+    results.missionAssignment = assignmentResults
+  } catch (error) {
+    results.missionAssignment.errors.push(error instanceof Error ? error.message : "Unknown error")
   }
 
-  // 8 AM CT morning mission emails (8 AM CT = 14:00 UTC)
-  if (hours === 14 && minutes === 0) {
-    try {
-      await processMorningMissions()
-      results.morningMissions.processed = true
-    } catch (error) {
-      results.morningMissions.error = error instanceof Error ? error.message : "Unknown error"
-    }
-  }
-
-  // Always process campaigns (runs every 15 minutes)
+  // Always process campaigns (runs every 15 minutes if needed)
   try {
     const campaignResults = await processCampaigns()
     results.campaigns.processed = campaignResults.processed
@@ -56,102 +39,168 @@ export async function GET(request: Request) {
   return NextResponse.json({ success: true, results })
 }
 
-async function resetDailyMissions() {
-  const supabase = await createClient()
+async function assignDailyMissionsAndEmail() {
+  const serviceSupabase = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  )
+
+  const results = { processed: 0, emailed: 0, errors: [] as string[] }
   const today = new Date().toISOString().split("T")[0]
+  const dayOfWeek = new Date().getDay() // 0-6 (Sunday-Saturday)
 
-  // Get all agents
-  const { data: agents } = await supabase.from("agents").select("id")
+  console.log("[Cron] Starting daily mission assignment for", today, "day:", dayOfWeek)
 
-  if (!agents || agents.length === 0) return
-
-  // For each agent, update their missions to today's date and reset status
-  for (const agent of agents) {
-    // Reset any incomplete missions from previous days to mark them as missed
-    await supabase
-      .from("agent_missions")
-      .update({ status: "missed" })
-      .eq("agent_id", agent.id)
-      .neq("mission_date", today)
-      .eq("status", "pending")
-
-    // Update existing missions for today (if they selected them yesterday for today)
-    // or just set mission_date to today for their selected missions
-    await supabase
-      .from("agent_missions")
-      .update({
-        mission_date: today,
-        status: "pending",
-        completed_at: null,
-        points_earned: 0,
-        notes: null,
-        photo_url: null,
-      })
-      .eq("agent_id", agent.id)
-      .eq("status", "pending")
-      .neq("mission_date", today)
-  }
-}
-
-async function processMorningMissions() {
-  const supabase = await createClient()
-
-  // Get all agents with their selected missions
-  const { data: agents } = await supabase
+  // Get all active agents with their account creation dates
+  const { data: agents, error: agentsError } = await serviceSupabase
     .from("agents")
-    .select(`
-      id,
-      "Name",
-      "Email",
-      agent_missions (
-        mission_templates (
-          title,
-          description,
-          points
-        )
-      )
-    `)
-    .not("Email", "is", null)
+    .select("id, Name, Email, created_at, is_active")
+    .eq("is_active", true)
 
-  if (!agents || agents.length === 0) return
+  if (agentsError || !agents || agents.length === 0) {
+    console.error("[Cron] Failed to fetch agents:", agentsError)
+    return results
+  }
 
+  console.log("[Cron] Found", agents.length, "active agents")
+
+  // Get mission templates active for today
+  const { data: templates, error: templatesError } = await serviceSupabase
+    .from("mission_templates")
+    .select("id, title, description, points")
+    .eq("is_active", true)
+    .contains("active_days", [dayOfWeek])
+
+  if (templatesError || !templates || templates.length === 0) {
+    console.error("[Cron] No mission templates found for today:", templatesError)
+    return results
+  }
+
+  console.log("[Cron] Found", templates.length, "mission templates for today")
+
+  // Process each agent
   for (const agent of agents) {
-    if (!agent.Email || !agent.agent_missions || agent.agent_missions.length === 0) continue
-
-    const missions = agent.agent_missions.map((am: any) => am.mission_templates).filter(Boolean)
-
-    if (missions.length === 0) continue
-
-    const missionsList = missions
-      .map((m: any, i: number) => `${i + 1}. ${m.title} (${m.points} pts)\n   ${m.description}`)
-      .join("\n\n")
-
-    const emailHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #1a1a1a;">Good Morning, ${agent.Name || "Agent"}!</h1>
-        <p style="color: #666;">Here are your missions for today:</p>
-        <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <pre style="white-space: pre-wrap; font-family: Arial, sans-serif;">${missionsList}</pre>
-        </div>
-        <p style="color: #666;">Complete your missions to earn points and climb the leaderboard!</p>
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard" 
-           style="display: inline-block; background: #000; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 10px;">
-          View Dashboard
-        </a>
-      </div>
-    `
-
     try {
-      await resend.emails.send({
-        from: "McKinney Realty <missions@mckinneyrealtyco.com>",
-        to: agent.Email,
-        subject: `Your Daily Missions - ${new Date().toLocaleDateString()}`,
-        html: emailHtml,
-      })
-    } catch (error) {
-      console.error(`Failed to send email to ${agent.Email}:`, error)
+      // Check if agent already has missions for today
+      const { data: existingSet } = await serviceSupabase
+        .from("daily_mission_sets")
+        .select("id")
+        .eq("user_id", agent.id)
+        .eq("mission_date", today)
+        .single()
+
+      if (existingSet) {
+        console.log("[Cron] Agent", agent.Name, "already has missions for today")
+        continue
+      }
+
+      // Check if agent is within first 6 months (auto-assignment period)
+      const accountAge = Date.now() - new Date(agent.created_at).getTime()
+      const sixMonthsInMs = 6 * 30 * 24 * 60 * 60 * 1000
+      const isNewAgent = accountAge < sixMonthsInMs
+
+      // Auto-assign 3 random missions for new agents
+      if (isNewAgent) {
+        // Shuffle templates and pick 3
+        const shuffled = [...templates].sort(() => Math.random() - 0.5)
+        const selectedTemplates = shuffled.slice(0, 3)
+
+        // Create daily mission set
+        const { data: newSet, error: setError } = await serviceSupabase
+          .from("daily_mission_sets")
+          .insert({
+            user_id: agent.id,
+            mission_date: today,
+            created_at: new Date().toISOString(),
+          })
+          .select("id")
+          .single()
+
+        if (setError || !newSet) {
+          results.errors.push(`Failed to create mission set for ${agent.Name}: ${setError?.message}`)
+          continue
+        }
+
+        // Insert mission items
+        const missionItems = selectedTemplates.map((template) => ({
+          daily_set_id: newSet.id,
+          mission_template_id: template.id,
+          status: "assigned",
+          created_at: new Date().toISOString(),
+        }))
+
+        const { error: itemsError } = await serviceSupabase.from("daily_mission_items").insert(missionItems)
+
+        if (itemsError) {
+          results.errors.push(`Failed to create mission items for ${agent.Name}: ${itemsError.message}`)
+          continue
+        }
+
+        results.processed++
+        console.log("[Cron] Auto-assigned", selectedTemplates.length, "missions to", agent.Name)
+
+        // Send email with mission list
+        if (agent.Email) {
+          try {
+            const missionsList = selectedTemplates
+              .map((m, i) => `${i + 1}. ${m.title} (${m.points} XP)\n   ${m.description}`)
+              .join("\n\n")
+
+            const emailHtml = `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h1 style="color: #1a1a1a; margin-bottom: 10px;">Good Morning, ${agent.Name || "Agent"}! ☀️</h1>
+                <p style="color: #666; font-size: 16px; margin-bottom: 20px;">
+                  Your daily missions have been assigned. Complete them to earn XP and climb the leaderboard!
+                </p>
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 24px; border-radius: 12px; margin: 24px 0;">
+                  <h2 style="color: white; margin: 0 0 16px 0; font-size: 18px;">Today's Missions - ${new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}</h2>
+                  <div style="background: rgba(255,255,255,0.1); padding: 16px; border-radius: 8px;">
+                    <pre style="white-space: pre-wrap; font-family: 'Courier New', monospace; color: white; margin: 0; line-height: 1.6;">${missionsList}</pre>
+                  </div>
+                </div>
+                <p style="color: #666; font-size: 14px; margin-bottom: 20px;">
+                  💡 <strong>Tip:</strong> You're in your first 6 months, so missions are automatically selected for you. 
+                  After 6 months, you'll be able to choose your own missions!
+                </p>
+                <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://app.mckinneyrealtyco.com"}/dashboard/missions" 
+                   style="display: inline-block; background: #000; color: #fff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; margin-top: 10px;">
+                  View My Missions →
+                </a>
+                <p style="color: #999; font-size: 12px; margin-top: 30px;">
+                  McKinney Realty Co | Level up your real estate career
+                </p>
+              </div>
+            `
+
+            await resend.emails.send({
+              from: "McKinney Realty Missions <missions@mckinneyrealtyco.com>",
+              to: agent.Email,
+              subject: `Your Daily Missions - ${new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}`,
+              html: emailHtml,
+            })
+
+            results.emailed++
+            console.log("[Cron] Sent mission email to", agent.Email)
+          } catch (emailError) {
+            console.error(`[Cron] Failed to send email to ${agent.Email}:`, emailError)
+            results.errors.push(
+              `Email failed for ${agent.Name}: ${emailError instanceof Error ? emailError.message : "Unknown"}`,
+            )
+          }
+        }
+      } else {
+        // Veteran agents (6+ months) don't get auto-assigned missions
+        console.log("[Cron] Agent", agent.Name, "is a veteran - they select their own missions")
+      }
+    } catch (agentError) {
+      results.errors.push(
+        `Error processing agent ${agent.Name}: ${agentError instanceof Error ? agentError.message : "Unknown"}`,
+      )
     }
   }
+
+  console.log("[Cron] Mission assignment complete. Processed:", results.processed, "Emailed:", results.emailed)
+  return results
 }
 
 async function processCampaigns() {

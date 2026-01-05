@@ -159,6 +159,15 @@ export async function POST(request: Request) {
         })
       }
 
+      const currentMonthYear = new Date().toISOString().slice(0, 7) // Format: YYYY-MM
+      await serviceSupabase.from("monthly_agent_stats").insert({
+        agent_id: authUserId,
+        month_year: currentMonthYear,
+        total_xp_earned: 0,
+        missions_completed: 0,
+        rank: 999, // Temporary rank, will be recalculated on next rebuild
+      })
+
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://your-domain.com"
 
       const emailHtml = `

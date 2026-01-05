@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     // Get the agent details
     const { data: agent, error: agentError } = await serviceSupabase
       .from("agents")
-      .select("*, id as agent_id")
+      .select("*")
       .eq("id", agentId)
       .single()
 

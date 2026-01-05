@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { createBrowserClient } from "@/lib/supabase/client"
@@ -23,10 +22,11 @@ import {
 } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Users, Phone, Mail, Calendar, AlertCircle, Search } from "lucide-react"
+import { Plus, Users, Phone, Mail, Calendar, AlertCircle, Search, FileUp } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import Link from "next/link"
 import { toast } from "sonner"
+import { ImportLeadsTool } from "@/components/admin/import-leads-tool" // Updated import path
 
 interface LeadsViewProps {
   leads: Lead[]
@@ -70,6 +70,7 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
     budget_max: "",
     timeline: "",
   })
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
   const router = useRouter()
 
   const filteredLeads = leads.filter((lead) => {
@@ -253,10 +254,16 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
             </CardTitle>
             <CardDescription>Your complete lead pipeline</CardDescription>
           </div>
-          <Button onClick={() => setCreateDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Lead
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => setImportDialogOpen(true)} variant="outline">
+              <FileUp className="h-4 w-4 mr-2" />
+              Import Leads
+            </Button>
+            <Button onClick={() => setCreateDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Lead
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="mb-4">
@@ -545,6 +552,16 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
               {isLoading ? "Creating..." : "Create Lead"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Import Leads</DialogTitle>
+            <DialogDescription>Bulk upload leads from a CSV file</DialogDescription>
+          </DialogHeader>
+          <ImportLeadsTool agentId={agentId} />
         </DialogContent>
       </Dialog>
     </div>

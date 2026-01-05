@@ -47,11 +47,12 @@ interface MissionTemplate {
 interface MissionsViewProps {
   missions: MissionItem[]
   templates: MissionTemplate[]
+  isNewAgent: boolean // Added prop to determine if agent is new
 }
 
 const REQUIRED_MISSIONS = 3
 
-export function MissionsView({ missions, templates }: MissionsViewProps) {
+export function MissionsView({ missions, templates, isNewAgent }: MissionsViewProps) {
   const [completingMission, setCompletingMission] = useState<MissionItem | null>(null)
   const [notes, setNotes] = useState("")
   const [photoFile, setPhotoFile] = useState<File | null>(null)
@@ -216,7 +217,7 @@ export function MissionsView({ missions, templates }: MissionsViewProps) {
 
   return (
     <div className="space-y-6">
-      {needsMoreMissions && (
+      {needsMoreMissions && !isNewAgent && (
         <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50">
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
@@ -245,6 +246,25 @@ export function MissionsView({ missions, templates }: MissionsViewProps) {
               >
                 Select {missionsNeeded} Mission{missionsNeeded > 1 ? "s" : ""}
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {needsMoreMissions && isNewAgent && (
+        <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-purple-500 text-white flex items-center justify-center shadow-lg">
+                <Target className="h-6 w-6" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-purple-900">Auto-Assigned Missions</h3>
+                <p className="text-sm text-purple-700">
+                  During your first 6 months, missions are automatically assigned daily to help you build momentum.
+                  After 6 months, you'll be able to choose your own missions!
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -421,79 +441,81 @@ export function MissionsView({ missions, templates }: MissionsViewProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Select Missions Dialog */}
-      <Dialog open={selectMissionsOpen} onOpenChange={setSelectMissionsOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              Select {missionsNeeded} Mission{missionsNeeded > 1 ? "s" : ""}
-            </DialogTitle>
-            <DialogDescription>
-              Choose missions to complete today. You'll earn XP for each completed mission.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <div className="mb-4 p-3 bg-blue-50 rounded-lg flex items-center justify-between border border-blue-100">
-              <span className="text-sm text-blue-800">
-                Selected: <strong>{selectedTemplateIds.length}</strong> of {missionsNeeded}
-              </span>
-              {selectedTemplateIds.length === missionsNeeded && (
-                <Badge className="bg-emerald-500">Ready to submit</Badge>
-              )}
-            </div>
+      {/* Select Missions Dialog - Only accessible to veteran agents */}
+      {!isNewAgent && (
+        <Dialog open={selectMissionsOpen} onOpenChange={setSelectMissionsOpen}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                Select {missionsNeeded} Mission{missionsNeeded > 1 ? "s" : ""}
+              </DialogTitle>
+              <DialogDescription>
+                Choose missions to complete today. You'll earn XP for each completed mission.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <div className="mb-4 p-3 bg-blue-50 rounded-lg flex items-center justify-between border border-blue-100">
+                <span className="text-sm text-blue-800">
+                  Selected: <strong>{selectedTemplateIds.length}</strong> of {missionsNeeded}
+                </span>
+                {selectedTemplateIds.length === missionsNeeded && (
+                  <Badge className="bg-emerald-500">Ready to submit</Badge>
+                )}
+              </div>
 
-            <div className="space-y-3">
-              {availableTemplates.length > 0 ? (
-                availableTemplates.map((template) => {
-                  const isSelected = selectedTemplateIds.includes(template.id)
-                  const isDisabled = !isSelected && selectedTemplateIds.length >= missionsNeeded
+              <div className="space-y-3">
+                {availableTemplates.length > 0 ? (
+                  availableTemplates.map((template) => {
+                    const isSelected = selectedTemplateIds.includes(template.id)
+                    const isDisabled = !isSelected && selectedTemplateIds.length >= missionsNeeded
 
-                  return (
-                    <div
-                      key={template.id}
-                      onClick={() => !isDisabled && toggleTemplateSelection(template.id)}
-                      className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors ${
-                        isSelected
-                          ? "border-blue-500 bg-blue-50 shadow-sm"
-                          : isDisabled
-                            ? "border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed"
-                            : "border-gray-200 hover:border-blue-300 hover:bg-blue-50/50"
-                      }`}
-                    >
-                      <Checkbox checked={isSelected} disabled={isDisabled} className="pointer-events-none" />
-                      <div className="flex-1">
-                        <h4 className="font-medium">{template.title}</h4>
-                        <p className="text-sm text-muted-foreground">{template.description}</p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                            {template.xp_reward} XP
-                          </Badge>
+                    return (
+                      <div
+                        key={template.id}
+                        onClick={() => !isDisabled && toggleTemplateSelection(template.id)}
+                        className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors ${
+                          isSelected
+                            ? "border-blue-500 bg-blue-50 shadow-sm"
+                            : isDisabled
+                              ? "border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed"
+                              : "border-gray-200 hover:border-blue-300 hover:bg-blue-50/50"
+                        }`}
+                      >
+                        <Checkbox checked={isSelected} disabled={isDisabled} className="pointer-events-none" />
+                        <div className="flex-1">
+                          <h4 className="font-medium">{template.title}</h4>
+                          <p className="text-sm text-muted-foreground">{template.description}</p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                              {template.xp_reward} XP
+                            </Badge>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )
-                })
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No more missions available today.</p>
-                </div>
-              )}
+                    )
+                  })
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>No more missions available today.</p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSelectMissionsOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSubmitMissions}
-              disabled={isLoading || selectedTemplateIds.length !== missionsNeeded}
-              className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600"
-            >
-              {isLoading ? "Submitting..." : `Confirm ${missionsNeeded} Mission${missionsNeeded > 1 ? "s" : ""}`}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setSelectMissionsOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmitMissions}
+                disabled={isLoading || selectedTemplateIds.length !== missionsNeeded}
+                className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600"
+              >
+                {isLoading ? "Submitting..." : `Confirm ${missionsNeeded} Mission${missionsNeeded > 1 ? "s" : ""}`}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }
