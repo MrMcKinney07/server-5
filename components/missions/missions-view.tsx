@@ -415,7 +415,9 @@ export function MissionsView({ missions, templates, isNewAgent }: MissionsViewPr
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Photo (Optional)</Label>
+              <Label>
+                Photo Proof <span className="text-red-500">*</span>
+              </Label>
               <div className="space-y-3">
                 {photoPreview ? (
                   <div className="relative">
@@ -437,11 +439,11 @@ export function MissionsView({ missions, templates, isNewAgent }: MissionsViewPr
                 ) : (
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:bg-accent transition-colors"
+                    className="border-2 border-dashed border-red-500/50 rounded-lg p-8 text-center cursor-pointer hover:bg-accent transition-colors"
                   >
                     <ImageIcon className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
-                    <p className="text-sm font-medium">Upload Photo</p>
-                    <p className="text-xs text-muted-foreground mt-1">Click to select an image (max 5MB)</p>
+                    <p className="text-sm font-medium">Upload Photo Proof</p>
+                    <p className="text-xs text-red-400 mt-1">Required - Click to select an image (max 5MB)</p>
                   </div>
                 )}
                 <input
@@ -483,7 +485,7 @@ export function MissionsView({ missions, templates, isNewAgent }: MissionsViewPr
             </Button>
             <Button
               onClick={handleCompleteMission}
-              disabled={isLoading || uploadingPhoto}
+              disabled={isLoading || uploadingPhoto || !photoFile}
               className="bg-emerald-500 hover:bg-emerald-600 text-white"
             >
               {uploadingPhoto ? "Uploading..." : isLoading ? "Completing..." : "Mark Complete"}
