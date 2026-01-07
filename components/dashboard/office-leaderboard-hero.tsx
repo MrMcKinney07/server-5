@@ -148,8 +148,8 @@ export function OfficeLeaderboardHero({
             const tier = getPrestigeTier(entry.level || 1)
 
             const containerSize = isFirst ? 160 : isSecond ? 140 : isThird ? 130 : 110
-            const frameScale = 1.6 // Scale up frame image to crop black edges
-            const profileSize = containerSize * 0.42 // Profile picture size relative to container
+            const profileSize = containerSize * 0.38 // Slightly smaller profile to fit inside frame
+            const profileOffset = containerSize * 0.31 // Center offset from top
 
             return (
               <div key={entry.id} className="flex flex-col items-center">
@@ -166,7 +166,7 @@ export function OfficeLeaderboardHero({
 
                 <div className="relative mb-3 group">
                   <div
-                    className="relative"
+                    className="relative flex items-center justify-center"
                     style={{
                       width: containerSize,
                       height: containerSize,
@@ -174,11 +174,13 @@ export function OfficeLeaderboardHero({
                   >
                     {/* Profile picture centered in frame */}
                     <div
-                      className="absolute left-1/2 -translate-x-1/2 rounded-full overflow-hidden bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center"
+                      className="absolute rounded-full overflow-hidden bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center"
                       style={{
                         width: profileSize,
                         height: profileSize,
-                        top: `${containerSize * 0.53 - profileSize / 2}px`,
+                        top: "50%",
+                        left: "50%",
+                        transform: "translate(-50%, -50%)",
                       }}
                     >
                       {entry.profilePicture ? (
@@ -198,25 +200,25 @@ export function OfficeLeaderboardHero({
                     {/* Current user highlight ring */}
                     {isCurrentUser && (
                       <div
-                        className="absolute left-1/2 -translate-x-1/2 rounded-full ring-4 ring-cyan-400"
+                        className="absolute rounded-full ring-4 ring-cyan-400"
                         style={{
                           width: profileSize + 8,
                           height: profileSize + 8,
-                          top: `${containerSize * 0.53 - (profileSize + 8) / 2}px`,
+                          top: "50%",
+                          left: "50%",
+                          transform: "translate(-50%, -50%)",
                         }}
                       />
                     )}
 
                     {/* Frame image overlay - transparent background overlays on profile */}
-                    <div className="absolute -left-[7%] top-[0.5%] w-full h-full">
-                      <div className="relative w-full h-full">
-                        <Image
-                          src={RANK_FRAMES[actualRank as keyof typeof RANK_FRAMES] || "/placeholder.svg"}
-                          alt={`Rank ${actualRank} frame`}
-                          fill
-                          className="object-contain pointer-events-none z-20"
-                        />
-                      </div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Image
+                        src={RANK_FRAMES[actualRank as keyof typeof RANK_FRAMES] || "/placeholder.svg"}
+                        alt={`Rank ${actualRank} frame`}
+                        fill
+                        className="object-contain pointer-events-none z-20"
+                      />
                     </div>
                   </div>
 
