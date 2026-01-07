@@ -231,7 +231,7 @@ export function OfficeLeaderboardHero({
                 {/* Name */}
                 <p
                   className={`font-semibold text-center max-w-[100px] truncate ${
-                    isCurrentUser ? "text-cyan-400" : "text-slate-900"
+                    isCurrentUser ? "text-cyan-400" : "text-white"
                   } ${isFirst ? "text-base" : "text-sm"}`}
                 >
                   {entry.name}
@@ -301,7 +301,7 @@ export function OfficeLeaderboardHero({
                     className="rounded-full"
                   />
                   <div className="flex-1 min-w-0">
-                    <p className={`font-medium truncate ${isCurrentUser ? "text-cyan-300" : "text-slate-900"}`}>
+                    <p className={`font-medium truncate ${isCurrentUser ? "text-cyan-300" : "text-white"}`}>
                       {entry.name}
                       {isCurrentUser && " (You)"}
                     </p>

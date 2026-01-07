@@ -234,7 +234,7 @@ export default async function DashboardPage() {
 
   const sortedLeaderboard = leaderboardData.map((entry) => ({
     id: entry.agent_id,
-    name: entry.agents?.Name || "Unknown Agent",
+    name: entry.agents?.Name || `Agent ${entry.agent_id?.slice(0, 6) || "Unknown"}`,
     points: entry.total_xp_earned,
     level: getPrestigeTier(entry.agents?.lifetime_xp || 1).level,
     profilePicture: entry.agents?.profile_picture_url || null,

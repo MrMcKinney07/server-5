@@ -28,18 +28,11 @@ interface Team {
   name: string
 }
 
-interface CommissionPlan {
-  id: string
-  name: string
-  split_percentage: number
-}
-
 export function CreateAgentDialog() {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [teams, setTeams] = useState<Team[]>([])
-  const [commissionPlans, setCommissionPlans] = useState<CommissionPlan[]>([])
   const [formData, setFormData] = useState({
     // Basic Info
     fullName: "",
@@ -53,7 +46,9 @@ export function CreateAgentDialog() {
     startDate: new Date().toISOString().split("T")[0],
     // Assignment
     teamId: "",
-    commissionPlanId: "",
+    commissionSplit: "70", // 70%, 80%, or 85%
+    marketingThreshold: "",
+    transactionFee: "",
     // Address
     address: "",
     city: "",
@@ -68,20 +63,14 @@ export function CreateAgentDialog() {
 
   useEffect(() => {
     if (open) {
-      fetchTeamsAndPlans()
+      fetchTeams()
     }
   }, [open])
 
-  const fetchTeamsAndPlans = async () => {
+  const fetchTeams = async () => {
     const supabase = createClient()
-
-    const [teamsRes, plansRes] = await Promise.all([
-      supabase.from("teams").select("id, name").order("name"),
-      supabase.from("commission_plans").select("id, name, split_percentage").eq("is_active", true).order("name"),
-    ])
-
-    if (teamsRes.data) setTeams(teamsRes.data)
-    if (plansRes.data) setCommissionPlans(plansRes.data)
+    const { data: teamsData } = await supabase.from("teams").select("id, name").order("name")
+    if (teamsData) setTeams(teamsData)
   }
 
   const generatePassword = () => {
@@ -125,7 +114,9 @@ export function CreateAgentDialog() {
         licenseExpiry: "",
         startDate: new Date().toISOString().split("T")[0],
         teamId: "",
-        commissionPlanId: "",
+        commissionSplit: "70",
+        marketingThreshold: "",
+        transactionFee: "",
         address: "",
         city: "",
         state: "",
@@ -299,7 +290,7 @@ export function CreateAgentDialog() {
               </div>
             </TabsContent>
 
-            {/* Assignment Tab */}
+            {/* Assignment Tab - Updated with direct commission fields */}
             <TabsContent value="assignment" className="space-y-4 mt-4">
               <div className="space-y-2">
                 <Label htmlFor="teamId" className="text-slate-900 dark:text-slate-100">
@@ -321,27 +312,62 @@ export function CreateAgentDialog() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="commissionPlanId" className="text-slate-900 dark:text-slate-100">
-                  Commission Plan
+                <Label htmlFor="commissionSplit" className="text-slate-900 dark:text-slate-100">
+                  Commission Split <span className="text-red-500">*</span>
                 </Label>
                 <Select
-                  value={formData.commissionPlanId}
-                  onValueChange={(value) => setFormData({ ...formData, commissionPlanId: value })}
+                  value={formData.commissionSplit}
+                  onValueChange={(value) => setFormData({ ...formData, commissionSplit: value })}
                 >
                   <SelectTrigger className="text-slate-900 dark:text-slate-100">
-                    <SelectValue placeholder="Select a commission plan (optional)" />
+                    <SelectValue placeholder="Select commission split" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="default">Use Default Plan</SelectItem>
-                    {commissionPlans.map((plan) => (
-                      <SelectItem key={plan.id} value={plan.id}>
-                        {plan.name} ({plan.split_percentage}% split)
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="70">70% Commission Split</SelectItem>
+                    <SelectItem value="80">80% Commission Split</SelectItem>
+                    <SelectItem value="85">85% Commission Split</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  If not selected, the default commission plan will be applied.
+                  The percentage of commission the agent receives from each transaction.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="marketingThreshold" className="text-slate-900 dark:text-slate-100">
+                  Marketing Threshold ($)
+                </Label>
+                <Input
+                  id="marketingThreshold"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="e.g. 500.00"
+                  value={formData.marketingThreshold}
+                  onChange={(e) => setFormData({ ...formData, marketingThreshold: e.target.value })}
+                  className="text-slate-900 dark:text-slate-100"
+                />
+                <p className="text-xs text-muted-foreground">
+                  The marketing fund threshold amount for this agent. Leave blank for no threshold.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="transactionFee" className="text-slate-900 dark:text-slate-100">
+                  Transaction Fee ($)
+                </Label>
+                <Input
+                  id="transactionFee"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="e.g. 250.00"
+                  value={formData.transactionFee}
+                  onChange={(e) => setFormData({ ...formData, transactionFee: e.target.value })}
+                  className="text-slate-900 dark:text-slate-100"
+                />
+                <p className="text-xs text-muted-foreground">
+                  The transaction fee charged per closed deal. Leave blank for no fee.
                 </p>
               </div>
             </TabsContent>
