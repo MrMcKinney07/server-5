@@ -1,5 +1,9 @@
-import { Trophy, Flame, TrendingUp, Zap } from "lucide-react"
+"use client"
+
+import { useState } from "react"
+import { Trophy, Flame, TrendingUp, Zap, ChevronDown, ChevronUp } from "lucide-react"
 import Image from "next/image"
+import { Button } from "@/components/ui/button"
 
 const PRESTIGE_TIERS = [
   {
@@ -68,6 +72,8 @@ export function OfficeLeaderboardHero({
   currentUserRank,
   currentUserPoints,
 }: OfficeLeaderboardHeroProps) {
+  const [showAll, setShowAll] = useState(false)
+
   if (leaderboard.length === 0) {
     return (
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 mb-6">
@@ -94,19 +100,152 @@ export function OfficeLeaderboardHero({
   }
 
   const top5 = leaderboard.slice(0, 5)
-  const rest = leaderboard.slice(5, 10)
+  const rest = showAll ? leaderboard.slice(5) : leaderboard.slice(5, 10)
+  const hasMoreThan10 = leaderboard.length > 10
 
-  const podiumOrder = [
-    top5[2] || null, // 3rd place (left)
-    top5[1] || null, // 2nd place (left-center)
-    top5[0] || null, // 1st place (center)
-    top5[3] || null, // 4th place (right-center)
-    top5[4] || null, // 5th place (right)
-  ]
+  const first = top5[0] || null
+  const second = top5[1] || null
+  const third = top5[2] || null
+  const fourth = top5[3] || null
+  const fifth = top5[4] || null
+
+  const renderPodiumEntry = (entry: LeaderboardEntry | null, actualRank: number) => {
+    if (!entry) {
+      return (
+        <div className="flex flex-col items-center opacity-30">
+          <div className="w-12 h-12 rounded-xl bg-slate-700/30 flex items-center justify-center mb-2">
+            <Trophy className="h-5 w-5 text-slate-600" />
+          </div>
+          <p className="text-slate-600 text-xs">Waiting...</p>
+        </div>
+      )
+    }
+
+    const isFirst = actualRank === 1
+    const isCurrentUser = entry.id === currentUserId
+    const tier = getPrestigeTier(entry.level || 1)
+
+    const containerSize = 80
+    const profileSize = containerSize * 0.38
+
+    const rankColors: { [key: number]: string } = {
+      1: "bg-amber-500 text-white",
+      2: "bg-slate-400 text-white",
+      3: "bg-orange-600 text-white",
+      4: "bg-slate-600 text-white",
+      5: "bg-slate-700 text-white",
+    }
+
+    return (
+      <div key={entry.id} className="flex flex-col items-center">
+        <div
+          className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-sm mb-1 ${rankColors[actualRank] || "bg-slate-700 text-white"}`}
+        >
+          {actualRank}
+        </div>
+
+        <div className="relative mb-1">
+          <Image
+            src={tier.logo || "/placeholder.svg"}
+            alt={tier.name}
+            width={20}
+            height={20}
+            className="rounded-full"
+          />
+        </div>
+
+        <div className="relative mb-2 group">
+          <div
+            className="relative flex items-center justify-center"
+            style={{
+              width: containerSize,
+              height: containerSize,
+            }}
+          >
+            <div
+              className="absolute rounded-full overflow-hidden bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center"
+              style={{
+                width: profileSize,
+                height: profileSize,
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+              }}
+            >
+              {entry.profilePicture ? (
+                <Image
+                  src={entry.profilePicture || "/placeholder.svg"}
+                  alt={entry.name}
+                  fill
+                  className="object-cover"
+                />
+              ) : (
+                <div className="text-white font-bold" style={{ fontSize: profileSize * 0.45 }}>
+                  {entry.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
+
+            {isCurrentUser && (
+              <div
+                className="absolute rounded-full ring-4 ring-cyan-400"
+                style={{
+                  width: profileSize + 8,
+                  height: profileSize + 8,
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                }}
+              />
+            )}
+
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Image
+                src={RANK_FRAMES[actualRank as keyof typeof RANK_FRAMES] || "/placeholder.svg"}
+                alt={`Rank ${actualRank} frame`}
+                fill
+                className="object-contain pointer-events-none z-20"
+              />
+            </div>
+          </div>
+
+          {isFirst && (
+            <div className="absolute -top-1 -left-1 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center animate-pulse shadow-lg shadow-amber-500/50 z-30">
+              <Zap className="h-2.5 w-2.5 text-white fill-white" />
+            </div>
+          )}
+        </div>
+
+        <p
+          className={`font-semibold text-center max-w-[70px] truncate text-xs ${
+            isCurrentUser ? "text-cyan-400" : "text-white"
+          }`}
+        >
+          {entry.name}
+          {isCurrentUser && " (You)"}
+        </p>
+
+        <div
+          className={`flex items-center gap-1 mt-0.5 ${
+            isFirst
+              ? "text-amber-300"
+              : actualRank === 2
+                ? "text-slate-300"
+                : actualRank === 3
+                  ? "text-orange-400"
+                  : "text-slate-400"
+          }`}
+        >
+          <Flame className="h-3 w-3" />
+          <span className="font-bold text-xs">{entry.points}</span>
+          <span className="text-[10px] opacity-70">pts</span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 mb-6">
-      {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl" />
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
@@ -114,171 +253,23 @@ export function OfficeLeaderboardHero({
       </div>
 
       <div className="relative z-10">
-        {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-amber-500/20 rounded-full mb-3">
             <Trophy className="h-4 w-4 text-amber-400" />
             <span className="text-amber-300 text-sm font-medium">Office Leaderboard</span>
           </div>
-          <h2 className="text-3xl font-bold text-white mb-1">This Month's Top Performers</h2>
-          <p className="text-slate-400">Complete missions to climb the ranks</p>
+          <h2 className="text-2xl font-bold text-white mb-1">This Month's Top Performers</h2>
+          <p className="text-slate-400 text-sm">Complete missions to climb the ranks</p>
         </div>
 
-        <div className="flex items-end justify-center gap-3 mb-8 flex-wrap md:flex-nowrap">
-          {podiumOrder.map((entry, displayIndex) => {
-            if (!entry) {
-              return (
-                <div key={`empty-${displayIndex}`} className="flex flex-col items-center opacity-30">
-                  <div className="w-16 h-16 rounded-xl bg-slate-700/30 flex items-center justify-center mb-2">
-                    <Trophy className="h-6 w-6 text-slate-600" />
-                  </div>
-                  <p className="text-slate-600 text-xs">Waiting...</p>
-                  <div className="mt-2 w-20 h-8 bg-slate-800/20 rounded-t-lg" />
-                </div>
-              )
-            }
-
-            // Map display index to actual rank
-            const actualRank =
-              displayIndex === 0 ? 3 : displayIndex === 1 ? 2 : displayIndex === 2 ? 1 : displayIndex === 3 ? 4 : 5
-            const isFirst = actualRank === 1
-            const isSecond = actualRank === 2
-            const isThird = actualRank === 3
-            const isCurrentUser = entry.id === currentUserId
-            const tier = getPrestigeTier(entry.level || 1)
-
-            const containerSize = isFirst ? 160 : isSecond ? 140 : isThird ? 130 : 110
-            const profileSize = containerSize * 0.38 // Slightly smaller profile to fit inside frame
-            const profileOffset = containerSize * 0.31 // Center offset from top
-
-            return (
-              <div key={entry.id} className="flex flex-col items-center">
-                {/* Prestige Badge */}
-                <div className="relative mb-2">
-                  <Image
-                    src={tier.logo || "/placeholder.svg"}
-                    alt={tier.name}
-                    width={28}
-                    height={28}
-                    className="rounded-full"
-                  />
-                </div>
-
-                <div className="relative mb-3 group">
-                  <div
-                    className="relative flex items-center justify-center"
-                    style={{
-                      width: containerSize,
-                      height: containerSize,
-                    }}
-                  >
-                    {/* Profile picture centered in frame */}
-                    <div
-                      className="absolute rounded-full overflow-hidden bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center"
-                      style={{
-                        width: profileSize,
-                        height: profileSize,
-                        top: "50%",
-                        left: "50%",
-                        transform: "translate(-50%, -50%)",
-                      }}
-                    >
-                      {entry.profilePicture ? (
-                        <Image
-                          src={entry.profilePicture || "/placeholder.svg"}
-                          alt={entry.name}
-                          fill
-                          className="object-cover"
-                        />
-                      ) : (
-                        <div className="text-white font-bold" style={{ fontSize: profileSize * 0.45 }}>
-                          {entry.name.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Current user highlight ring */}
-                    {isCurrentUser && (
-                      <div
-                        className="absolute rounded-full ring-4 ring-cyan-400"
-                        style={{
-                          width: profileSize + 8,
-                          height: profileSize + 8,
-                          top: "50%",
-                          left: "50%",
-                          transform: "translate(-50%, -50%)",
-                        }}
-                      />
-                    )}
-
-                    {/* Frame image overlay - transparent background overlays on profile */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Image
-                        src={RANK_FRAMES[actualRank as keyof typeof RANK_FRAMES] || "/placeholder.svg"}
-                        alt={`Rank ${actualRank} frame`}
-                        fill
-                        className="object-contain pointer-events-none z-20"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Lightning bolt for top performer */}
-                  {isFirst && (
-                    <div className="absolute -top-1 -left-1 w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center animate-pulse shadow-lg shadow-amber-500/50 z-30">
-                      <Zap className="h-4 w-4 text-white fill-white" />
-                    </div>
-                  )}
-                </div>
-
-                {/* Name */}
-                <p
-                  className={`font-semibold text-center max-w-[100px] truncate ${
-                    isCurrentUser ? "text-cyan-400" : "text-white"
-                  } ${isFirst ? "text-base" : "text-sm"}`}
-                >
-                  {entry.name}
-                  {isCurrentUser && " (You)"}
-                </p>
-
-                {/* Points */}
-                <div
-                  className={`flex items-center gap-1 mt-1 ${
-                    isFirst
-                      ? "text-amber-300"
-                      : isSecond
-                        ? "text-slate-300"
-                        : isThird
-                          ? "text-orange-400"
-                          : "text-slate-400"
-                  }`}
-                >
-                  <Flame className="h-3.5 w-3.5" />
-                  <span className="font-bold text-sm">{entry.points}</span>
-                  <span className="text-xs opacity-70">pts</span>
-                </div>
-
-                {/* Podium base */}
-                <div
-                  className={`mt-2 rounded-t-lg ${
-                    isFirst
-                      ? "bg-gradient-to-b from-amber-500/40 to-amber-600/20"
-                      : isSecond
-                        ? "bg-gradient-to-b from-slate-400/40 to-slate-500/20"
-                        : isThird
-                          ? "bg-gradient-to-b from-orange-600/40 to-orange-700/20"
-                          : "bg-gradient-to-b from-slate-600/40 to-slate-700/20"
-                  }`}
-                  style={{
-                    width: isFirst ? 96 : isSecond ? 80 : isThird ? 72 : 64,
-                    height: isFirst ? 64 : isSecond ? 48 : isThird ? 40 : 32,
-                  }}
-                />
-              </div>
-            )
-          })}
+        <div className="flex justify-center items-end gap-4 mb-6">
+          {renderPodiumEntry(first, 1)}
+          {renderPodiumEntry(second, 2)}
+          {renderPodiumEntry(third, 3)}
+          {renderPodiumEntry(fourth, 4)}
+          {renderPodiumEntry(fifth, 5)}
         </div>
 
-        {/* Rest of leaderboard (6-10) */}
         {rest.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-w-2xl mx-auto">
             {rest.map((entry, index) => {
@@ -318,7 +309,29 @@ export function OfficeLeaderboardHero({
           </div>
         )}
 
-        {/* Current user's rank if not in top 10 */}
+        {(hasMoreThan10 || leaderboard.length > 5) && (
+          <div className="flex justify-center mt-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowAll(!showAll)}
+              className="text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
+            >
+              {showAll ? (
+                <>
+                  <ChevronUp className="h-4 w-4 mr-1" />
+                  Show Less
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="h-4 w-4 mr-1" />
+                  Show All ({leaderboard.length} agents)
+                </>
+              )}
+            </Button>
+          </div>
+        )}
+
         {currentUserRank > 10 && (
           <div className="mt-6 text-center">
             <div className="inline-flex items-center gap-3 px-6 py-3 bg-cyan-500/20 border border-cyan-500/30 rounded-xl">

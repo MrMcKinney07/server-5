@@ -305,9 +305,9 @@ export default async function DashboardPage() {
         <Card className="hover:shadow-lg transition-shadow cursor-pointer">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-amber-500" />
+              <Target className="h-5 w-5 text-blue-500" />
               Today's Missions
-              <span className="ml-auto text-sm font-normal text-amber-500">Click to manage</span>
+              <span className="ml-auto text-sm font-normal text-blue-500">Click to manage</span>
             </CardTitle>
             <CardDescription>Complete your daily missions to earn points</CardDescription>
           </CardHeader>
@@ -317,23 +317,40 @@ export default async function DashboardPage() {
                 <div
                   key={mission.id}
                   className={`flex items-center gap-3 p-3 rounded-lg border ${
-                    mission.status === "completed" ? "bg-emerald-50 border-emerald-200" : "bg-gray-50 border-gray-200"
+                    mission.status === "completed"
+                      ? "bg-emerald-500/10 border-emerald-500/30"
+                      : "bg-blue-500/10 border-blue-500/30"
                   }`}
                 >
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      mission.status === "completed" ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-500"
+                    className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                      mission.status === "completed" ? "bg-emerald-500 text-white" : "bg-blue-500 text-white"
                     }`}
                   >
                     {mission.status === "completed" ? "✓" : mission.mission_templates?.xp_reward || 10}
                   </div>
                   <div className="flex-1">
-                    <p className={`font-medium ${mission.status === "completed" ? "line-through text-gray-500" : ""}`}>
+                    <p
+                      className={`font-medium ${
+                        mission.status === "completed" ? "line-through text-slate-400" : "text-blue-400"
+                      }`}
+                    >
                       {mission.mission_templates?.title || "Mission"}
                     </p>
-                    <p className="text-xs text-muted-foreground line-clamp-1">
-                      {mission.mission_templates?.description}
-                    </p>
+                    <p className="text-xs text-slate-300 line-clamp-1">{mission.mission_templates?.description}</p>
+                    {mission.status !== "completed" && (
+                      <div className="flex items-center gap-1 mt-1">
+                        <Zap className="h-3 w-3 text-amber-400" />
+                        <span className="text-xs font-semibold text-amber-400">
+                          +{mission.mission_templates?.xp_reward || 10} XP
+                        </span>
+                      </div>
+                    )}
+                    {mission.status === "completed" && (
+                      <span className="text-xs text-amber-400 font-semibold">
+                        +{mission.mission_templates?.xp_reward || 10} XP earned
+                      </span>
+                    )}
                   </div>
                 </div>
               ))
@@ -341,7 +358,7 @@ export default async function DashboardPage() {
               <div className="text-center py-6 text-muted-foreground">
                 <Target className="h-12 w-12 mx-auto mb-2 opacity-50" />
                 <p>No missions selected for today</p>
-                <p className="text-sm text-amber-500 font-medium">Click to select your 3 daily missions</p>
+                <p className="text-sm text-blue-500 font-medium">Click to select your 3 daily missions</p>
               </div>
             )}
           </CardContent>
