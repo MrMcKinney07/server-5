@@ -9,31 +9,54 @@ export default async function AdminLeadsPage() {
   const admin = await requireAdmin()
   const supabase = await createClient()
 
-  // Get all leads with agent info
-  const { data: leads } = await supabase
+  const { data: leads, error: leadsError } = await supabase
     .from("leads")
     .select(`
-      *,
-      agent:agents!leads_agent_id_fkey(id, Name, Email)
+      id,
+      first_name,
+      last_name,
+      email,
+      phone,
+      status,
+      lead_type,
+      source,
+      created_at,
+      agent_id,
+      budget_min,
+      budget_max,
+      timeline,
+      property_interest,
+      notes,
+      last_contacted_at,
+      next_follow_up
     `)
     .order("created_at", { ascending: false })
 
-  // Get active agents for assignment
   const { data: agents } = await supabase
     .from("agents")
-    .select("id, Name as full_name, Email as email, Role")
+    .select("id, Name, Email, Role, is_active")
     .eq("is_active", true)
-    .neq("Role", "broker")
     .order("Name")
 
+  const agentMap = new Map(agents?.map((a) => [a.id, a]) || [])
+
+  const formattedLeads = (leads || []).map((lead) => ({
+    ...lead,
+    agent: lead.agent_id ? agentMap.get(lead.agent_id) || null : null,
+  }))
+
   const formattedAgents =
-    agents?.map((a) => ({
-      id: a.id,
-      full_name: a.full_name,
-      email: a.email,
-      tier: 1,
-      is_active: true,
-    })) || []
+    agents
+      ?.filter((a) => a.Role !== "broker")
+      .map((a) => ({
+        id: a.id,
+        full_name: a.Name,
+        email: a.Email,
+        tier: 1,
+        is_active: true,
+      })) || []
+
+  console.log("[v0] Leads count:", leads?.length, "Error:", leadsError?.message)
 
   return (
     <div className="space-y-6">
@@ -49,7 +72,7 @@ export default async function AdminLeadsPage() {
         </div>
       </div>
 
-      <LeadAssignmentView leads={leads || []} agents={formattedAgents} adminId={admin.id} />
+      <LeadAssignmentView leads={formattedLeads} agents={formattedAgents} adminId={admin.id} />
     </div>
   )
 }
