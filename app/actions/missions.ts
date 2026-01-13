@@ -271,3 +271,6 @@ export async function getTodaysMissions() {
     isNewAgent: isNew, // Return whether agent is new
   }
 }
+
+export const selectDailyMissionsAction = selectDailyMissions
+export const completeMissionAction = completeMission

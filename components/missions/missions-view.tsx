@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,6 +19,7 @@ import {
 } from "@/components/ui/dialog"
 import { Target, CheckCircle2, Clock, Zap, AlertCircle, X, ImageIcon, ChevronDown, ChevronUp } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { selectDailyMissionsAction, completeMissionAction } from "@/app/actions/missions"
 
 interface MissionItem {
   id: string
@@ -46,24 +46,10 @@ interface MissionTemplate {
 interface MissionsViewProps {
   missions: MissionItem[]
   templates: MissionTemplate[]
-  isNewAgent: boolean // Added prop to determine if agent is new
-  onSelectMissions: (templateIds: string[]) => Promise<{ success: boolean; error?: string }>
-  onCompleteMission: (
-    itemId: string,
-    notes?: string,
-    photoUrl?: string,
-  ) => Promise<{ success: boolean; xpEarned?: number; error?: string }>
+  isNewAgent: boolean
 }
 
-const REQUIRED_MISSIONS = 3
-
-export function MissionsView({
-  missions,
-  templates,
-  isNewAgent,
-  onSelectMissions,
-  onCompleteMission,
-}: MissionsViewProps) {
+export function MissionsView({ missions, templates, isNewAgent }: MissionsViewProps) {
   const [completingMission, setCompletingMission] = useState<MissionItem | null>(null)
   const [notes, setNotes] = useState("")
   const [photoFile, setPhotoFile] = useState<File | null>(null)
@@ -79,9 +65,9 @@ export function MissionsView({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [expandedMissions, setExpandedMissions] = useState<Set<string>>(new Set())
 
-  const hasEnoughMissions = missions.length >= REQUIRED_MISSIONS
-  const needsMoreMissions = missions.length < REQUIRED_MISSIONS
-  const missionsNeeded = REQUIRED_MISSIONS - missions.length
+  const hasEnoughMissions = missions.length >= 3
+  const needsMoreMissions = missions.length < 3
+  const missionsNeeded = 3 - missions.length
 
   const alreadyAssignedTemplateIds = missions.map((m) => m.mission_templates.id)
   const availableTemplates = templates.filter((t) => !alreadyAssignedTemplateIds.includes(t.id))
@@ -122,7 +108,7 @@ export function MissionsView({
       setUploadingPhoto(false)
     }
 
-    const result = await onCompleteMission(completingMission.id, notes, photoUrl)
+    const result = await completeMissionAction(completingMission.id, notes, photoUrl)
 
     if (result.success) {
       toast({
@@ -160,7 +146,7 @@ export function MissionsView({
     if (selectedTemplateIds.length !== missionsNeeded) return
     setIsLoading(true)
 
-    const result = await onSelectMissions(selectedTemplateIds)
+    const result = await selectDailyMissionsAction(selectedTemplateIds)
 
     if (result.success) {
       setSelectMissionsOpen(false)
@@ -260,7 +246,7 @@ export function MissionsView({
                 </h3>
                 <p className="text-sm text-slate-300">
                   {missions.length === 0
-                    ? `Choose ${REQUIRED_MISSIONS} missions to complete today.`
+                    ? `Choose 3 missions to complete today.`
                     : `You have ${missions.length} mission${missions.length > 1 ? "s" : ""} selected. Select ${missionsNeeded} more.`}
                 </p>
               </div>
@@ -404,7 +390,7 @@ export function MissionsView({
             <div className="text-center py-12 text-muted-foreground">
               <Target className="h-16 w-16 mx-auto mb-4 opacity-30" />
               <p className="text-lg font-medium">No missions selected yet</p>
-              <p className="text-sm mt-1">Select {REQUIRED_MISSIONS} missions to start earning XP today</p>
+              <p className="text-sm mt-1">Select 3 missions to start earning XP today</p>
             </div>
           )}
         </CardContent>
