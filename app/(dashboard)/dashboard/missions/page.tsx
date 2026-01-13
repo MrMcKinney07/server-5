@@ -1,7 +1,12 @@
 import { requireAuth } from "@/lib/auth"
 import { MissionsHeader } from "@/components/missions/missions-header"
 import { MissionsView } from "@/components/missions/missions-view"
-import { getTodaysMissions, autoAssignMissionsIfNeeded } from "@/app/actions/missions"
+import {
+  getTodaysMissions,
+  autoAssignMissionsIfNeeded,
+  selectDailyMissions,
+  completeMission,
+} from "@/app/actions/missions"
 
 export const dynamic = "force-dynamic"
 
@@ -33,7 +38,13 @@ export default async function MissionsPage() {
         hasSelectedMissions={hasSelectedMissions}
       />
 
-      <MissionsView missions={missions} templates={templates} isNewAgent={isNewAgent} />
+      <MissionsView
+        missions={missions}
+        templates={templates}
+        isNewAgent={isNewAgent}
+        onSelectMissions={selectDailyMissions}
+        onCompleteMission={completeMission}
+      />
     </div>
   )
 }

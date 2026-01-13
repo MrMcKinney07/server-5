@@ -4,7 +4,6 @@ import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { selectDailyMissions, completeMission } from "@/app/actions/missions"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -48,11 +47,23 @@ interface MissionsViewProps {
   missions: MissionItem[]
   templates: MissionTemplate[]
   isNewAgent: boolean // Added prop to determine if agent is new
+  onSelectMissions: (templateIds: string[]) => Promise<{ success: boolean; error?: string }>
+  onCompleteMission: (
+    itemId: string,
+    notes?: string,
+    photoUrl?: string,
+  ) => Promise<{ success: boolean; xpEarned?: number; error?: string }>
 }
 
 const REQUIRED_MISSIONS = 3
 
-export function MissionsView({ missions, templates, isNewAgent }: MissionsViewProps) {
+export function MissionsView({
+  missions,
+  templates,
+  isNewAgent,
+  onSelectMissions,
+  onCompleteMission,
+}: MissionsViewProps) {
   const [completingMission, setCompletingMission] = useState<MissionItem | null>(null)
   const [notes, setNotes] = useState("")
   const [photoFile, setPhotoFile] = useState<File | null>(null)
@@ -111,7 +122,7 @@ export function MissionsView({ missions, templates, isNewAgent }: MissionsViewPr
       setUploadingPhoto(false)
     }
 
-    const result = await completeMission(completingMission.id, notes, photoUrl)
+    const result = await onCompleteMission(completingMission.id, notes, photoUrl)
 
     if (result.success) {
       toast({
@@ -149,7 +160,7 @@ export function MissionsView({ missions, templates, isNewAgent }: MissionsViewPr
     if (selectedTemplateIds.length !== missionsNeeded) return
     setIsLoading(true)
 
-    const result = await selectDailyMissions(selectedTemplateIds)
+    const result = await onSelectMissions(selectedTemplateIds)
 
     if (result.success) {
       setSelectMissionsOpen(false)
