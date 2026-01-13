@@ -3,6 +3,8 @@ import { MissionsHeader } from "@/components/missions/missions-header"
 import { MissionsView } from "@/components/missions/missions-view"
 import { getTodaysMissions, autoAssignMissionsIfNeeded } from "@/app/actions/missions"
 
+export const dynamic = "force-dynamic"
+
 export default async function MissionsPage() {
   const agent = await requireAuth()
 
