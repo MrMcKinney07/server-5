@@ -46,7 +46,7 @@ export default async function DashboardLayout({
       <div className="min-h-screen flex space-background noise-overlay">
         <DashboardSidebar agentRole={agent.role} />
         <div className="flex-1 flex flex-col relative">
-          <DashboardTopbar agent={agent} />
+          <DashboardTopbar />
           <main className="flex-1 p-6 relative z-10">{children}</main>
         </div>
       </div>
