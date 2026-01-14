@@ -1,9 +1,5 @@
-"use client"
-
-import { useState } from "react"
-import { Trophy, Flame, TrendingUp, Zap, ChevronDown, ChevronUp } from "lucide-react"
+import { Trophy, Flame, TrendingUp, Zap } from "lucide-react"
 import Image from "next/image"
-import { Button } from "@/components/ui/button"
 
 const PRESTIGE_TIERS = [
   {
@@ -72,8 +68,6 @@ export function OfficeLeaderboardHero({
   currentUserRank,
   currentUserPoints,
 }: OfficeLeaderboardHeroProps) {
-  const [showAll, setShowAll] = useState(false)
-
   if (leaderboard.length === 0) {
     return (
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 mb-6">
@@ -100,8 +94,7 @@ export function OfficeLeaderboardHero({
   }
 
   const top5 = leaderboard.slice(0, 5)
-  const rest = showAll ? leaderboard.slice(5) : leaderboard.slice(5, 10)
-  const hasMoreThan10 = leaderboard.length > 10
+  const rest = leaderboard.slice(5, 10)
 
   const first = top5[0] || null
   const second = top5[1] || null
@@ -122,34 +115,23 @@ export function OfficeLeaderboardHero({
     }
 
     const isFirst = actualRank === 1
+    const isSecond = actualRank === 2
+    const isThird = actualRank === 3
     const isCurrentUser = entry.id === currentUserId
     const tier = getPrestigeTier(entry.level || 1)
 
-    const containerSize = 80
+    const containerSize = isFirst ? 120 : isSecond || isThird ? 100 : 80
     const profileSize = containerSize * 0.38
-
-    const rankColors: { [key: number]: string } = {
-      1: "bg-amber-500 text-white",
-      2: "bg-slate-400 text-white",
-      3: "bg-orange-600 text-white",
-      4: "bg-slate-600 text-white",
-      5: "bg-slate-700 text-white",
-    }
 
     return (
       <div key={entry.id} className="flex flex-col items-center">
-        <div
-          className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-sm mb-1 ${rankColors[actualRank] || "bg-slate-700 text-white"}`}
-        >
-          {actualRank}
-        </div>
-
+        {/* Prestige Badge */}
         <div className="relative mb-1">
           <Image
             src={tier.logo || "/placeholder.svg"}
             alt={tier.name}
-            width={20}
-            height={20}
+            width={24}
+            height={24}
             className="rounded-full"
           />
         </div>
@@ -162,6 +144,7 @@ export function OfficeLeaderboardHero({
               height: containerSize,
             }}
           >
+            {/* Profile picture centered in frame */}
             <div
               className="absolute rounded-full overflow-hidden bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center"
               style={{
@@ -186,6 +169,7 @@ export function OfficeLeaderboardHero({
               )}
             </div>
 
+            {/* Current user highlight ring */}
             {isCurrentUser && (
               <div
                 className="absolute rounded-full ring-4 ring-cyan-400"
@@ -199,6 +183,7 @@ export function OfficeLeaderboardHero({
               />
             )}
 
+            {/* Frame image overlay */}
             <div className="absolute inset-0 flex items-center justify-center">
               <Image
                 src={RANK_FRAMES[actualRank as keyof typeof RANK_FRAMES] || "/placeholder.svg"}
@@ -209,31 +194,28 @@ export function OfficeLeaderboardHero({
             </div>
           </div>
 
+          {/* Lightning bolt for top performer */}
           {isFirst && (
-            <div className="absolute -top-1 -left-1 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center animate-pulse shadow-lg shadow-amber-500/50 z-30">
-              <Zap className="h-2.5 w-2.5 text-white fill-white" />
+            <div className="absolute -top-1 -left-1 w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center animate-pulse shadow-lg shadow-amber-500/50 z-30">
+              <Zap className="h-3 w-3 text-white fill-white" />
             </div>
           )}
         </div>
 
+        {/* Name */}
         <p
-          className={`font-semibold text-center max-w-[70px] truncate text-xs ${
+          className={`font-semibold text-center max-w-[90px] truncate ${
             isCurrentUser ? "text-cyan-400" : "text-white"
-          }`}
+          } ${isFirst ? "text-sm" : "text-xs"}`}
         >
           {entry.name}
           {isCurrentUser && " (You)"}
         </p>
 
+        {/* Points */}
         <div
           className={`flex items-center gap-1 mt-0.5 ${
-            isFirst
-              ? "text-amber-300"
-              : actualRank === 2
-                ? "text-slate-300"
-                : actualRank === 3
-                  ? "text-orange-400"
-                  : "text-slate-400"
+            isFirst ? "text-amber-300" : isSecond ? "text-slate-300" : isThird ? "text-orange-400" : "text-slate-400"
           }`}
         >
           <Flame className="h-3 w-3" />
@@ -246,6 +228,7 @@ export function OfficeLeaderboardHero({
 
   return (
     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 mb-6">
+      {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl" />
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
@@ -253,6 +236,7 @@ export function OfficeLeaderboardHero({
       </div>
 
       <div className="relative z-10">
+        {/* Header */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-amber-500/20 rounded-full mb-3">
             <Trophy className="h-4 w-4 text-amber-400" />
@@ -262,14 +246,24 @@ export function OfficeLeaderboardHero({
           <p className="text-slate-400 text-sm">Complete missions to climb the ranks</p>
         </div>
 
-        <div className="flex justify-center items-end gap-4 mb-6">
-          {renderPodiumEntry(first, 1)}
-          {renderPodiumEntry(second, 2)}
-          {renderPodiumEntry(third, 3)}
-          {renderPodiumEntry(fourth, 4)}
-          {renderPodiumEntry(fifth, 5)}
+        <div className="flex flex-col items-center gap-4 mb-6">
+          {/* Row 1: 1st Place (Top) */}
+          <div className="flex justify-center">{renderPodiumEntry(first, 1)}</div>
+
+          {/* Row 2: 2nd and 3rd Place */}
+          <div className="flex justify-center gap-8">
+            {renderPodiumEntry(second, 2)}
+            {renderPodiumEntry(third, 3)}
+          </div>
+
+          {/* Row 3: 4th and 5th Place */}
+          <div className="flex justify-center gap-12">
+            {renderPodiumEntry(fourth, 4)}
+            {renderPodiumEntry(fifth, 5)}
+          </div>
         </div>
 
+        {/* Rest of leaderboard (6-10) */}
         {rest.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-w-2xl mx-auto">
             {rest.map((entry, index) => {
@@ -309,29 +303,7 @@ export function OfficeLeaderboardHero({
           </div>
         )}
 
-        {(hasMoreThan10 || leaderboard.length > 5) && (
-          <div className="flex justify-center mt-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowAll(!showAll)}
-              className="text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
-            >
-              {showAll ? (
-                <>
-                  <ChevronUp className="h-4 w-4 mr-1" />
-                  Show Less
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="h-4 w-4 mr-1" />
-                  Show All ({leaderboard.length} agents)
-                </>
-              )}
-            </Button>
-          </div>
-        )}
-
+        {/* Current user's rank if not in top 10 */}
         {currentUserRank > 10 && (
           <div className="mt-6 text-center">
             <div className="inline-flex items-center gap-3 px-6 py-3 bg-cyan-500/20 border border-cyan-500/30 rounded-xl">
