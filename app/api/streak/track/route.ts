@@ -2,7 +2,11 @@ import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { addXP } from "@/lib/xp-service"
 
+// Bonus XP based on streak length
 function getStreakBonusXP(streak: number): number {
+  if (streak >= 6) return 20
+  if (streak >= 5) return 15
+  if (streak >= 4) return 10
   if (streak >= 3) return 5
   return 0
 }

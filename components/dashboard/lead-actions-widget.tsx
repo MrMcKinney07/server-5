@@ -8,9 +8,6 @@ import { AlertCircle, Phone, MessageSquare, CheckCircle, Clock, Mail, Calendar, 
 import { createClient } from "@/lib/supabase/client"
 import { format, isToday, isBefore, startOfDay } from "date-fns"
 
-const FOLLOW_UP_XP = 1
-const DAILY_FOLLOW_UP_CAP = 5
-
 interface Task {
   id: string
   subject: string
@@ -33,7 +30,6 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
-  const [dailyFollowUpCount, setDailyFollowUpCount] = useState(0)
   const supabase = createClient()
 
   const fetchTasks = useCallback(async () => {
@@ -60,16 +56,6 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
     if (!error && data) {
       setTasks(data as Task[])
     }
-
-    const { count } = await supabase
-      .from("activities")
-      .select("*", { count: "exact", head: true })
-      .eq("agent_id", agentId)
-      .eq("completed", true)
-      .gte("completed_at", `${today}T00:00:00`)
-      .lte("completed_at", `${today}T23:59:59`)
-
-    setDailyFollowUpCount(count || 0)
     setLoading(false)
   }, [agentId, supabase])
 
@@ -122,14 +108,12 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
         })
         .eq("id", task.lead_id)
 
-      if (dailyFollowUpCount < DAILY_FOLLOW_UP_CAP) {
-        const { data: agentData } = await supabase.from("agents").select("exp").eq("id", agentId).single()
-        await supabase
-          .from("agents")
-          .update({ exp: (agentData?.exp || 0) + FOLLOW_UP_XP })
-          .eq("id", agentId)
-        setDailyFollowUpCount((prev) => prev + 1)
-      }
+      // Award +5 exp to the agent - direct update
+      const { data: agentData } = await supabase.from("agents").select("exp").eq("id", agentId).single()
+      await supabase
+        .from("agents")
+        .update({ exp: (agentData?.exp || 0) + 5 })
+        .eq("id", agentId)
 
       setTasks((prevTasks) => prevTasks.filter((t) => t.id !== taskId))
     }
@@ -174,20 +158,17 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
     const today = startOfDay(new Date())
 
     if (isBefore(startOfDay(dueDate), today)) {
-      return { color: "text-red-400", bg: "bg-red-500/20", label: "Overdue" }
+      return { color: "text-red-600", bg: "bg-red-100", label: "Overdue" }
     } else if (isToday(dueDate)) {
-      return { color: "text-amber-400", bg: "bg-amber-500/20", label: "Today" }
+      return { color: "text-amber-600", bg: "bg-amber-100", label: "Today" }
     }
-    return { color: "text-slate-400", bg: "bg-slate-500/20", label: "Upcoming" }
+    return { color: "text-gray-600", bg: "bg-gray-100", label: "Upcoming" }
   }
 
   // Calculate stats
   const todayTasks = tasks.filter((t) => isToday(new Date(t.due_at)))
   const overdueTasks = tasks.filter((t) => isBefore(startOfDay(new Date(t.due_at)), startOfDay(new Date())))
   const totalTasks = tasks.length
-
-  const remainingXP = Math.max(0, DAILY_FOLLOW_UP_CAP - dailyFollowUpCount)
-  const canEarnXP = dailyFollowUpCount < DAILY_FOLLOW_UP_CAP
 
   return (
     <Card className="border-l-4 border-l-red-500">
@@ -206,13 +187,10 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
         </div>
 
         {/* Stats Bar */}
-        <div className="flex gap-4 mt-3 text-sm flex-wrap">
-          <span className="text-amber-400 font-medium">Today: {todayTasks.length} tasks</span>
-          <span className="text-red-400 font-medium">Overdue: {overdueTasks.length} tasks</span>
-          <span className="text-slate-400 font-medium">Total: {totalTasks} actions</span>
-          <span className={`font-medium ${canEarnXP ? "text-emerald-400" : "text-slate-500"}`}>
-            XP Today: {dailyFollowUpCount}/{DAILY_FOLLOW_UP_CAP}
-          </span>
+        <div className="flex gap-4 mt-3 text-sm">
+          <span className="text-amber-600 font-medium">Today: {todayTasks.length} tasks</span>
+          <span className="text-red-600 font-medium">Overdue: {overdueTasks.length} tasks</span>
+          <span className="text-gray-600 font-medium">Total: {totalTasks} actions</span>
         </div>
       </CardHeader>
 
@@ -225,8 +203,8 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
         ) : tasks.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <CheckCircle className="h-12 w-12 mx-auto mb-2 text-emerald-500" />
-            <p className="font-medium text-emerald-400">All caught up!</p>
-            <p className="text-sm text-slate-400">No tasks need your attention right now.</p>
+            <p className="font-medium text-emerald-600">All caught up!</p>
+            <p className="text-sm">No tasks need your attention right now.</p>
           </div>
         ) : (
           tasks.map((task) => {
@@ -238,7 +216,7 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
             return (
               <div
                 key={task.id}
-                className={`p-3 rounded-lg border ${dateStyle.label === "Overdue" ? "border-red-500/30 bg-red-500/10" : "border-slate-500/30 bg-slate-500/10"}`}
+                className={`p-3 rounded-lg border ${dateStyle.label === "Overdue" ? "border-red-200 bg-red-50" : "border-gray-200 bg-gray-50"}`}
               >
                 <div className="flex items-start gap-3">
                   <div className={`p-2 rounded-lg ${dateStyle.bg}`}>
@@ -247,13 +225,13 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <User className="h-3 w-3 text-slate-400" />
-                      <span className="font-medium text-sm truncate text-white">{leadName}</span>
+                      <User className="h-3 w-3 text-muted-foreground" />
+                      <span className="font-medium text-sm truncate">{leadName}</span>
                       <Badge variant="secondary" className="text-xs">
                         {task.activity_type || "Task"}
                       </Badge>
                     </div>
-                    <p className="text-sm text-slate-400 line-clamp-1">
+                    <p className="text-sm text-muted-foreground line-clamp-1">
                       {task.subject || task.description || "No description"}
                     </p>
                     <div className="flex items-center gap-1 mt-1">
@@ -292,16 +270,12 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
                   <Button
                     size="sm"
                     variant="default"
-                    className="flex-1 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                    className="flex-1 text-xs bg-emerald-600 hover:bg-emerald-700"
                     onClick={() => handleComplete(task.id)}
                     disabled={actionLoading === task.id}
                   >
                     <CheckCircle className="h-3 w-3 mr-1" />
-                    {actionLoading === task.id
-                      ? "..."
-                      : canEarnXP
-                        ? "Log Activity (+1 XP)"
-                        : "Log Activity (XP Capped)"}
+                    {actionLoading === task.id ? "..." : "Log Activity (+5 XP)"}
                   </Button>
                   <Button
                     size="sm"

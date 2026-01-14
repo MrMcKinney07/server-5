@@ -204,7 +204,7 @@ Bob,Johnson,bob@email.com,555-0102,both,fb_ads,First time buyer`
             Download CSV Template
           </Button>
 
-          <Button variant="green" onClick={handleImport} disabled={!file || isImporting} className="w-full">
+          <Button onClick={handleImport} disabled={!file || isImporting} className="w-full bg-emerald-600">
             <Upload className="h-4 w-4 mr-2" />
             {isImporting ? "Importing..." : "Import Leads"}
           </Button>

@@ -28,6 +28,9 @@ function getFireSize(streak: number) {
 }
 
 function getBonusXP(streak: number) {
+  if (streak >= 6) return 20
+  if (streak >= 5) return 15
+  if (streak >= 4) return 10
   if (streak >= 3) return 5
   return 0
 }
@@ -115,7 +118,8 @@ export function HustleStreakBadge({ initialStreak = 0, className }: HustleStreak
               <p className="text-xs text-slate-400">Log in 3 days in a row for bonus XP</p>
             )}
             <div className="mt-2 text-xs text-slate-400">
-              <p>3+ days streak: +5 XP daily</p>
+              <p>3 days: +5 XP | 4 days: +10 XP</p>
+              <p>5 days: +15 XP | 6+ days: +20 XP</p>
             </div>
           </div>
         </TooltipContent>

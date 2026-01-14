@@ -1,4 +1,4 @@
-import { createClient, SupabaseConfigError } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/server"
 import type { Agent } from "@/lib/types/database"
 
 export interface CurrentAgent extends Agent {
@@ -12,8 +12,6 @@ export interface CurrentAgent extends Agent {
   prestige_icon_url: string | null
 }
 
-export { SupabaseConfigError }
-
 export async function isDatabaseSetup(): Promise<boolean> {
   const supabase = await createClient()
   const { error } = await supabase.from("agents").select("id").limit(1)
@@ -24,7 +22,6 @@ export async function isDatabaseSetup(): Promise<boolean> {
 /**
  * Get the current authenticated agent from Supabase
  * Returns null if not authenticated or agent not found
- * Throws SupabaseConfigError if env vars are missing
  */
 export async function getCurrentAgent(): Promise<CurrentAgent | null> {
   const supabase = await createClient()
@@ -34,7 +31,6 @@ export async function getCurrentAgent(): Promise<CurrentAgent | null> {
     error: authError,
   } = await supabase.auth.getUser()
 
-  // Defensive guard for auth/session nullability (expected case)
   if (authError || !user) {
     return null
   }
@@ -50,11 +46,9 @@ export async function getCurrentAgent(): Promise<CurrentAgent | null> {
     if (agentError.code === "PGRST205") {
       return null
     }
-    console.error("Agent query error:", agentError)
     return null
   }
 
-  // Defensive guard for data nullability (user exists but no agent record)
   if (!agent) {
     const { data: newAgent, error: insertError } = await supabase
       .from("agents")
@@ -74,7 +68,6 @@ export async function getCurrentAgent(): Promise<CurrentAgent | null> {
       .single()
 
     if (insertError || !newAgent) {
-      console.error("Failed to create new agent:", insertError)
       return null
     }
 
@@ -88,11 +81,11 @@ export async function getCurrentAgent(): Promise<CurrentAgent | null> {
       Role: newAgent.Role,
       user_id: user.id,
       team_id: null,
-      exp_season: newAgent.exp_season ?? 0,
-      exp_bank: newAgent.exp_bank ?? 0,
-      lifetime_xp: newAgent.lifetime_xp ?? 0,
-      prestige_tier: newAgent.prestige_tier ?? 1,
-      prestige_icon_url: newAgent.prestige_icon_url ?? null,
+      exp_season: newAgent.exp_season,
+      exp_bank: newAgent.exp_bank,
+      lifetime_xp: newAgent.lifetime_xp,
+      prestige_tier: newAgent.prestige_tier,
+      prestige_icon_url: newAgent.prestige_icon_url,
     } as CurrentAgent
   }
 
@@ -106,17 +99,16 @@ export async function getCurrentAgent(): Promise<CurrentAgent | null> {
     Role: agent.Role,
     user_id: user.id,
     team_id: agent.team_id || null,
-    exp_season: agent.exp_season ?? 0,
-    exp_bank: agent.exp_bank ?? 0,
-    lifetime_xp: agent.lifetime_xp ?? 0,
-    prestige_tier: agent.prestige_tier ?? 1,
-    prestige_icon_url: agent.prestige_icon_url ?? null,
+    exp_season: agent.exp_season || 0,
+    exp_bank: agent.exp_bank || 0,
+    lifetime_xp: agent.lifetime_xp || 0,
+    prestige_tier: agent.prestige_tier || 1,
+    prestige_icon_url: agent.prestige_icon_url || null,
   } as CurrentAgent
 }
 
 /**
  * Require authentication - throws redirect if not authenticated
- * Throws SupabaseConfigError if env vars are missing
  */
 export async function requireAuth(): Promise<CurrentAgent> {
   const agent = await getCurrentAgent()
@@ -131,7 +123,6 @@ export async function requireAuth(): Promise<CurrentAgent> {
 
 /**
  * Require admin role - throws redirect if not admin
- * Throws SupabaseConfigError if env vars are missing
  */
 export async function requireAdmin(): Promise<CurrentAgent> {
   const agent = await requireAuth()

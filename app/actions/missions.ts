@@ -4,70 +4,6 @@ import { createServerClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import { grantXP } from "@/lib/xp-service"
 
-async function isNewAgent(userId: string): Promise<boolean> {
-  const supabase = await createServerClient()
-
-  const { data: agent } = await supabase.from("agents").select("created_at").eq("id", userId).single()
-
-  if (!agent?.created_at) return false
-
-  const createdDate = new Date(agent.created_at)
-  const sixMonthsAgo = new Date()
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
-
-  return createdDate > sixMonthsAgo
-}
-
-export async function autoAssignMissionsIfNeeded() {
-  const supabase = await createServerClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return { success: false, error: "Not authenticated" }
-  }
-
-  const isNew = await isNewAgent(user.id)
-  if (!isNew) {
-    return { success: false, isVeteran: true }
-  }
-
-  const today = new Date().toISOString().split("T")[0]
-
-  // Check if missions already exist for today
-  const { data: existingSet } = await supabase
-    .from("daily_mission_sets")
-    .select("id, daily_mission_items(count)")
-    .eq("user_id", user.id)
-    .eq("mission_date", today)
-    .maybeSingle()
-
-  if (existingSet && (existingSet.daily_mission_items as any)[0]?.count >= 3) {
-    return { success: true, alreadyAssigned: true }
-  }
-
-  // Get available templates for today
-  const dayOfWeek = new Date().getDay()
-
-  const { data: templates } = await supabase
-    .from("mission_templates")
-    .select("id")
-    .eq("is_active", true)
-    .contains("active_days", [dayOfWeek])
-
-  if (!templates || templates.length < 3) {
-    return { success: false, error: "Not enough missions available" }
-  }
-
-  // Randomly select 3 missions
-  const shuffled = [...templates].sort(() => Math.random() - 0.5)
-  const selectedIds = shuffled.slice(0, 3).map((t) => t.id)
-
-  // Use the existing selectDailyMissions function
-  return await selectDailyMissions(selectedIds)
-}
-
 export async function selectDailyMissions(templateIds: string[]) {
   const supabase = await createServerClient()
 
@@ -220,16 +156,12 @@ export async function getTodaysMissions() {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) {
-    return { missions: [], templates: [], isNewAgent: false }
+    return { missions: [], templates: [] }
   }
-
-  const isNew = await isNewAgent(user.id)
 
   const today = new Date().toISOString().split("T")[0]
 
-  console.log("[v0] Fetching missions for date:", today, "user:", user.id, "isNewAgent:", isNew)
-
-  const { data: set, error: setError } = await supabase
+  const { data: set } = await supabase
     .from("daily_mission_sets")
     .select(`
       id,
@@ -251,26 +183,15 @@ export async function getTodaysMissions() {
     .eq("mission_date", today)
     .maybeSingle()
 
-  console.log("[v0] Mission set result:", { set, setError })
-  console.log("[v0] Missions found:", set?.daily_mission_items?.length || 0)
-
-  const dayOfWeek = new Date().getDay() // 0=Sunday, 6=Saturday
-  console.log("[v0] Current day of week:", dayOfWeek)
-
-  const { data: templates, error: templatesError } = await supabase
+  // Get available templates for selection
+  const dayOfWeek = new Date().getDay() || 7 // Convert Sunday from 0 to 7
+  const { data: templates } = await supabase
     .from("mission_templates")
     .select("id, title, description, xp_reward, active_days")
-    .eq("is_active", true)
     .contains("active_days", [dayOfWeek])
-
-  console.log("[v0] Templates found:", templates?.length || 0, "error:", templatesError)
 
   return {
     missions: set?.daily_mission_items || [],
     templates: templates || [],
-    isNewAgent: isNew, // Return whether agent is new
   }
 }
-
-export const selectDailyMissionsAction = selectDailyMissions
-export const completeMissionAction = completeMission

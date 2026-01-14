@@ -19,9 +19,6 @@ export async function POST(request: Request) {
       licenseExpiry,
       startDate,
       teamId,
-      commissionSplit,
-      marketingThreshold,
-      transactionFee,
       commissionPlanId,
       address,
       city,
@@ -32,6 +29,7 @@ export async function POST(request: Request) {
       bio,
     } = await request.json()
 
+    // Validate inputs
     if (!fullName || !email || !password) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
@@ -50,6 +48,7 @@ export async function POST(request: Request) {
     const { data: existingAuthUsers } = await serviceSupabase.auth.admin.listUsers()
     const existingAuthUser = existingAuthUsers?.users.find((user) => user.email?.toLowerCase() === email.toLowerCase())
 
+    // Only error if BOTH agent record AND auth user exist (true duplicate)
     if (existingAgent && existingAuthUser) {
       return NextResponse.json(
         {
@@ -66,6 +65,7 @@ export async function POST(request: Request) {
       )
     }
 
+    // If only agent exists but no auth user (shouldn't happen but handle it)
     if (existingAgent && !existingAuthUser) {
       console.log("[v0] Found orphaned agent record without auth user, will create auth account")
     }
@@ -76,6 +76,7 @@ export async function POST(request: Request) {
       console.log("[v0] Found existing auth user without agent record, promoting to agent")
       authUserId = existingAuthUser.id
 
+      // Update their password to the new one provided
       await serviceSupabase.auth.admin.updateUserById(authUserId, {
         password,
         user_metadata: {
@@ -104,12 +105,7 @@ export async function POST(request: Request) {
 
     try {
       let finalCommissionPlanId = commissionPlanId && commissionPlanId !== "default" ? commissionPlanId : null
-
-      const parsedCommissionSplit = commissionSplit ? Number.parseFloat(commissionSplit) / 100 : 0.7
-      const parsedMarketingThreshold = marketingThreshold ? Number.parseFloat(marketingThreshold) : 0
-      const parsedTransactionFee = transactionFee ? Number.parseFloat(transactionFee) : 0
-
-      if (!commissionSplit && !finalCommissionPlanId) {
+      if (!finalCommissionPlanId) {
         const { data: defaultPlan } = await serviceSupabase
           .from("commission_plans")
           .select("id")
@@ -136,9 +132,6 @@ export async function POST(request: Request) {
           start_date: startDate || new Date().toISOString().split("T")[0],
           team_id: teamId && teamId !== "none" ? teamId : null,
           commission_plan_id: finalCommissionPlanId,
-          commission_split: parsedCommissionSplit,
-          marketing_threshold: parsedMarketingThreshold,
-          transaction_fee: parsedTransactionFee,
           address: address || null,
           city: city || null,
           state: state || null,
@@ -270,6 +263,7 @@ export async function POST(request: Request) {
         })
         .catch((emailError) => {
           console.error("[v0] Failed to send welcome email (agent creation succeeded):", emailError)
+          // Silently fail - agent creation was successful
         })
 
       return NextResponse.json({

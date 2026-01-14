@@ -2,7 +2,6 @@ import { requireAdmin } from "@/lib/auth"
 import { createClient } from "@/lib/supabase/server"
 import { MissionTemplatesTable } from "@/components/admin/missions/templates-table"
 import { CreateTemplateDialog } from "@/components/admin/missions/create-template-dialog"
-import { TestMissionsEmailButton } from "@/components/admin/missions/test-missions-email-button"
 
 export default async function MissionTemplatesPage() {
   await requireAdmin()
@@ -20,10 +19,7 @@ export default async function MissionTemplatesPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Mission Templates</h1>
           <p className="text-muted-foreground">Create and manage reusable mission definitions</p>
         </div>
-        <div className="flex items-center gap-2">
-          <TestMissionsEmailButton />
-          <CreateTemplateDialog />
-        </div>
+        <CreateTemplateDialog />
       </div>
 
       <MissionTemplatesTable templates={templates ?? []} />

@@ -8,8 +8,6 @@ interface LeadsPageProps {
   searchParams: Promise<{ status?: string; source?: string }>
 }
 
-export const dynamic = "force-dynamic"
-
 export default async function LeadsPage({ searchParams }: LeadsPageProps) {
   const params = await searchParams
   const agent = await requireAuth()

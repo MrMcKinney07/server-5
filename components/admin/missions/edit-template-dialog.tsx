@@ -22,11 +22,11 @@ import type { MissionTemplate, MissionSegment } from "@/lib/types/database"
 
 interface EditTemplateDialogProps {
   template: MissionTemplate
-  isOpen: boolean
-  setIsOpen: (open: boolean) => void
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
-export function EditTemplateDialog({ template, isOpen, setIsOpen }: EditTemplateDialogProps) {
+export function EditTemplateDialog({ template, open, onOpenChange }: EditTemplateDialogProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [title, setTitle] = useState(template.title)
@@ -50,12 +50,12 @@ export function EditTemplateDialog({ template, isOpen, setIsOpen }: EditTemplate
       .eq("id", template.id)
 
     setLoading(false)
-    setIsOpen(false)
+    onOpenChange(false)
     router.refresh()
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
@@ -91,7 +91,7 @@ export function EditTemplateDialog({ template, isOpen, setIsOpen }: EditTemplate
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={loading || !title.trim()}>

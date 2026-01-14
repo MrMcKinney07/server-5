@@ -1,16 +1,12 @@
 import { requireAuth } from "@/lib/auth"
 import { MissionsHeader } from "@/components/missions/missions-header"
 import { MissionsView } from "@/components/missions/missions-view"
-import { getTodaysMissions, autoAssignMissionsIfNeeded } from "@/app/actions/missions"
-
-export const dynamic = "force-dynamic"
+import { getTodaysMissions } from "@/app/actions/missions"
 
 export default async function MissionsPage() {
   const agent = await requireAuth()
 
-  await autoAssignMissionsIfNeeded()
-
-  const { missions, templates, isNewAgent } = await getTodaysMissions()
+  const { missions, templates } = await getTodaysMissions()
 
   const completedCount = missions.filter((m: any) => m.status === "completed").length
   const totalSelected = missions.length
@@ -33,7 +29,7 @@ export default async function MissionsPage() {
         hasSelectedMissions={hasSelectedMissions}
       />
 
-      <MissionsView missions={missions} templates={templates} isNewAgent={isNewAgent} />
+      <MissionsView missions={missions} templates={templates} />
     </div>
   )
 }

@@ -55,52 +55,6 @@ export async function grantXP(userId: string, amount: number, reason: string, ty
     season_id: currentSeason,
   })
 
-  const monthYear = currentSeason
-  const { data: existingStats } = await supabase
-    .from("monthly_agent_stats")
-    .select("id, total_xp_earned, missions_completed")
-    .eq("agent_id", userId)
-    .eq("month_year", monthYear)
-    .maybeSingle()
-
-  if (existingStats) {
-    // Update existing stats
-    await supabase
-      .from("monthly_agent_stats")
-      .update({
-        total_xp_earned: existingStats.total_xp_earned + amount,
-        missions_completed:
-          type === "MISSION" ? existingStats.missions_completed + 1 : existingStats.missions_completed,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", existingStats.id)
-  } else {
-    // Create new stats entry
-    await supabase.from("monthly_agent_stats").insert({
-      agent_id: userId,
-      month_year: monthYear,
-      total_xp_earned: amount,
-      missions_completed: type === "MISSION" ? 1 : 0,
-      rank: 0, // Will be recalculated
-    })
-  }
-
-  // Recalculate ranks for all agents this month
-  const { data: allStats } = await supabase
-    .from("monthly_agent_stats")
-    .select("id, total_xp_earned")
-    .eq("month_year", monthYear)
-    .order("total_xp_earned", { ascending: false })
-
-  if (allStats) {
-    for (let i = 0; i < allStats.length; i++) {
-      await supabase
-        .from("monthly_agent_stats")
-        .update({ rank: i + 1 })
-        .eq("id", allStats[i].id)
-    }
-  }
-
   return {
     success: true,
     newSeasonXP,
