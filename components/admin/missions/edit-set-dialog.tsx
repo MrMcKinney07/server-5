@@ -24,11 +24,11 @@ import type { MissionSetWithItems, MissionTemplate, MissionSetSegment } from "@/
 interface EditSetDialogProps {
   set: MissionSetWithItems
   templates: MissionTemplate[]
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  isOpen: boolean
+  setIsOpen: (open: boolean) => void
 }
 
-export function EditSetDialog({ set, templates, open, onOpenChange }: EditSetDialogProps) {
+export function EditSetDialog({ set, templates, isOpen, setIsOpen }: EditSetDialogProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState(set.name)
@@ -77,12 +77,12 @@ export function EditSetDialog({ set, templates, open, onOpenChange }: EditSetDia
     await supabase.from("mission_set_items").insert(items)
 
     setLoading(false)
-    onOpenChange(false)
+    setIsOpen(false)
     router.refresh()
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="max-w-lg">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
@@ -136,7 +136,7 @@ export function EditSetDialog({ set, templates, open, onOpenChange }: EditSetDia
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={loading || !name.trim() || selectedTemplates.length === 0}>
