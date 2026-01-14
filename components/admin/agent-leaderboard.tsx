@@ -32,13 +32,13 @@ export function AgentLeaderboard({ leaderboard, title = "Agent Leaderboard" }: A
   const getRankBg = (index: number) => {
     switch (index) {
       case 0:
-        return "bg-amber-50 border-amber-200"
+        return "bg-amber-500/20 border-amber-500/30"
       case 1:
-        return "bg-gray-50 border-gray-200"
+        return "bg-slate-400/20 border-slate-400/30"
       case 2:
-        return "bg-orange-50 border-orange-200"
+        return "bg-orange-500/20 border-orange-500/30"
       default:
-        return "bg-white"
+        return "bg-slate-800/30 border-slate-700/30"
     }
   }
 
@@ -61,12 +61,14 @@ export function AgentLeaderboard({ leaderboard, title = "Agent Leaderboard" }: A
               >
                 <div className="flex-shrink-0">{getRankIcon(index)}</div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{entry.name || entry.email}</p>
-                  <p className="text-xs text-muted-foreground">{entry.email}</p>
+                  <p className="font-medium text-sm truncate text-white">{entry.name || entry.email}</p>
+                  <p className="text-xs text-slate-400">{entry.email}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant="secondary">{entry.completed} missions</Badge>
-                  <Badge variant="outline" className="bg-amber-50 text-amber-700">
+                  <Badge variant="secondary" className="bg-slate-700 text-slate-200">
+                    {entry.completed} missions
+                  </Badge>
+                  <Badge variant="outline" className="bg-amber-500/20 text-amber-300 border-amber-500/30">
                     {entry.points} pts
                   </Badge>
                 </div>
