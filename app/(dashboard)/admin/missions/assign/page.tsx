@@ -18,7 +18,8 @@ export default async function MissionAssignPage() {
     .order("name")
 
   // Fetch all active agents
-  const { data: agents } = await supabase.from("agents").select("*").eq("is_active", true).order("full_name")
+  const { data: agents, error: agentsError } = await supabase.from("agents").select("*").order("full_name")
+  console.log("[v0] Agents fetched:", agents?.length, "error:", agentsError?.message)
 
   return (
     <div className="space-y-6">
