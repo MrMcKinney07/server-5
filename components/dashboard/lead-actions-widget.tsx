@@ -269,7 +269,7 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
                     disabled={actionLoading === task.id}
                   >
                     <CheckCircle className="h-3 w-3 mr-1" />
-                    {actionLoading === task.id ? "..." : "Log Activity"}
+                    {actionLoading === task.id ? "..." : "Done"}
                   </Button>
                   <Button
                     size="sm"

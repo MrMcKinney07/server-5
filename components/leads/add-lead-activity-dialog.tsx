@@ -67,13 +67,6 @@ export function AddLeadActivityDialog({ leadId, agentId }: AddLeadActivityDialog
         })
         .eq("id", leadId)
 
-      // Direct update since RPC may not exist
-      const { data: agentData } = await supabase.from("agents").select("exp").eq("id", agentId).single()
-      await supabase
-        .from("agents")
-        .update({ exp: (agentData?.exp || 0) + 5 })
-        .eq("id", agentId)
-
       setOpen(false)
       setFormData({ activity_type: "call", subject: "", description: "" })
       router.refresh()
@@ -87,7 +80,7 @@ export function AddLeadActivityDialog({ leadId, agentId }: AddLeadActivityDialog
       <DialogTrigger asChild>
         <Button className="bg-blue-600 hover:bg-blue-700">
           <Plus className="h-4 w-4 mr-2" />
-          Log Activity (+5 XP)
+          Log Activity
         </Button>
       </DialogTrigger>
       <DialogContent>
@@ -142,7 +135,7 @@ export function AddLeadActivityDialog({ leadId, agentId }: AddLeadActivityDialog
             disabled={isLoading || !formData.subject}
             className="bg-emerald-600 hover:bg-emerald-700"
           >
-            {isLoading ? "Saving..." : "Log Activity (+5 XP)"}
+            {isLoading ? "Saving..." : "Log Activity"}
           </Button>
         </DialogFooter>
       </DialogContent>
