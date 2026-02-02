@@ -220,7 +220,7 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <User className="h-3 w-3 text-slate-400" />
-                      <span className="font-medium text-sm truncate text-white">{leadName}</span>
+                      <span className="font-medium text-sm truncate text-slate-900">{leadName}</span>
                       <Badge variant="secondary" className="text-xs">
                         {task.activity_type || "Task"}
                       </Badge>

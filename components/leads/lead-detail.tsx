@@ -81,15 +81,39 @@ export function LeadDetail({ lead, activities, agentId }: LeadDetailProps) {
     setIsLoading(true)
     const supabase = createBrowserClient()
 
+    const followUpDate = nextFollowUp ? new Date(nextFollowUp).toISOString() : null
+
     const { error } = await supabase
       .from("leads")
       .update({
         status,
-        next_follow_up: nextFollowUp ? new Date(nextFollowUp).toISOString() : null,
+        next_follow_up: followUpDate,
         notes,
         updated_at: new Date().toISOString(),
       })
       .eq("id", lead.id)
+
+    // If follow-up date was set/changed, create an activity task for it
+    if (!error && followUpDate && followUpDate !== lead.next_follow_up) {
+      // First, mark any existing pending follow-up activities as completed
+      await supabase
+        .from("activities")
+        .update({ completed: true, completed_at: new Date().toISOString() })
+        .eq("lead_id", lead.id)
+        .eq("activity_type", "follow_up")
+        .eq("completed", false)
+
+      // Create new follow-up activity
+      await supabase.from("activities").insert({
+        agent_id: agentId,
+        lead_id: lead.id,
+        activity_type: "follow_up",
+        subject: `Follow up with ${lead.first_name} ${lead.last_name}`,
+        description: notes || null,
+        due_at: followUpDate,
+        completed: false,
+      })
+    }
 
     if (!error) {
       setEditDialogOpen(false)
