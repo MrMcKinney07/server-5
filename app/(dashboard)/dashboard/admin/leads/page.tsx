@@ -9,17 +9,26 @@ export default async function AdminLeadsPage() {
   const admin = await requireAdmin()
   const supabase = await createClient()
 
-  // Get all leads with agent info
-  const { data: leads } = await supabase
+  const { data: leads, error: leadsError } = await supabase
     .from("leads")
-    .select(`
-      *,
-      agent:agents!leads_agent_id_fkey(id, Name, Email)
-    `)
+    .select("*")
     .order("created_at", { ascending: false })
 
+  console.log("[v0] Admin leads page - Leads count:", leads?.length)
+  console.log("[v0] Admin leads page - Leads error:", leadsError)
+  console.log("[v0] Admin leads page - Sample leads:", leads?.slice(0, 2))
+
+  // Get agent mapping
+  const { data: agents } = await supabase.from("agents").select("id, Name, Email")
+
+  const agentMap = new Map(agents?.map((a) => [a.id, a]) || [])
+  const leadsWithAgents = (leads || []).map((lead) => ({
+    ...lead,
+    agent: lead.agent_id ? agentMap.get(lead.agent_id) : null,
+  }))
+
   // Get active agents for assignment
-  const { data: agents } = await supabase
+  const { data: activeAgents } = await supabase
     .from("agents")
     .select("id, Name as full_name, Email as email, Role")
     .eq("is_active", true)
@@ -27,7 +36,7 @@ export default async function AdminLeadsPage() {
     .order("Name")
 
   const formattedAgents =
-    agents?.map((a) => ({
+    activeAgents?.map((a) => ({
       id: a.id,
       full_name: a.full_name,
       email: a.email,
@@ -49,7 +58,7 @@ export default async function AdminLeadsPage() {
         </div>
       </div>
 
-      <LeadAssignmentView leads={leads || []} agents={formattedAgents} adminId={admin.id} />
+      <LeadAssignmentView leads={leadsWithAgents} agents={formattedAgents} adminId={admin.id} />
     </div>
   )
 }

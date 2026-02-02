@@ -40,9 +40,8 @@ export default async function AdminMissionReviewPage() {
         mission_date,
         agents:user_id (
           id,
-          "First Name",
-          "Last Name",
-          "Email"
+          Name,
+          Email
         )
       )
     `,

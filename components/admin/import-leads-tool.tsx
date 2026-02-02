@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -37,64 +36,133 @@ export function ImportLeadsTool({ agentId }: ImportLeadsToolProps) {
   const { toast } = useToast()
 
   const parseCSV = (text: string): ParsedLead[] => {
-    const lines = text.trim().split("\n")
+    const lines = text
+      .trim()
+      .split("\n")
+      .filter((line) => line.trim())
     if (lines.length < 2) return []
 
-    const headers = lines[0].split(",").map((h) => h.trim().toLowerCase())
+    // Detect delimiter (comma, semicolon, or tab)
+    const firstLine = lines[0]
+    const delimiter = firstLine.includes("\t") ? "\t" : firstLine.includes(";") ? ";" : ","
+
+    // Parse CSV line handling quoted values
+    const parseLine = (line: string): string[] => {
+      const result: string[] = []
+      let current = ""
+      let inQuotes = false
+
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i]
+
+        if (char === '"') {
+          inQuotes = !inQuotes
+        } else if (char === delimiter && !inQuotes) {
+          result.push(current.trim())
+          current = ""
+        } else {
+          current += char
+        }
+      }
+      result.push(current.trim())
+      return result
+    }
+
+    const headers = parseLine(lines[0]).map((h) => h.toLowerCase().replace(/[^a-z0-9]/g, ""))
     const leads: ParsedLead[] = []
 
+    console.log("[v0] CSV Headers detected:", headers)
+
     for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(",").map((v) => v.trim().replace(/^"|"$/g, ""))
+      const values = parseLine(lines[i])
       const lead: ParsedLead = {
         first_name: "",
         last_name: "",
       }
 
+      let fullName = ""
+
       headers.forEach((header, index) => {
-        const value = values[index]
+        const value = values[index]?.trim()
         if (!value) return
 
-        if (header.includes("first") || header.includes("fname")) {
+        // Match first/last name patterns
+        if (header.match(/first|fname|firstname/)) {
           lead.first_name = value
-        } else if (header.includes("last") || header.includes("lname")) {
+        } else if (header.match(/last|lname|lastname|surname/)) {
           lead.last_name = value
-        } else if (header.includes("email")) {
+        }
+        // Match full name columns (like "whatisyourname", "name", "fullname")
+        else if (header.match(/name|fullname/)) {
+          fullName = value
+        } else if (header.match(/email|mail/)) {
           lead.email = value
-        } else if (header.includes("phone")) {
+        } else if (header.match(/phone|mobile|cell|telephone|number/)) {
           lead.phone = value
-        } else if (header.includes("type")) {
-          lead.lead_type = value.toLowerCase() as any
-        } else if (header.includes("source")) {
+        } else if (header.match(/type|leadtype/)) {
+          const normalizedType = value.toLowerCase()
+          if (["buyer", "seller", "both", "investor", "renter"].includes(normalizedType)) {
+            lead.lead_type = normalizedType
+          }
+        } else if (header.match(/source/)) {
           lead.source = value.toLowerCase()
-        } else if (header.includes("note")) {
+        } else if (header.match(/note|notes/)) {
           lead.notes = value
         }
       })
 
-      if (lead.first_name && lead.last_name) {
+      if (fullName && !lead.first_name) {
+        const nameParts = fullName.trim().split(/\s+/)
+        if (nameParts.length >= 2) {
+          lead.first_name = nameParts[0]
+          lead.last_name = nameParts.slice(1).join(" ")
+        } else if (nameParts.length === 1) {
+          lead.first_name = nameParts[0]
+          lead.last_name = "Contact"
+        }
+      }
+
+      // Only add if we have at least first name
+      if (lead.first_name) {
+        if (!lead.last_name) {
+          lead.last_name = "Contact"
+        }
         leads.push(lead)
+      } else {
+        console.log("[v0] Skipping invalid row:", values)
       }
     }
 
+    console.log("[v0] Parsed leads:", leads.length)
     return leads
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
-    if (selectedFile && selectedFile.type === "text/csv") {
-      setFile(selectedFile)
-      setImportResults(null)
-    } else {
-      toast({
-        title: "Invalid File",
-        description: "Please select a valid CSV file",
-        variant: "destructive",
-      })
+    if (selectedFile) {
+      if (selectedFile.type === "text/csv" || selectedFile.name.endsWith(".csv")) {
+        setFile(selectedFile)
+        setImportResults(null)
+        toast({
+          title: "File Selected",
+          description: `${selectedFile.name} ready to import`,
+        })
+      } else {
+        toast({
+          title: "Invalid File",
+          description: "Please select a CSV file (.csv extension)",
+          variant: "destructive",
+        })
+      }
     }
   }
 
   const handleImport = async () => {
-    if (!file) return
+    console.log("[v0] Import button clicked, file:", file?.name)
+    if (!file) {
+      console.log("[v0] No file selected")
+      return
+    }
 
     setIsImporting(true)
     const errors: string[] = []
@@ -103,29 +171,36 @@ export function ImportLeadsTool({ agentId }: ImportLeadsToolProps) {
 
     try {
       const text = await file.text()
+      console.log("[v0] File content loaded, size:", text.length)
+
       const leads = parseCSV(text)
+      console.log("[v0] Parsed", leads.length, "leads")
 
       if (leads.length === 0) {
+        console.log("[v0] No valid leads parsed")
         toast({
           title: "No Valid Leads",
-          description: "The CSV file doesn't contain any valid lead data",
+          description:
+            "The CSV file doesn't contain any valid lead data. Check that it has first_name and last_name columns.",
           variant: "destructive",
         })
+        setIsImporting(false)
         return
       }
 
+      console.log("[v0] Starting import of", leads.length, "leads for agent:", agentId)
       const supabase = createBrowserClient()
 
-      // Import leads in batches
       for (const lead of leads) {
         try {
+          console.log("[v0] Inserting lead:", lead.first_name, lead.last_name)
           const { error } = await supabase.from("leads").insert({
             first_name: lead.first_name,
             last_name: lead.last_name,
             email: lead.email || null,
             phone: lead.phone || null,
             lead_type: lead.lead_type || "buyer",
-            source: lead.source || "manual",
+            source: lead.source || "import",
             status: "new",
             agent_id: agentId,
             notes: lead.notes || null,
@@ -134,29 +209,40 @@ export function ImportLeadsTool({ agentId }: ImportLeadsToolProps) {
           if (error) {
             failedCount++
             errors.push(`${lead.first_name} ${lead.last_name}: ${error.message}`)
+            console.log("[v0] Insert failed:", error)
           } else {
             successCount++
+            console.log("[v0] Insert successful for", lead.first_name)
           }
         } catch (err) {
           failedCount++
           errors.push(`${lead.first_name} ${lead.last_name}: Import error`)
+          console.log("[v0] Insert exception:", err)
         }
       }
+
+      console.log("[v0] Import completed. Success:", successCount, "Failed:", failedCount)
 
       setImportResults({
         success: successCount,
         failed: failedCount,
-        errors: errors.slice(0, 10), // Show first 10 errors
+        errors: errors.slice(0, 10),
       })
 
       toast({
         title: "Import Complete",
         description: `Successfully imported ${successCount} leads. ${failedCount} failed.`,
       })
+
+      if (successCount > 0) {
+        console.log("[v0] Reloading page in 2 seconds")
+        setTimeout(() => window.location.reload(), 2000)
+      }
     } catch (error) {
+      console.log("[v0] Import error:", error)
       toast({
         title: "Import Failed",
-        description: "Failed to read or parse the CSV file",
+        description: "Failed to read or parse the CSV file. Check the console for details.",
         variant: "destructive",
       })
     } finally {
@@ -204,7 +290,7 @@ Bob,Johnson,bob@email.com,555-0102,both,fb_ads,First time buyer`
             Download CSV Template
           </Button>
 
-          <Button variant="green" onClick={handleImport} disabled={!file || isImporting} className="w-full">
+          <Button variant="default" onClick={handleImport} disabled={!file || isImporting} className="w-full">
             <Upload className="h-4 w-4 mr-2" />
             {isImporting ? "Importing..." : "Import Leads"}
           </Button>
