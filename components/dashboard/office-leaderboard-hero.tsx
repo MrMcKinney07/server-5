@@ -74,6 +74,7 @@ export function OfficeLeaderboardHero({
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -top-24 -right-24 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl" />
           <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-radial from-amber-500/5 to-transparent rounded-full" />
         </div>
         <div className="relative z-10">
           <div className="text-center mb-8">
@@ -106,6 +107,9 @@ export function OfficeLeaderboardHero({
     if (!entry) {
       return (
         <div className="flex flex-col items-center opacity-30">
+          <div className="w-8 h-8 rounded-full bg-slate-700/30 flex items-center justify-center mb-2">
+            <span className="text-slate-600 font-bold text-sm">{actualRank}</span>
+          </div>
           <div className="w-12 h-12 rounded-xl bg-slate-700/30 flex items-center justify-center mb-2">
             <Trophy className="h-5 w-5 text-slate-600" />
           </div>
@@ -120,12 +124,19 @@ export function OfficeLeaderboardHero({
     const isCurrentUser = entry.id === currentUserId
     const tier = getPrestigeTier(entry.level || 1)
 
-    const containerSize = isFirst ? 120 : isSecond || isThird ? 100 : 80
+    const containerSize = 80
     const profileSize = containerSize * 0.38
 
     return (
       <div key={entry.id} className="flex flex-col items-center">
-        {/* Prestige Badge */}
+        <div
+          className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${
+            isFirst ? "bg-amber-500" : isSecond ? "bg-slate-400" : isThird ? "bg-orange-600" : "bg-slate-600"
+          }`}
+        >
+          <span className="text-white font-bold text-sm">{actualRank}</span>
+        </div>
+
         <div className="relative mb-1">
           <Image
             src={tier.logo || "/placeholder.svg"}
@@ -144,7 +155,6 @@ export function OfficeLeaderboardHero({
               height: containerSize,
             }}
           >
-            {/* Profile picture centered in frame */}
             <div
               className="absolute rounded-full overflow-hidden bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center"
               style={{
@@ -169,7 +179,6 @@ export function OfficeLeaderboardHero({
               )}
             </div>
 
-            {/* Current user highlight ring */}
             {isCurrentUser && (
               <div
                 className="absolute rounded-full ring-4 ring-cyan-400"
@@ -183,7 +192,6 @@ export function OfficeLeaderboardHero({
               />
             )}
 
-            {/* Frame image overlay */}
             <div className="absolute inset-0 flex items-center justify-center">
               <Image
                 src={RANK_FRAMES[actualRank as keyof typeof RANK_FRAMES] || "/placeholder.svg"}
@@ -194,7 +202,6 @@ export function OfficeLeaderboardHero({
             </div>
           </div>
 
-          {/* Lightning bolt for top performer */}
           {isFirst && (
             <div className="absolute -top-1 -left-1 w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center animate-pulse shadow-lg shadow-amber-500/50 z-30">
               <Zap className="h-3 w-3 text-white fill-white" />
@@ -202,17 +209,15 @@ export function OfficeLeaderboardHero({
           )}
         </div>
 
-        {/* Name */}
         <p
-          className={`font-semibold text-center max-w-[90px] truncate ${
+          className={`font-semibold text-center max-w-[90px] truncate text-xs ${
             isCurrentUser ? "text-cyan-400" : "text-white"
-          } ${isFirst ? "text-sm" : "text-xs"}`}
+          }`}
         >
           {entry.name}
           {isCurrentUser && " (You)"}
         </p>
 
-        {/* Points */}
         <div
           className={`flex items-center gap-1 mt-0.5 ${
             isFirst ? "text-amber-300" : isSecond ? "text-slate-300" : isThird ? "text-orange-400" : "text-slate-400"
@@ -228,7 +233,6 @@ export function OfficeLeaderboardHero({
 
   return (
     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 mb-6">
-      {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl" />
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
@@ -236,7 +240,6 @@ export function OfficeLeaderboardHero({
       </div>
 
       <div className="relative z-10">
-        {/* Header */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-amber-500/20 rounded-full mb-3">
             <Trophy className="h-4 w-4 text-amber-400" />
@@ -246,24 +249,14 @@ export function OfficeLeaderboardHero({
           <p className="text-slate-400 text-sm">Complete missions to climb the ranks</p>
         </div>
 
-        <div className="flex flex-col items-center gap-4 mb-6">
-          {/* Row 1: 1st Place (Top) */}
-          <div className="flex justify-center">{renderPodiumEntry(first, 1)}</div>
-
-          {/* Row 2: 2nd and 3rd Place */}
-          <div className="flex justify-center gap-8">
-            {renderPodiumEntry(second, 2)}
-            {renderPodiumEntry(third, 3)}
-          </div>
-
-          {/* Row 3: 4th and 5th Place */}
-          <div className="flex justify-center gap-12">
-            {renderPodiumEntry(fourth, 4)}
-            {renderPodiumEntry(fifth, 5)}
-          </div>
+        <div className="flex justify-center gap-4 mb-6 overflow-x-auto pb-2">
+          {renderPodiumEntry(first, 1)}
+          {renderPodiumEntry(second, 2)}
+          {renderPodiumEntry(third, 3)}
+          {renderPodiumEntry(fourth, 4)}
+          {renderPodiumEntry(fifth, 5)}
         </div>
 
-        {/* Rest of leaderboard (6-10) */}
         {rest.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-w-2xl mx-auto">
             {rest.map((entry, index) => {
@@ -303,7 +296,6 @@ export function OfficeLeaderboardHero({
           </div>
         )}
 
-        {/* Current user's rank if not in top 10 */}
         {currentUserRank > 10 && (
           <div className="mt-6 text-center">
             <div className="inline-flex items-center gap-3 px-6 py-3 bg-cyan-500/20 border border-cyan-500/30 rounded-xl">

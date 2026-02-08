@@ -52,7 +52,7 @@ export async function autoAssignMissionsIfNeeded() {
 
   const { data: templates } = await supabase
     .from("mission_templates")
-    .select("id")
+    .select("id, category")
     .eq("is_active", true)
     .contains("active_days", [dayOfWeek])
 
@@ -60,9 +60,45 @@ export async function autoAssignMissionsIfNeeded() {
     return { success: false, error: "Not enough missions available" }
   }
 
-  // Randomly select 3 missions
-  const shuffled = [...templates].sort(() => Math.random() - 0.5)
-  const selectedIds = shuffled.slice(0, 3).map((t) => t.id)
+  const prospectingMissions = templates.filter((t) => t.category === "prospecting")
+  const marketingMissions = templates.filter((t) => t.category === "marketing")
+  const otherMissions = templates.filter((t) => t.category !== "prospecting" && t.category !== "marketing")
+
+  const selectedIds: string[] = []
+
+  // Add 1 prospecting mission
+  if (prospectingMissions.length > 0) {
+    const randomProspecting = prospectingMissions[Math.floor(Math.random() * prospectingMissions.length)]
+    selectedIds.push(randomProspecting.id)
+  }
+
+  // Add 1 marketing mission
+  if (marketingMissions.length > 0) {
+    const randomMarketing = marketingMissions[Math.floor(Math.random() * marketingMissions.length)]
+    selectedIds.push(randomMarketing.id)
+  }
+
+  // Add 1 other mission (or any random if we don't have enough specific categories)
+  const remainingPool = [...otherMissions, ...prospectingMissions, ...marketingMissions].filter(
+    (t) => !selectedIds.includes(t.id),
+  )
+
+  if (remainingPool.length > 0 && selectedIds.length < 3) {
+    const randomOther = remainingPool[Math.floor(Math.random() * remainingPool.length)]
+    selectedIds.push(randomOther.id)
+  }
+
+  // Fallback: if we still don't have 3, just grab random ones
+  while (selectedIds.length < 3 && templates.length >= 3) {
+    const available = templates.filter((t) => !selectedIds.includes(t.id))
+    if (available.length === 0) break
+    const random = available[Math.floor(Math.random() * available.length)]
+    selectedIds.push(random.id)
+  }
+
+  if (selectedIds.length < 3) {
+    return { success: false, error: "Could not select enough diverse missions" }
+  }
 
   // Use the existing selectDailyMissions function
   return await selectDailyMissions(selectedIds)

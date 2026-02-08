@@ -255,7 +255,13 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
             <CardDescription>Your complete lead pipeline</CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Button onClick={() => setImportDialogOpen(true)} variant="outline">
+            <Button
+              onClick={() => {
+                console.log("[v0] Import Leads button clicked")
+                setImportDialogOpen(true)
+              }}
+              variant="outline"
+            >
               <FileUp className="h-4 w-4 mr-2" />
               Import Leads
             </Button>

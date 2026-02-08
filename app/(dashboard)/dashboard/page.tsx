@@ -235,7 +235,7 @@ export default async function DashboardPage() {
   const sortedLeaderboard = leaderboardData.map((entry) => ({
     id: entry.agent_id,
     name: entry.agents?.Name || `Agent ${entry.agent_id?.slice(0, 6) || "Unknown"}`,
-    points: entry.total_xp_earned,
+    points: entry.total_xp_earned || 0,
     level: getPrestigeTier(entry.agents?.lifetime_xp || 1).level,
     profilePicture: entry.agents?.profile_picture_url || null,
   }))
@@ -313,27 +313,29 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {todayMissionSet && todayMissionSet.daily_mission_items.length > 0 ? (
-              todayMissionSet.daily_mission_items.slice(0, 3).map((mission: any) => (
+              todayMissionSet.daily_mission_items.slice(0, 3).map((mission: any, index: number) => (
                 <div
                   key={mission.id}
                   className={`flex items-center gap-3 p-3 rounded-lg border ${
-                    mission.status === "completed" ? "bg-emerald-50 border-emerald-200" : "bg-gray-50 border-gray-200"
+                    mission.status === "completed"
+                      ? "bg-emerald-500/10 border-emerald-500/30"
+                      : "bg-blue-500/10 border-blue-500/30"
                   }`}
                 >
                   <div
                     className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      mission.status === "completed" ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-500"
+                      mission.status === "completed" ? "bg-emerald-500 text-white" : "bg-blue-500 text-white font-bold"
                     }`}
                   >
-                    {mission.status === "completed" ? "✓" : mission.mission_templates?.xp_reward || 10}
+                    {mission.status === "completed" ? "✓" : index + 1}
                   </div>
                   <div className="flex-1">
-                    <p className={`font-medium ${mission.status === "completed" ? "line-through text-gray-500" : ""}`}>
+                    <p
+                      className={`font-medium text-blue-400 ${mission.status === "completed" ? "line-through opacity-60" : ""}`}
+                    >
                       {mission.mission_templates?.title || "Mission"}
                     </p>
-                    <p className="text-xs text-muted-foreground line-clamp-1">
-                      {mission.mission_templates?.description}
-                    </p>
+                    <p className="text-xs text-slate-300 line-clamp-1">{mission.mission_templates?.description}</p>
                   </div>
                 </div>
               ))

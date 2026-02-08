@@ -8,9 +8,6 @@ import { AlertCircle, Phone, MessageSquare, CheckCircle, Clock, Mail, Calendar, 
 import { createClient } from "@/lib/supabase/client"
 import { format, isToday, isBefore, startOfDay } from "date-fns"
 
-const FOLLOW_UP_XP = 1
-const DAILY_FOLLOW_UP_CAP = 5
-
 interface Task {
   id: string
   subject: string
@@ -33,7 +30,6 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
-  const [dailyFollowUpCount, setDailyFollowUpCount] = useState(0)
   const supabase = createClient()
 
   const fetchTasks = useCallback(async () => {
@@ -61,15 +57,6 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
       setTasks(data as Task[])
     }
 
-    const { count } = await supabase
-      .from("activities")
-      .select("*", { count: "exact", head: true })
-      .eq("agent_id", agentId)
-      .eq("completed", true)
-      .gte("completed_at", `${today}T00:00:00`)
-      .lte("completed_at", `${today}T23:59:59`)
-
-    setDailyFollowUpCount(count || 0)
     setLoading(false)
   }, [agentId, supabase])
 
@@ -121,15 +108,6 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
           last_contacted_at: new Date().toISOString(),
         })
         .eq("id", task.lead_id)
-
-      if (dailyFollowUpCount < DAILY_FOLLOW_UP_CAP) {
-        const { data: agentData } = await supabase.from("agents").select("exp").eq("id", agentId).single()
-        await supabase
-          .from("agents")
-          .update({ exp: (agentData?.exp || 0) + FOLLOW_UP_XP })
-          .eq("id", agentId)
-        setDailyFollowUpCount((prev) => prev + 1)
-      }
 
       setTasks((prevTasks) => prevTasks.filter((t) => t.id !== taskId))
     }
@@ -186,9 +164,6 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
   const overdueTasks = tasks.filter((t) => isBefore(startOfDay(new Date(t.due_at)), startOfDay(new Date())))
   const totalTasks = tasks.length
 
-  const remainingXP = Math.max(0, DAILY_FOLLOW_UP_CAP - dailyFollowUpCount)
-  const canEarnXP = dailyFollowUpCount < DAILY_FOLLOW_UP_CAP
-
   return (
     <Card className="border-l-4 border-l-red-500">
       <CardHeader className="pb-3">
@@ -210,9 +185,6 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
           <span className="text-amber-400 font-medium">Today: {todayTasks.length} tasks</span>
           <span className="text-red-400 font-medium">Overdue: {overdueTasks.length} tasks</span>
           <span className="text-slate-400 font-medium">Total: {totalTasks} actions</span>
-          <span className={`font-medium ${canEarnXP ? "text-emerald-400" : "text-slate-500"}`}>
-            XP Today: {dailyFollowUpCount}/{DAILY_FOLLOW_UP_CAP}
-          </span>
         </div>
       </CardHeader>
 
@@ -248,7 +220,7 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <User className="h-3 w-3 text-slate-400" />
-                      <span className="font-medium text-sm truncate text-white">{leadName}</span>
+                      <span className="font-medium text-sm truncate text-slate-900">{leadName}</span>
                       <Badge variant="secondary" className="text-xs">
                         {task.activity_type || "Task"}
                       </Badge>
@@ -297,11 +269,7 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
                     disabled={actionLoading === task.id}
                   >
                     <CheckCircle className="h-3 w-3 mr-1" />
-                    {actionLoading === task.id
-                      ? "..."
-                      : canEarnXP
-                        ? "Log Activity (+1 XP)"
-                        : "Log Activity (XP Capped)"}
+                    {actionLoading === task.id ? "..." : "Done"}
                   </Button>
                   <Button
                     size="sm"
