@@ -66,6 +66,21 @@ export async function POST(request: NextRequest) {
 
     const assignedAt = new Date().toISOString()
 
+    // Helper: notify Zapier webhook after assignment
+    async function notifyZapier(payload: Record<string, unknown>) {
+      const webhookUrl = process.env.ZAPIER_WEBHOOK_URL
+      if (!webhookUrl) return
+      try {
+        await fetch(webhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        })
+      } catch (e) {
+        console.error("Failed to notify Zapier webhook:", e)
+      }
+    }
+
     // If a leadId is provided, update the existing lead
     if (leadId) {
       const { data: lead, error: updateError } = await supabaseAdmin
@@ -91,6 +106,18 @@ export async function POST(request: NextRequest) {
         console.error("Error updating lead:", updateError)
         return NextResponse.json({ error: "Failed to update lead" }, { status: 500 })
       }
+
+      // Notify Zapier
+      await notifyZapier({
+        event: "lead_assigned",
+        leadId: lead.id,
+        assignedRepId,
+        assignedRepName: agent.full_name,
+        dealSize: dealSize || null,
+        leadSource: leadSource || null,
+        buyerName: buyerName || null,
+        assignedAt,
+      })
 
       return NextResponse.json({
         success: true,
@@ -155,11 +182,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to create lead" }, { status: 500 })
     }
 
+    // Notify Zapier
+    await notifyZapier({
+      event: "lead_created_and_assigned",
+      leadId: newLead.id,
+      contactId: contact.id,
+      assignedRepId,
+      assignedRepName: agent.full_name,
+      dealSize: dealSize || null,
+      leadSource: source,
+      buyerName: contactName,
+      email: email || null,
+      phone: phone || null,
+      propertyAddress: propertyAddress || null,
+      assignedAt,
+    })
+
     return NextResponse.json({
       success: true,
       leadId: newLead.id,
       assignedRepId,
       assignedAt,
+      created: true,
     })
   } catch (error) {
     console.error("Error in lead assign endpoint:", error)
