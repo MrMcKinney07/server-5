@@ -50,6 +50,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         pool1Reps: [],
         pool2Reps: [],
+        pool1Description: "Rank 1-5 reps, eligible for 600k+ leads",
+        pool2Description: "Rank 1-50 reps, eligible for all leads",
         daysChecked: days,
         totalActiveReps: 0,
       })
@@ -58,7 +60,7 @@ export async function GET(request: NextRequest) {
     // Get agent details
     const { data: agents, error: agentsError } = await supabaseAdmin
       .from("agents")
-      .select("id, full_name, segment, tier, is_active, exp_season")
+      .select("id, full_name, is_active")
       .in("id", Array.from(activeAgentIds))
       .eq("is_active", true)
 
@@ -67,35 +69,55 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Failed to fetch agents" }, { status: 500 })
     }
 
-    // Split into pools by segment and rank by mission count
-    // Pool 1 = "new" agents, Pool 2 = "seasoned" agents
+    // Get current month rankings from monthly_agent_stats
+    const now = new Date()
+    const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+
+    const { data: rankings } = await supabaseAdmin
+      .from("monthly_agent_stats")
+      .select("agent_id, rank")
+      .eq("month_year", monthYear)
+
+    // Build a rank lookup from monthly stats
+    const rankMap: Record<string, number> = {}
+    for (const r of rankings || []) {
+      rankMap[r.agent_id] = r.rank
+    }
+
+    // Pool 1 = Rank 1-5 (top performers, eligible for 600k+ leads)
+    // Pool 2 = Rank 1-50 (all ranked reps, eligible for all leads)
     const pool1Reps: Array<{ repId: string; rank: number; name: string; missionCount: number }> = []
     const pool2Reps: Array<{ repId: string; rank: number; name: string; missionCount: number }> = []
 
     for (const agent of agents || []) {
+      const agentRank = rankMap[agent.id] || 999
       const rep = {
         repId: agent.id,
-        rank: 0,
+        rank: agentRank,
         name: agent.full_name || "Unknown",
         missionCount: agentMissionCounts[agent.id] || 0,
       }
 
-      if (agent.segment === "seasoned") {
-        pool2Reps.push(rep)
-      } else {
+      // Pool 1: Rank 1-5 only
+      if (agentRank >= 1 && agentRank <= 5) {
         pool1Reps.push(rep)
+      }
+
+      // Pool 2: Rank 1-50 (includes pool 1 reps too)
+      if (agentRank >= 1 && agentRank <= 50) {
+        pool2Reps.push(rep)
       }
     }
 
-    // Sort by mission count descending and assign rank
-    pool1Reps.sort((a, b) => b.missionCount - a.missionCount)
-    pool2Reps.sort((a, b) => b.missionCount - a.missionCount)
-    pool1Reps.forEach((r, i) => { r.rank = i + 1 })
-    pool2Reps.forEach((r, i) => { r.rank = i + 1 })
+    // Sort by rank ascending (rank 1 = best)
+    pool1Reps.sort((a, b) => a.rank - b.rank)
+    pool2Reps.sort((a, b) => a.rank - b.rank)
 
     return NextResponse.json({
       pool1Reps,
       pool2Reps,
+      pool1Description: "Rank 1-5 reps, eligible for 600k+ leads",
+      pool2Description: "Rank 1-50 reps, eligible for all leads",
       daysChecked: days,
       totalActiveReps: activeAgentIds.size,
     })

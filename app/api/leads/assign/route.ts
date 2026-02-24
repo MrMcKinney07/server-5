@@ -39,6 +39,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Rep is not active" }, { status: 400 })
     }
 
+    // Validate pool eligibility based on deal size and rank
+    // Pool 1: Rank 1-5 only, for leads 600k+
+    // Pool 2: Rank 1-50, for all leads
+    if (dealSize && dealSize >= 600000) {
+      const now = new Date()
+      const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+      const { data: stats } = await supabaseAdmin
+        .from("monthly_agent_stats")
+        .select("rank")
+        .eq("agent_id", assignedRepId)
+        .eq("month_year", monthYear)
+        .single()
+
+      const agentRank = stats?.rank || 999
+
+      if (agentRank > 5) {
+        return NextResponse.json({
+          error: `Rep rank is ${agentRank}. Leads with deal size 600k+ require a Pool 1 rep (rank 1-5).`,
+          repRank: agentRank,
+          dealSize,
+          requiredPool: "pool1",
+        }, { status: 400 })
+      }
+    }
+
     const assignedAt = new Date().toISOString()
 
     // If a leadId is provided, update the existing lead
