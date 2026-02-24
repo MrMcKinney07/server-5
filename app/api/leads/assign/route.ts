@@ -1,0 +1,143 @@
+import { type NextRequest, NextResponse } from "next/server"
+import { createClient } from "@supabase/supabase-js"
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+)
+
+function validateApiKey(request: NextRequest): boolean {
+  const apiKey = request.headers.get("x-api-key") || request.nextUrl.searchParams.get("api_key")
+  return apiKey === process.env.ZAPIER_API_KEY
+}
+
+export async function POST(request: NextRequest) {
+  if (!validateApiKey(request)) {
+    return NextResponse.json({ error: "Unauthorized. Provide x-api-key header or api_key query param." }, { status: 401 })
+  }
+
+  try {
+    const body = await request.json()
+    const { leadId, assignedRepId, dealSize, leadSource, buyerName, propertyAddress, phone, email } = body
+
+    if (!assignedRepId) {
+      return NextResponse.json({ error: "assignedRepId is required" }, { status: 400 })
+    }
+
+    // Verify the rep exists and is active
+    const { data: agent, error: agentError } = await supabaseAdmin
+      .from("agents")
+      .select("id, full_name, is_active")
+      .eq("id", assignedRepId)
+      .single()
+
+    if (agentError || !agent) {
+      return NextResponse.json({ error: "Rep not found" }, { status: 404 })
+    }
+
+    if (!agent.is_active) {
+      return NextResponse.json({ error: "Rep is not active" }, { status: 400 })
+    }
+
+    const assignedAt = new Date().toISOString()
+
+    // If a leadId is provided, update the existing lead
+    if (leadId) {
+      const { data: lead, error: updateError } = await supabaseAdmin
+        .from("leads")
+        .update({
+          assigned_agent_id: assignedRepId,
+          status: "assigned",
+          assigned_at: assignedAt,
+          source: leadSource || "other",
+          raw_payload: {
+            deal_size: dealSize || null,
+            buyer_name: buyerName || null,
+            property_address: propertyAddress || null,
+            zapier_assigned: true,
+            zapier_assigned_at: assignedAt,
+          },
+        })
+        .eq("id", leadId)
+        .select("id")
+        .single()
+
+      if (updateError) {
+        console.error("Error updating lead:", updateError)
+        return NextResponse.json({ error: "Failed to update lead" }, { status: 500 })
+      }
+
+      return NextResponse.json({
+        success: true,
+        leadId: lead.id,
+        assignedRepId,
+        assignedAt,
+      })
+    }
+
+    // Otherwise, create a new contact + lead
+    const contactName = buyerName || "Zapier Lead"
+    const nameParts = contactName.split(" ")
+    const firstName = nameParts[0] || "Unknown"
+    const lastName = nameParts.slice(1).join(" ") || "Contact"
+
+    // Create contact
+    const { data: contact, error: contactError } = await supabaseAdmin
+      .from("contacts")
+      .insert({
+        full_name: contactName,
+        email: email || null,
+        phone: phone || null,
+        primary_agent_id: assignedRepId,
+      })
+      .select("id")
+      .single()
+
+    if (contactError) {
+      console.error("Error creating contact:", contactError)
+      return NextResponse.json({ error: "Failed to create contact" }, { status: 500 })
+    }
+
+    // Create lead
+    const validSources = ["realtor", "upnest", "opcity", "fb_ads", "manual", "referral", "website", "other"]
+    const source = validSources.includes(leadSource) ? leadSource : "other"
+
+    const { data: newLead, error: leadError } = await supabaseAdmin
+      .from("leads")
+      .insert({
+        contact_id: contact.id,
+        source,
+        assigned_agent_id: assignedRepId,
+        status: "assigned",
+        assigned_at: assignedAt,
+        first_name: firstName,
+        last_name: lastName,
+        phone: phone || null,
+        email: email || null,
+        raw_payload: {
+          deal_size: dealSize || null,
+          buyer_name: buyerName || null,
+          property_address: propertyAddress || null,
+          zapier_assigned: true,
+          zapier_assigned_at: assignedAt,
+        },
+      })
+      .select("id")
+      .single()
+
+    if (leadError) {
+      console.error("Error creating lead:", leadError)
+      return NextResponse.json({ error: "Failed to create lead" }, { status: 500 })
+    }
+
+    return NextResponse.json({
+      success: true,
+      leadId: newLead.id,
+      assignedRepId,
+      assignedAt,
+    })
+  } catch (error) {
+    console.error("Error in lead assign endpoint:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
