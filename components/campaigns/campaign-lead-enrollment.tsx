@@ -15,6 +15,12 @@ import { toast } from "sonner"
 
 interface Lead {
   id: string
+  status: string
+  first_name: string | null
+  last_name: string | null
+  email: string | null
+  phone: string | null
+  contact_id: string | null
   contact: {
     id: string
     first_name: string | null
@@ -22,8 +28,7 @@ interface Lead {
     email: string | null
     phone: string | null
     tags: string[] | null
-  }
-  status: string
+  } | null
 }
 
 interface CampaignLeadEnrollmentProps {
@@ -50,27 +55,19 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
   async function fetchData() {
     setLoading(true)
 
-    // Get current user's leads
-    const { data: sessionData } = await supabase.auth.getSession()
-    console.log("[v0] Session data:", sessionData)
-    
-    if (!sessionData.session) {
-      console.log("[v0] No session found")
-      setLoading(false)
-      return
-    }
-
-    const userId = sessionData.session.user.id
-    console.log("[v0] User ID:", userId)
-
-    // Fetch all leads with contacts
+    // Fetch all leads - RLS handles filtering to current user's leads
+    // Also fetch leads directly with first_name/last_name in case contact join fails
     const { data: leadsData, error: leadsError } = await supabase
       .from("leads")
       .select(
         `
         id,
         status,
-        agent_id,
+        first_name,
+        last_name,
+        email,
+        phone,
+        contact_id,
         contact:contacts(
           id,
           first_name,
@@ -81,28 +78,22 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
         )
       `,
       )
-      .eq("agent_id", userId)
       .order("created_at", { ascending: false })
 
-    console.log("[v0] Leads query result:", { leadsData, leadsError, userId })
+    if (leadsError) {
+      console.error("Error fetching leads:", leadsError)
+      toast.error("Failed to load leads")
+      setLoading(false)
+      return
+    }
 
-    // Also check if there are ANY leads for this user without the agent_id filter
-    const { data: allLeadsCheck, error: allLeadsError } = await supabase
-      .from("leads")
-      .select("id, agent_id, assigned_agent_id")
-      .limit(10)
-
-    console.log("[v0] All leads sample (no filter):", { allLeadsCheck, allLeadsError })
-
-    // Fetch already enrolled leads
-    const { data: enrollmentsData, error: enrollmentsError } = await supabase
+    // Fetch already enrolled leads for this campaign
+    const { data: enrollmentsData } = await supabase
       .from("lead_campaign_enrollments")
       .select("lead_id")
       .eq("campaign_id", campaignId)
 
-    console.log("[v0] Enrollments query:", { enrollmentsData, enrollmentsError, campaignId })
-
-    // Extract all unique tags
+    // Extract all unique tags from contacts
     const tags = new Set<string>()
     leadsData?.forEach((lead: any) => {
       lead.contact?.tags?.forEach((tag: string) => tags.add(tag))
@@ -149,27 +140,6 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
 
     setEnrolling(true)
 
-    // Verify lead ownership first
-    const { data: ownedLeads, error: verifyError } = await supabase
-      .from("leads")
-      .select("id")
-      .in("id", selectedLeadIds)
-
-    console.log("[v0] Verified owned leads:", { ownedLeads, verifyError, selectedCount: selectedLeadIds.length })
-
-    if (verifyError) {
-      toast.error("Could not verify lead ownership: " + verifyError.message)
-      setEnrolling(false)
-      return
-    }
-
-    const ownedLeadIds = ownedLeads?.map(l => l.id) || []
-    if (ownedLeadIds.length === 0) {
-      toast.error("No valid leads found to enroll")
-      setEnrolling(false)
-      return
-    }
-
     // Get the first step's delay to calculate next_run_at
     const { data: firstStep } = await supabase
       .from("campaign_steps")
@@ -178,13 +148,11 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
       .eq("step_number", 1)
       .maybeSingle()
 
-    console.log("[v0] First step for campaign:", { firstStep, campaignId })
-
     const nextRunAt = new Date()
     nextRunAt.setHours(nextRunAt.getHours() + (firstStep?.delay_hours || 0))
 
-    // Prepare enrollment data - only for verified owned leads
-    const enrollments = ownedLeadIds.map((leadId) => ({
+    // Prepare enrollment data
+    const enrollments = selectedLeadIds.map((leadId) => ({
       lead_id: leadId,
       campaign_id: campaignId,
       current_step: 0,
@@ -192,21 +160,15 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
       next_run_at: nextRunAt.toISOString(),
     }))
 
-    console.log("[v0] Attempting bulk enrollment:", { count: enrollments.length, campaignId })
-
-    const { data: insertedEnrollments, error } = await supabase
+    const { error } = await supabase
       .from("lead_campaign_enrollments")
       .insert(enrollments)
-      .select()
-
-    console.log("[v0] Bulk enrollment result:", { insertedEnrollments, error })
 
     if (error) {
-      console.error("[v0] Bulk enrollment error:", error)
       toast.error("Failed to enroll leads: " + error.message)
     } else {
       // Log the enrollments
-      const logs = ownedLeadIds.map((leadId) => ({
+      const logs = selectedLeadIds.map((leadId) => ({
         lead_id: leadId,
         campaign_id: campaignId,
         event: "enrolled",
@@ -214,7 +176,7 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
       }))
       await supabase.from("campaign_logs").insert(logs)
 
-      toast.success(`Successfully enrolled ${ownedLeadIds.length} leads in ${campaignName}`)
+      toast.success(`Successfully enrolled ${selectedLeadIds.length} leads in ${campaignName}`)
       setSelectedLeadIds([])
       setSelectedTags([])
       fetchData()
@@ -223,12 +185,27 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
     setEnrolling(false)
   }
 
+  // Helper to get lead display name
+  const getLeadName = (lead: Lead) => {
+    const firstName = lead.contact?.first_name || lead.first_name || ""
+    const lastName = lead.contact?.last_name || lead.last_name || ""
+    return firstName || lastName ? `${firstName} ${lastName}`.trim() : "Unnamed Lead"
+  }
+
+  // Helper to get lead email
+  const getLeadEmail = (lead: Lead) => lead.contact?.email || lead.email
+  
+  // Helper to get lead phone
+  const getLeadPhone = (lead: Lead) => lead.contact?.phone || lead.phone
+
   const filteredLeads = leads.filter((lead) => {
+    const name = getLeadName(lead).toLowerCase()
+    const email = getLeadEmail(lead)?.toLowerCase() || ""
+    
     const matchesSearch =
       !searchQuery ||
-      lead.contact?.first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lead.contact?.last_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lead.contact?.email?.toLowerCase().includes(searchQuery.toLowerCase())
+      name.includes(searchQuery.toLowerCase()) ||
+      email.includes(searchQuery.toLowerCase())
 
     const isNotEnrolled = !enrolledLeadIds.includes(lead.id)
 
@@ -308,21 +285,19 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
                       />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm truncate">
-                          {lead.contact?.first_name || lead.contact?.last_name
-                            ? `${lead.contact.first_name || ""} ${lead.contact.last_name || ""}`.trim()
-                            : "Unnamed Contact"}
+                          {getLeadName(lead)}
                         </p>
                         <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                          {lead.contact?.email && (
+                          {getLeadEmail(lead) && (
                             <span className="flex items-center gap-1">
                               <Mail className="h-3 w-3" />
-                              {lead.contact.email}
+                              {getLeadEmail(lead)}
                             </span>
                           )}
-                          {lead.contact?.phone && (
+                          {getLeadPhone(lead) && (
                             <span className="flex items-center gap-1">
                               <Phone className="h-3 w-3" />
-                              {lead.contact.phone}
+                              {getLeadPhone(lead)}
                             </span>
                           )}
                         </div>
@@ -399,9 +374,7 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
                           <CheckCircle2 className="h-4 w-4 text-primary" />
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm truncate">
-                              {lead.contact?.first_name || lead.contact?.last_name
-                                ? `${lead.contact.first_name || ""} ${lead.contact.last_name || ""}`.trim()
-                                : "Unnamed Contact"}
+                              {getLeadName(lead)}
                             </p>
                             <div className="flex flex-wrap gap-1 mt-1">
                               {lead.contact?.tags
