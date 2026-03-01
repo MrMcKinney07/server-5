@@ -52,17 +52,25 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
 
     // Get current user's leads
     const { data: sessionData } = await supabase.auth.getSession()
-    if (!sessionData.session) return
+    console.log("[v0] Session data:", sessionData)
+    
+    if (!sessionData.session) {
+      console.log("[v0] No session found")
+      setLoading(false)
+      return
+    }
 
     const userId = sessionData.session.user.id
+    console.log("[v0] User ID:", userId)
 
     // Fetch all leads with contacts
-    const { data: leadsData } = await supabase
+    const { data: leadsData, error: leadsError } = await supabase
       .from("leads")
       .select(
         `
         id,
         status,
+        agent_id,
         contact:contacts(
           id,
           first_name,
@@ -76,11 +84,23 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
       .eq("agent_id", userId)
       .order("created_at", { ascending: false })
 
+    console.log("[v0] Leads query result:", { leadsData, leadsError, userId })
+
+    // Also check if there are ANY leads for this user without the agent_id filter
+    const { data: allLeadsCheck, error: allLeadsError } = await supabase
+      .from("leads")
+      .select("id, agent_id, assigned_agent_id")
+      .limit(10)
+
+    console.log("[v0] All leads sample (no filter):", { allLeadsCheck, allLeadsError })
+
     // Fetch already enrolled leads
-    const { data: enrollmentsData } = await supabase
+    const { data: enrollmentsData, error: enrollmentsError } = await supabase
       .from("lead_campaign_enrollments")
       .select("lead_id")
       .eq("campaign_id", campaignId)
+
+    console.log("[v0] Enrollments query:", { enrollmentsData, enrollmentsError, campaignId })
 
     // Extract all unique tags
     const tags = new Set<string>()
