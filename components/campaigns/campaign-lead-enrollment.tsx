@@ -129,6 +129,27 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
 
     setEnrolling(true)
 
+    // Verify lead ownership first
+    const { data: ownedLeads, error: verifyError } = await supabase
+      .from("leads")
+      .select("id")
+      .in("id", selectedLeadIds)
+
+    console.log("[v0] Verified owned leads:", { ownedLeads, verifyError, selectedCount: selectedLeadIds.length })
+
+    if (verifyError) {
+      toast.error("Could not verify lead ownership: " + verifyError.message)
+      setEnrolling(false)
+      return
+    }
+
+    const ownedLeadIds = ownedLeads?.map(l => l.id) || []
+    if (ownedLeadIds.length === 0) {
+      toast.error("No valid leads found to enroll")
+      setEnrolling(false)
+      return
+    }
+
     // Get the first step's delay to calculate next_run_at
     const { data: firstStep } = await supabase
       .from("campaign_steps")
@@ -137,11 +158,13 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
       .eq("step_number", 1)
       .maybeSingle()
 
+    console.log("[v0] First step for campaign:", { firstStep, campaignId })
+
     const nextRunAt = new Date()
     nextRunAt.setHours(nextRunAt.getHours() + (firstStep?.delay_hours || 0))
 
-    // Prepare enrollment data
-    const enrollments = selectedLeadIds.map((leadId) => ({
+    // Prepare enrollment data - only for verified owned leads
+    const enrollments = ownedLeadIds.map((leadId) => ({
       lead_id: leadId,
       campaign_id: campaignId,
       current_step: 0,
@@ -149,13 +172,21 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
       next_run_at: nextRunAt.toISOString(),
     }))
 
-    const { error } = await supabase.from("lead_campaign_enrollments").insert(enrollments)
+    console.log("[v0] Attempting bulk enrollment:", { count: enrollments.length, campaignId })
+
+    const { data: insertedEnrollments, error } = await supabase
+      .from("lead_campaign_enrollments")
+      .insert(enrollments)
+      .select()
+
+    console.log("[v0] Bulk enrollment result:", { insertedEnrollments, error })
 
     if (error) {
+      console.error("[v0] Bulk enrollment error:", error)
       toast.error("Failed to enroll leads: " + error.message)
     } else {
       // Log the enrollments
-      const logs = selectedLeadIds.map((leadId) => ({
+      const logs = ownedLeadIds.map((leadId) => ({
         lead_id: leadId,
         campaign_id: campaignId,
         event: "enrolled",
@@ -163,7 +194,7 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
       }))
       await supabase.from("campaign_logs").insert(logs)
 
-      toast.success(`Successfully enrolled ${selectedLeadIds.length} leads in ${campaignName}`)
+      toast.success(`Successfully enrolled ${ownedLeadIds.length} leads in ${campaignName}`)
       setSelectedLeadIds([])
       setSelectedTags([])
       fetchData()
