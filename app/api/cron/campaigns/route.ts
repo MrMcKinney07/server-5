@@ -322,13 +322,3 @@ function replacePlaceholders(text: string, recipient: any, agentName: string): s
     .replace(/\{\{budget\}\}/gi, recipient.budget_max ? `$${recipient.budget_max.toLocaleString()}` : "your budget")
     .replace(/\{\{timeline\}\}/gi, recipient.timeline || "soon")
 }
-
-function replacePlaceholders(text: string, lead: any, agentName: string): string {
-  return text
-    .replace(/\{\{first_name\}\}/gi, lead.first_name || "")
-    .replace(/\{\{last_name\}\}/gi, lead.last_name || "")
-    .replace(/\{\{agent_name\}\}/gi, agentName)
-    .replace(/\{\{property_interest\}\}/gi, lead.property_interest || "your area")
-    .replace(/\{\{budget\}\}/gi, lead.budget_max ? `$${lead.budget_max.toLocaleString()}` : "your budget")
-    .replace(/\{\{timeline\}\}/gi, lead.timeline || "soon")
-}
