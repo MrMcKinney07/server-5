@@ -210,71 +210,66 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
             return (
               <div
                 key={task.id}
-                className={`p-3 rounded-lg border ${dateStyle.label === "Overdue" ? "border-red-500/30 bg-red-500/10" : "border-slate-500/30 bg-slate-500/10"}`}
+                className={`p-4 rounded-xl border-2 transition-all hover:shadow-md ${
+                  dateStyle.label === "Overdue"
+                    ? "border-red-500/40 bg-gradient-to-br from-red-500/10 to-red-500/5"
+                    : "border-slate-700/40 bg-gradient-to-br from-slate-800/50 to-slate-900/30"
+                }`}
               >
-                <div className="flex items-start gap-3">
-                  <div className={`p-2 rounded-lg ${dateStyle.bg}`}>
+                <div className="flex items-start gap-3 mb-3">
+                  <div className={`p-2.5 rounded-xl ${dateStyle.bg} ring-2 ring-white/10`}>
                     <span className={dateStyle.color}>{getTaskIcon(task.activity_type)}</span>
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <User className="h-3 w-3 text-slate-400" />
-                      <span className="font-medium text-sm truncate text-slate-900">{leadName}</span>
-                      <Badge variant="secondary" className="text-xs">
-                        {task.activity_type || "Task"}
-                      </Badge>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <User className="h-3.5 w-3.5 text-slate-400" />
+                      <span className="font-semibold text-sm text-white">{leadName}</span>
                     </div>
-                    <p className="text-sm text-slate-400 line-clamp-1">
+                    <Badge variant="secondary" className="text-xs mb-2 bg-slate-700/50">
+                      {task.activity_type || "Task"}
+                    </Badge>
+                    <p className="text-sm text-slate-300 line-clamp-2 mb-2">
                       {task.subject || task.description || "No description"}
                     </p>
-                    <div className="flex items-center gap-1 mt-1">
-                      <Clock className={`h-3 w-3 ${dateStyle.color}`} />
-                      <span className={`text-xs ${dateStyle.color} font-medium`}>
-                        {dateStyle.label} - {format(new Date(task.due_at), "MMM d")}
+                    <div className="flex items-center gap-1.5">
+                      <Clock className={`h-3.5 w-3.5 ${dateStyle.color}`} />
+                      <span className={`text-xs ${dateStyle.color} font-semibold`}>
+                        {dateStyle.label} - {format(new Date(task.due_at), "MMM d, h:mm a")}
                       </span>
                     </div>
                   </div>
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-2 mt-3">
+                <div className="flex gap-2">
                   {task.lead_id && (
                     <>
                       <Button
                         size="sm"
                         variant="outline"
-                        className="flex-1 text-xs bg-transparent"
-                        onClick={() => window.open(`tel:`, "_self")}
+                        className="flex-1 text-xs border-slate-600 hover:bg-slate-700 bg-transparent"
+                        onClick={() => (window.location.href = `/dashboard/leads/${task.lead_id}`)}
                       >
-                        <Phone className="h-3 w-3 mr-1" />
-                        Call
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex-1 text-xs bg-transparent"
-                        onClick={() => window.open(`sms:`, "_self")}
-                      >
-                        <MessageSquare className="h-3 w-3 mr-1" />
-                        Text
+                        <User className="h-3 w-3 mr-1" />
+                        View
                       </Button>
                     </>
                   )}
                   <Button
                     size="sm"
                     variant="default"
-                    className="flex-1 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                    className="flex-1 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
                     onClick={() => handleComplete(task.id)}
                     disabled={actionLoading === task.id}
                   >
                     <CheckCircle className="h-3 w-3 mr-1" />
-                    {actionLoading === task.id ? "..." : "Done"}
+                    {actionLoading === task.id ? "..." : "Complete"}
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="text-xs"
+                    className="text-xs hover:bg-slate-700"
                     onClick={() => handleSnooze(task.id)}
                     disabled={actionLoading === task.id}
                   >

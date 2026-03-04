@@ -1,6 +1,8 @@
 import { createClient } from "@supabase/supabase-js"
 import { generateText } from "ai"
 import { NextResponse } from "next/server"
+import { sendEmail } from "@/lib/email/send-email"
+import { sendSms } from "@/lib/sms/send-sms"
 
 // Use service role for cron job
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
@@ -13,83 +15,192 @@ export async function GET(request: Request) {
   }
 
   const now = new Date()
-  const results = { processed: 0, emails: 0, sms: 0, propertyRecs: 0, errors: [] as string[] }
+  const results = { processed: 0, emails: 0, sms: 0, tasks: 0, errors: [] as string[] }
 
   try {
-    const { data: dueEnrollments, error: fetchError } = await supabase
+    // Process LEAD campaign enrollments (lead_campaign_enrollments table)
+    const { data: leadEnrollments, error: leadFetchError } = await supabase
       .from("lead_campaign_enrollments")
       .select(`
-        *,
-        lead:leads(*),
-        campaign:campaigns(
-          *,
-          owner:agents!owner_id(Name, Email)
-        )
+        id,
+        lead_id,
+        campaign_id,
+        current_step,
+        status,
+        next_run_at
       `)
       .eq("status", "active")
       .lte("next_run_at", now.toISOString())
-      .limit(100)
+      .limit(50)
 
-    if (fetchError) {
-      return NextResponse.json({ error: fetchError.message }, { status: 500 })
+    if (leadFetchError) {
+      console.error("Error fetching lead enrollments:", leadFetchError)
     }
 
-    if (!dueEnrollments || dueEnrollments.length === 0) {
-      return NextResponse.json({ message: "No campaigns due", ...results })
+    // Process CONTACT campaign enrollments (campaign_enrollments table)
+    const { data: contactEnrollments, error: contactFetchError } = await supabase
+      .from("campaign_enrollments")
+      .select(`
+        id,
+        contact_id,
+        campaign_id,
+        current_step,
+        status,
+        next_run_at
+      `)
+      .eq("status", "active")
+      .lte("next_run_at", now.toISOString())
+      .limit(50)
+
+    if (contactFetchError) {
+      console.error("Error fetching contact enrollments:", contactFetchError)
     }
 
-    for (const enrollment of dueEnrollments) {
+    // Process lead enrollments
+    for (const enrollment of leadEnrollments || []) {
       try {
-        if (!enrollment.campaign || !enrollment.lead) {
-          continue
-        }
-
-        const nextStepNumber = (enrollment.current_step || 0) + 1
-
-        // Get the next step
-        const { data: step, error: stepError } = await supabase
-          .from("campaign_steps")
-          .select("*")
-          .eq("campaign_id", enrollment.campaign_id)
-          .eq("step_number", nextStepNumber)
+        // Get lead data
+        const { data: lead } = await supabase
+          .from("leads")
+          .select("id, first_name, last_name, email, phone, agent_id, lead_type, budget_min, budget_max, property_interest, timeline")
+          .eq("id", enrollment.lead_id)
           .single()
 
-        if (stepError || !step) {
-          // No more steps - mark as completed
-          await supabase
-            .from("lead_campaign_enrollments")
-            .update({ status: "completed", next_run_at: null })
-            .eq("id", enrollment.id)
+        if (!lead) continue
 
-          await supabase.from("campaign_logs").insert({
-            lead_id: enrollment.lead_id,
-            campaign_id: enrollment.campaign_id,
-            event: "completed",
-            info: { total_steps: enrollment.current_step },
-          })
+        // Get campaign data
+        const { data: campaign } = await supabase
+          .from("campaigns")
+          .select("id, name, channel, owner_id")
+          .eq("id", enrollment.campaign_id)
+          .single()
 
-          results.processed++
-          continue
+        if (!campaign) continue
+
+        // Get agent name for personalization
+        let agentName = "McKinney Realty Team"
+        if (campaign.owner_id) {
+          const { data: agent } = await supabase
+            .from("agents")
+            .select("Name")
+            .eq("id", campaign.owner_id)
+            .single()
+          if (agent?.Name) agentName = agent.Name
         }
 
-        const lead = enrollment.lead
-        const campaign = enrollment.campaign
-        let content = step.body || ""
-        let subject = step.subject || ""
+        const stepResult = await processStep(enrollment, lead, campaign, agentName, "lead")
+        results.processed++
+        if (stepResult.email) results.emails++
+        if (stepResult.sms) results.sms++
+        if (stepResult.task) results.tasks++
+      } catch (err) {
+        results.errors.push(`Lead enrollment ${enrollment.id}: ${err}`)
+      }
+    }
 
-        const agentName = campaign.owner?.Name || "McKinney Realty Team"
+    // Process contact enrollments
+    for (const enrollment of contactEnrollments || []) {
+      try {
+        // Get contact data
+        const { data: contact } = await supabase
+          .from("contacts")
+          .select("id, first_name, last_name, email, phone, agent_id")
+          .eq("id", enrollment.contact_id)
+          .single()
 
-        // AI personalization if enabled
-        if (step.ai_personalize && lead) {
-          const personalizationPrompt = `
-You are a real estate agent assistant. Personalize the following ${step.type} content for a lead.
+        if (!contact) continue
 
-Lead Info:
-- Name: ${lead.first_name} ${lead.last_name}
-- Type: ${lead.lead_type}
-- Budget: $${lead.budget_min || 0} - $${lead.budget_max || "unlimited"}
-- Property Interest: ${lead.property_interest || "Not specified"}
-- Timeline: ${lead.timeline || "Not specified"}
+        // Get campaign data
+        const { data: campaign } = await supabase
+          .from("campaigns")
+          .select("id, name, channel, owner_id")
+          .eq("id", enrollment.campaign_id)
+          .single()
+
+        if (!campaign) continue
+
+        // Get agent name for personalization
+        let agentName = "McKinney Realty Team"
+        if (campaign.owner_id) {
+          const { data: agent } = await supabase
+            .from("agents")
+            .select("Name")
+            .eq("id", campaign.owner_id)
+            .single()
+          if (agent?.Name) agentName = agent.Name
+        }
+
+        const stepResult = await processStep(enrollment, contact, campaign, agentName, "contact")
+        results.processed++
+        if (stepResult.email) results.emails++
+        if (stepResult.sms) results.sms++
+        if (stepResult.task) results.tasks++
+      } catch (err) {
+        results.errors.push(`Contact enrollment ${enrollment.id}: ${err}`)
+      }
+    }
+
+    return NextResponse.json({
+      message: "Campaign cron completed",
+      ...results,
+    })
+  } catch (error) {
+    console.error("Campaign cron error:", error)
+    return NextResponse.json({ error: String(error) }, { status: 500 })
+  }
+}
+
+async function processStep(
+  enrollment: any,
+  recipient: any,
+  campaign: any,
+  agentName: string,
+  enrollmentType: "lead" | "contact"
+): Promise<{ email: boolean; sms: boolean; task: boolean }> {
+  const result = { email: false, sms: false, task: false }
+  const nextStepNumber = (enrollment.current_step || 0) + 1
+  const tableName = enrollmentType === "lead" ? "lead_campaign_enrollments" : "campaign_enrollments"
+
+  // Get the next step
+  const { data: step, error: stepError } = await supabase
+    .from("campaign_steps")
+    .select("*")
+    .eq("campaign_id", enrollment.campaign_id)
+    .eq("step_number", nextStepNumber)
+    .single()
+
+  if (stepError || !step) {
+    // No more steps - mark as completed
+    await supabase
+      .from(tableName)
+      .update({ status: "completed", next_run_at: null })
+      .eq("id", enrollment.id)
+
+    await supabase.from("campaign_logs").insert({
+      lead_id: enrollmentType === "lead" ? enrollment.lead_id : null,
+      campaign_id: enrollment.campaign_id,
+      event: "completed",
+      info: { total_steps: enrollment.current_step, enrollment_type: enrollmentType },
+    })
+    return result
+  }
+
+  let content = step.body || ""
+  let subject = step.subject || ""
+
+  // AI personalization if enabled
+  if (step.ai_personalize && recipient) {
+    try {
+      const personalizationPrompt = `
+You are a real estate agent assistant. Personalize the following ${step.type} content for a ${enrollmentType}.
+
+${enrollmentType === "lead" ? `Lead Info:
+- Name: ${recipient.first_name} ${recipient.last_name}
+- Type: ${recipient.lead_type || "Not specified"}
+- Budget: $${recipient.budget_min || 0} - $${recipient.budget_max || "unlimited"}
+- Property Interest: ${recipient.property_interest || "Not specified"}
+- Timeline: ${recipient.timeline || "Not specified"}` : `Contact Info:
+- Name: ${recipient.first_name} ${recipient.last_name}`}
 
 Agent Name: ${agentName}
 
@@ -105,200 +216,109 @@ Instructions:
 
 Return ONLY the personalized message, nothing else.
 `
-          try {
-            const { text } = await generateText({
-              model: "openai/gpt-4o-mini",
-              prompt: personalizationPrompt,
-            })
-            content = text
+      const { text } = await generateText({
+        model: "openai/gpt-4o-mini",
+        prompt: personalizationPrompt,
+      })
+      content = text
 
-            // Personalize subject too for emails
-            if (step.type === "email" && subject) {
-              const { text: subjectText } = await generateText({
-                model: "openai/gpt-4o-mini",
-                prompt: `Personalize this email subject line for ${lead.first_name}: "${subject}". Return ONLY the subject line.`,
-              })
-              subject = subjectText
-            }
-          } catch (aiError) {
-            // Fall back to manual placeholder replacement
-            content = replacePlaceholders(content, lead, agentName)
-            subject = replacePlaceholders(subject, lead, agentName)
-          }
-        } else if (lead) {
-          // Manual placeholder replacement
-          content = replacePlaceholders(content, lead, agentName)
-          subject = replacePlaceholders(subject, lead, agentName)
-        }
-
-        const campaignChannel = campaign.channel || "EMAIL"
-
-        // Execute the step based on type AND campaign channel
-        if ((step.type === "email" || campaignChannel === "EMAIL" || campaignChannel === "BOTH") && lead?.email) {
-          // Send email via Resend
-          const emailRes = await fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              from: "McKinney Realty <noreply@mckinneyrealtyco.com>",
-              to: lead.email,
-              subject: subject || "Message from McKinney Realty",
-              html: `<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                <p>${content.replace(/\n/g, "<br>")}</p>
-                <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
-                <p style="color: #666; font-size: 12px;">
-                  ${agentName}<br>
-                  McKinney Realty Co.
-                </p>
-              </div>`,
-            }),
-          })
-
-          if (emailRes.ok) {
-            results.emails++
-          }
-        }
-
-        if ((step.type === "sms" || campaignChannel === "SMS" || campaignChannel === "BOTH") && lead?.phone) {
-          // Send SMS via Twilio
-          const twilioAuth = Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString(
-            "base64",
-          )
-
-          const smsRes = await fetch(
-            `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`,
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Basic ${twilioAuth}`,
-                "Content-Type": "application/x-www-form-urlencoded",
-              },
-              body: new URLSearchParams({
-                To: lead.phone,
-                From: process.env.TWILIO_PHONE_NUMBER!,
-                Body: content,
-              }),
-            },
-          )
-
-          if (smsRes.ok) {
-            results.sms++
-          }
-        }
-
-        if (step.type === "property_recommendation" && lead?.email) {
-          // Get property recommendations based on lead preferences
-          const { data: properties } = await supabase
-            .from("properties")
-            .select("*")
-            .eq("status", "active")
-            .gte("price", lead.budget_min || 0)
-            .lte("price", lead.budget_max || 10000000)
-            .limit(3)
-
-          if (properties && properties.length > 0) {
-            const propertyList = properties
-              .map(
-                (p) =>
-                  `<div style="margin: 15px 0; padding: 15px; border: 1px solid #eee; border-radius: 8px;">
-                    <h3 style="margin: 0 0 5px 0;">${p.address}</h3>
-                    <p style="margin: 0; color: #666;">${p.city}, ${p.state} ${p.zip}</p>
-                    <p style="margin: 10px 0; font-size: 18px; font-weight: bold; color: #2563eb;">
-                      $${p.price?.toLocaleString()}
-                    </p>
-                    <p style="margin: 0; color: #666;">
-                      ${p.beds} bed | ${p.baths} bath | ${p.sqft?.toLocaleString()} sqft
-                    </p>
-                  </div>`,
-              )
-              .join("")
-
-            await fetch("https://api.resend.com/emails", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                from: "McKinney Realty <noreply@mckinneyrealtyco.com>",
-                to: lead.email,
-                subject: `${lead.first_name}, check out these homes just for you!`,
-                html: `<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                  <h2>Hi ${lead.first_name}!</h2>
-                  <p>Based on your preferences, I thought you might be interested in these properties:</p>
-                  ${propertyList}
-                  <p style="margin-top: 20px;">
-                    <a href="#" style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
-                      View All Listings
-                    </a>
-                  </p>
-                  <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
-                  <p style="color: #666; font-size: 12px;">
-                    ${agentName}<br>
-                    McKinney Realty Co.
-                  </p>
-                </div>`,
-              }),
-            })
-            results.propertyRecs++
-          }
-        }
-
-        // Log the step execution
-        await supabase.from("campaign_logs").insert({
-          lead_id: enrollment.lead_id,
-          campaign_id: enrollment.campaign_id,
-          step_id: step.id,
-          event: `${step.type}_sent`,
-          info: { step_number: nextStepNumber, ai_personalized: step.ai_personalize, channel: campaignChannel },
+      if (step.type === "email" && subject) {
+        const { text: subjectText } = await generateText({
+          model: "openai/gpt-4o-mini",
+          prompt: `Personalize this email subject line for ${recipient.first_name}: "${subject}". Return ONLY the subject line.`,
         })
-
-        // Get next step to calculate next_run_at
-        const { data: nextStep } = await supabase
-          .from("campaign_steps")
-          .select("delay_hours")
-          .eq("campaign_id", enrollment.campaign_id)
-          .eq("step_number", nextStepNumber + 1)
-          .single()
-
-        const nextRunAt = nextStep
-          ? new Date(Date.now() + (nextStep.delay_hours || 1) * 60 * 60 * 1000).toISOString()
-          : null
-
-        // Update enrollment
-        await supabase
-          .from("lead_campaign_enrollments")
-          .update({
-            current_step: nextStepNumber,
-            next_run_at: nextRunAt,
-            status: nextRunAt ? "active" : "completed",
-          })
-          .eq("id", enrollment.id)
-
-        results.processed++
-      } catch (stepError) {
-        results.errors.push(`Enrollment ${enrollment.id}: ${stepError}`)
+        subject = subjectText
       }
+    } catch {
+      content = replacePlaceholders(content, recipient, agentName)
+      subject = replacePlaceholders(subject, recipient, agentName)
     }
-
-    return NextResponse.json({
-      message: "Campaign cron completed",
-      ...results,
-    })
-  } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+  } else {
+    content = replacePlaceholders(content, recipient, agentName)
+    subject = replacePlaceholders(subject, recipient, agentName)
   }
+
+  const campaignChannel = campaign.channel || "EMAIL"
+  const stepType = step.type || "email"
+
+  // Execute based on step type and channel
+  if ((stepType === "email" || campaignChannel === "EMAIL" || campaignChannel === "BOTH") && recipient?.email) {
+    const sent = await sendEmail({
+      to: recipient.email,
+      subject: subject || "Message from McKinney Realty",
+      body: content,
+    })
+    result.email = sent
+  }
+
+  if ((stepType === "sms" || campaignChannel === "SMS" || campaignChannel === "BOTH") && recipient?.phone) {
+    const sent = await sendSms({
+      to: recipient.phone,
+      body: content,
+    })
+    result.sms = sent
+  }
+
+  if (stepType === "task") {
+    // Create activity/task for the agent
+    await supabase.from("activities").insert({
+      agent_id: recipient.agent_id || campaign.owner_id,
+      lead_id: enrollmentType === "lead" ? enrollment.lead_id : null,
+      contact_id: enrollmentType === "contact" ? enrollment.contact_id : null,
+      activity_type: "task",
+      subject: `Campaign Task: ${campaign.name}`,
+      description: content,
+      due_at: new Date().toISOString(),
+      completed: false,
+    })
+    result.task = true
+  }
+
+  // Log the step execution
+  await supabase.from("campaign_logs").insert({
+    lead_id: enrollmentType === "lead" ? enrollment.lead_id : null,
+    campaign_id: enrollment.campaign_id,
+    step_id: step.id,
+    event: `${stepType}_sent`,
+    info: {
+      step_number: nextStepNumber,
+      ai_personalized: step.ai_personalize,
+      channel: campaignChannel,
+      enrollment_type: enrollmentType,
+    },
+  })
+
+  // Get next step to calculate next_run_at
+  const { data: nextStep } = await supabase
+    .from("campaign_steps")
+    .select("delay_hours")
+    .eq("campaign_id", enrollment.campaign_id)
+    .eq("step_number", nextStepNumber + 1)
+    .single()
+
+  const nextRunAt = nextStep
+    ? new Date(Date.now() + (nextStep.delay_hours || 1) * 60 * 60 * 1000).toISOString()
+    : null
+
+  // Update enrollment
+  await supabase
+    .from(tableName)
+    .update({
+      current_step: nextStepNumber,
+      next_run_at: nextRunAt,
+      status: nextRunAt ? "active" : "completed",
+    })
+    .eq("id", enrollment.id)
+
+  return result
 }
 
-function replacePlaceholders(text: string, lead: any, agentName: string): string {
+function replacePlaceholders(text: string, recipient: any, agentName: string): string {
   return text
-    .replace(/\{\{first_name\}\}/gi, lead.first_name || "")
-    .replace(/\{\{last_name\}\}/gi, lead.last_name || "")
+    .replace(/\{\{first_name\}\}/gi, recipient.first_name || "")
+    .replace(/\{\{last_name\}\}/gi, recipient.last_name || "")
     .replace(/\{\{agent_name\}\}/gi, agentName)
-    .replace(/\{\{property_interest\}\}/gi, lead.property_interest || "your area")
-    .replace(/\{\{budget\}\}/gi, lead.budget_max ? `$${lead.budget_max.toLocaleString()}` : "your budget")
-    .replace(/\{\{timeline\}\}/gi, lead.timeline || "soon")
+    .replace(/\{\{property_interest\}\}/gi, recipient.property_interest || "your area")
+    .replace(/\{\{budget\}\}/gi, recipient.budget_max ? `$${recipient.budget_max.toLocaleString()}` : "your budget")
+    .replace(/\{\{timeline\}\}/gi, recipient.timeline || "soon")
 }

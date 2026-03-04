@@ -31,8 +31,10 @@ const eventIcons: Record<string, any> = {
   email_sent: Mail,
   sms_sent: MessageSquare,
   property_recommendation_sent: Home,
+  task_sent: CheckCircle2,
   completed: CheckCircle2,
   campaign_completed: CheckCircle2,
+  enrolled: Clock,
   error: XCircle,
 }
 
@@ -40,8 +42,10 @@ const eventColors: Record<string, string> = {
   email_sent: "bg-blue-100 text-blue-700",
   sms_sent: "bg-green-100 text-green-700",
   property_recommendation_sent: "bg-purple-100 text-purple-700",
+  task_sent: "bg-amber-100 text-amber-700",
   completed: "bg-gray-100 text-gray-700",
   campaign_completed: "bg-gray-100 text-gray-700",
+  enrolled: "bg-indigo-100 text-indigo-700",
   error: "bg-red-100 text-red-700",
 }
 
@@ -49,8 +53,10 @@ const eventLabels: Record<string, string> = {
   email_sent: "Email Sent",
   sms_sent: "SMS Sent",
   property_recommendation_sent: "Properties Sent",
-  completed: "Step Completed",
+  task_sent: "Task Created",
+  completed: "Campaign Completed",
   campaign_completed: "Campaign Completed",
+  enrolled: "Lead Enrolled",
   error: "Error",
 }
 

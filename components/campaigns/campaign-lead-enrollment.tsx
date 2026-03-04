@@ -15,6 +15,12 @@ import { toast } from "sonner"
 
 interface Lead {
   id: string
+  status: string
+  first_name: string | null
+  last_name: string | null
+  email: string | null
+  phone: string | null
+  contact_id: string | null
   contact: {
     id: string
     first_name: string | null
@@ -22,8 +28,7 @@ interface Lead {
     email: string | null
     phone: string | null
     tags: string[] | null
-  }
-  status: string
+  } | null
 }
 
 interface CampaignLeadEnrollmentProps {
@@ -50,19 +55,19 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
   async function fetchData() {
     setLoading(true)
 
-    // Get current user's leads
-    const { data: sessionData } = await supabase.auth.getSession()
-    if (!sessionData.session) return
-
-    const userId = sessionData.session.user.id
-
-    // Fetch all leads with contacts
-    const { data: leadsData } = await supabase
+    // Fetch all leads - RLS handles filtering to current user's leads
+    // Also fetch leads directly with first_name/last_name in case contact join fails
+    const { data: leadsData, error: leadsError } = await supabase
       .from("leads")
       .select(
         `
         id,
         status,
+        first_name,
+        last_name,
+        email,
+        phone,
+        contact_id,
         contact:contacts(
           id,
           first_name,
@@ -73,16 +78,22 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
         )
       `,
       )
-      .eq("agent_id", userId)
       .order("created_at", { ascending: false })
 
-    // Fetch already enrolled leads
+    if (leadsError) {
+      console.error("Error fetching leads:", leadsError)
+      toast.error("Failed to load leads")
+      setLoading(false)
+      return
+    }
+
+    // Fetch already enrolled leads for this campaign
     const { data: enrollmentsData } = await supabase
       .from("lead_campaign_enrollments")
       .select("lead_id")
       .eq("campaign_id", campaignId)
 
-    // Extract all unique tags
+    // Extract all unique tags from contacts
     const tags = new Set<string>()
     leadsData?.forEach((lead: any) => {
       lead.contact?.tags?.forEach((tag: string) => tags.add(tag))
@@ -149,7 +160,9 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
       next_run_at: nextRunAt.toISOString(),
     }))
 
-    const { error } = await supabase.from("lead_campaign_enrollments").insert(enrollments)
+    const { error } = await supabase
+      .from("lead_campaign_enrollments")
+      .insert(enrollments)
 
     if (error) {
       toast.error("Failed to enroll leads: " + error.message)
@@ -172,12 +185,27 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
     setEnrolling(false)
   }
 
+  // Helper to get lead display name
+  const getLeadName = (lead: Lead) => {
+    const firstName = lead.contact?.first_name || lead.first_name || ""
+    const lastName = lead.contact?.last_name || lead.last_name || ""
+    return firstName || lastName ? `${firstName} ${lastName}`.trim() : "Unnamed Lead"
+  }
+
+  // Helper to get lead email
+  const getLeadEmail = (lead: Lead) => lead.contact?.email || lead.email
+  
+  // Helper to get lead phone
+  const getLeadPhone = (lead: Lead) => lead.contact?.phone || lead.phone
+
   const filteredLeads = leads.filter((lead) => {
+    const name = getLeadName(lead).toLowerCase()
+    const email = getLeadEmail(lead)?.toLowerCase() || ""
+    
     const matchesSearch =
       !searchQuery ||
-      lead.contact?.first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lead.contact?.last_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lead.contact?.email?.toLowerCase().includes(searchQuery.toLowerCase())
+      name.includes(searchQuery.toLowerCase()) ||
+      email.includes(searchQuery.toLowerCase())
 
     const isNotEnrolled = !enrolledLeadIds.includes(lead.id)
 
@@ -257,21 +285,19 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
                       />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm truncate">
-                          {lead.contact?.first_name || lead.contact?.last_name
-                            ? `${lead.contact.first_name || ""} ${lead.contact.last_name || ""}`.trim()
-                            : "Unnamed Contact"}
+                          {getLeadName(lead)}
                         </p>
                         <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                          {lead.contact?.email && (
+                          {getLeadEmail(lead) && (
                             <span className="flex items-center gap-1">
                               <Mail className="h-3 w-3" />
-                              {lead.contact.email}
+                              {getLeadEmail(lead)}
                             </span>
                           )}
-                          {lead.contact?.phone && (
+                          {getLeadPhone(lead) && (
                             <span className="flex items-center gap-1">
                               <Phone className="h-3 w-3" />
-                              {lead.contact.phone}
+                              {getLeadPhone(lead)}
                             </span>
                           )}
                         </div>
@@ -348,9 +374,7 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
                           <CheckCircle2 className="h-4 w-4 text-primary" />
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm truncate">
-                              {lead.contact?.first_name || lead.contact?.last_name
-                                ? `${lead.contact.first_name || ""} ${lead.contact.last_name || ""}`.trim()
-                                : "Unnamed Contact"}
+                              {getLeadName(lead)}
                             </p>
                             <div className="flex flex-wrap gap-1 mt-1">
                               {lead.contact?.tags
