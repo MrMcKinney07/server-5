@@ -26,6 +26,8 @@ interface ZipCodeListing {
   icon: React.ReactNode
   popular?: boolean
   image: string
+  spotsAvailable: number
+  totalSpots: number
 }
 
 interface VAPackage {
@@ -76,6 +78,8 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     icon: <MapPin className="h-6 w-6" />,
     popular: true,
     image: "/images/zip-codes/miami-beach.jpg",
+    spotsAvailable: 1,
+    totalSpots: 3,
   },
   {
     id: "zip-33109",
@@ -90,6 +94,8 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     icon: <MapPin className="h-6 w-6" />,
     popular: true,
     image: "/images/zip-codes/fisher-island.jpg",
+    spotsAvailable: 2,
+    totalSpots: 3,
   },
   {
     id: "zip-33301",
@@ -103,6 +109,8 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     price: 299,
     icon: <MapPin className="h-6 w-6" />,
     image: "/images/zip-codes/fort-lauderdale.jpg",
+    spotsAvailable: 3,
+    totalSpots: 3,
   },
   {
     id: "zip-33480",
@@ -117,6 +125,8 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     icon: <MapPin className="h-6 w-6" />,
     popular: true,
     image: "/images/zip-codes/palm-beach.jpg",
+    spotsAvailable: 0,
+    totalSpots: 3,
   },
   {
     id: "zip-33140",
@@ -130,6 +140,8 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     price: 199,
     icon: <MapPin className="h-6 w-6" />,
     image: "/images/zip-codes/north-miami-beach.jpg",
+    spotsAvailable: 2,
+    totalSpots: 3,
   },
   {
     id: "zip-33304",
@@ -143,6 +155,8 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     price: 179,
     icon: <MapPin className="h-6 w-6" />,
     image: "/images/zip-codes/wilton-manors.jpg",
+    spotsAvailable: 3,
+    totalSpots: 3,
   },
   // Central Florida - Orlando Area
   {
@@ -157,6 +171,8 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     price: 249,
     icon: <MapPin className="h-6 w-6" />,
     image: "/images/zip-codes/downtown-orlando.jpg",
+    spotsAvailable: 1,
+    totalSpots: 3,
   },
   {
     id: "zip-32789",
@@ -170,6 +186,8 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     price: 279,
     icon: <MapPin className="h-6 w-6" />,
     image: "/images/zip-codes/winter-park.jpg",
+    spotsAvailable: 2,
+    totalSpots: 3,
   },
   {
     id: "zip-34786",
@@ -183,6 +201,8 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     price: 329,
     icon: <MapPin className="h-6 w-6" />,
     image: "/images/zip-codes/windermere.jpg",
+    spotsAvailable: 3,
+    totalSpots: 3,
   },
   {
     id: "zip-32819",
@@ -196,6 +216,8 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     price: 189,
     icon: <MapPin className="h-6 w-6" />,
     image: "/images/zip-codes/dr-phillips.jpg",
+    spotsAvailable: 1,
+    totalSpots: 3,
   },
   {
     id: "zip-32836",
@@ -209,6 +231,8 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     price: 169,
     icon: <MapPin className="h-6 w-6" />,
     image: "/images/zip-codes/lake-buena-vista.jpg",
+    spotsAvailable: 2,
+    totalSpots: 3,
   },
   {
     id: "zip-34747",
@@ -222,6 +246,8 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     price: 179,
     icon: <MapPin className="h-6 w-6" />,
     image: "/images/zip-codes/celebration.jpg",
+    spotsAvailable: 3,
+    totalSpots: 3,
   },
   // Surrounding Areas
   {
@@ -236,6 +262,8 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     price: 149,
     icon: <MapPin className="h-6 w-6" />,
     image: "/images/zip-codes/lake-mary.jpg",
+    spotsAvailable: 2,
+    totalSpots: 3,
   },
   {
     id: "zip-34711",
@@ -249,6 +277,8 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     price: 129,
     icon: <MapPin className="h-6 w-6" />,
     image: "/images/zip-codes/clermont.jpg",
+    spotsAvailable: 3,
+    totalSpots: 3,
   },
   {
     id: "zip-32765",
@@ -262,6 +292,8 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     price: 99,
     icon: <MapPin className="h-6 w-6" />,
     image: "/images/zip-codes/oviedo.jpg",
+    spotsAvailable: 3,
+    totalSpots: 3,
   },
   {
     id: "zip-34744",
@@ -275,6 +307,8 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     price: 90,
     icon: <MapPin className="h-6 w-6" />,
     image: "/images/zip-codes/kissimmee.jpg",
+    spotsAvailable: 3,
+    totalSpots: 3,
   },
 ]
 
@@ -500,32 +534,52 @@ export function MarketingMarketplace() {
                         <p className="text-sm text-slate-400">{zip.state}</p>
                       </div>
 
-                      <div className="space-y-2 bg-white/5 rounded-lg p-3">
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="text-slate-400">Avg Home Price</span>
-                          <span className="text-white font-semibold">${(zip.avgHomePrice / 1000000).toFixed(1)}M</span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="text-slate-400">Leads/Month</span>
-                          <span className="text-primary font-semibold">{zip.monthlyLeads}+</span>
-                        </div>
-                      </div>
+<div className="space-y-2 bg-white/5 rounded-lg p-3">
+  <div className="flex justify-between items-center text-sm">
+  <span className="text-slate-400">Avg Home Price</span>
+  <span className="text-white font-semibold">${(zip.avgHomePrice / 1000000).toFixed(1)}M</span>
+  </div>
+  <div className="flex justify-between items-center text-sm">
+  <span className="text-slate-400">Leads/Month</span>
+  <span className="text-primary font-semibold">{zip.monthlyLeads}+</span>
+  </div>
+  <div className="flex justify-between items-center text-sm pt-2 border-t border-white/10">
+  <span className="text-slate-400">Spots Available</span>
+  <div className="flex items-center gap-1.5">
+    {[...Array(zip.totalSpots)].map((_, i) => (
+      <div 
+        key={i} 
+        className={`w-2.5 h-2.5 rounded-full ${i < zip.spotsAvailable ? 'bg-emerald-500' : 'bg-slate-600'}`}
+      />
+    ))}
+    <span className={`ml-1 font-semibold ${zip.spotsAvailable === 0 ? 'text-red-400' : zip.spotsAvailable === 1 ? 'text-amber-400' : 'text-emerald-400'}`}>
+      {zip.spotsAvailable}/{zip.totalSpots}
+    </span>
+  </div>
+  </div>
+  </div>
 
                       <div className="space-y-3 mt-auto pt-3 border-t border-white/10">
                         <div className="flex items-baseline gap-1">
                           <span className="text-2xl font-bold text-white">${zip.price}</span>
                           <span className="text-sm text-slate-400">/mo</span>
                         </div>
-                        <Button
-                          className="w-full"
-                          onClick={() => {
-                            handleAddToCart(zip, "zip")
-                            setSelectedZip(zip)
-                          }}
-                        >
-                          <ShoppingCart className="h-4 w-4 mr-2" />
-                          Add to Cart
-                        </Button>
+                        {zip.spotsAvailable === 0 ? (
+                          <Button className="w-full" variant="outline" disabled>
+                            Sold Out
+                          </Button>
+                        ) : (
+                          <Button
+                            className="w-full"
+                            onClick={() => {
+                              handleAddToCart(zip, "zip")
+                              setSelectedZip(zip)
+                            }}
+                          >
+                            <ShoppingCart className="h-4 w-4 mr-2" />
+                            {zip.spotsAvailable === 1 ? "Last Spot!" : "Claim Spot"}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </Card>
