@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { Check, ShoppingCart, Zap, MapPin, TrendingUp, Users, ArrowRight } from "lucide-react"
+import { Check, ShoppingCart, Zap, MapPin, TrendingUp, Users, ArrowRight, Package } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 interface ZipCodeListing {
@@ -20,6 +20,27 @@ interface ZipCodeListing {
   marketDemand: "high" | "medium" | "low"
   price: number
   icon: React.ReactNode
+  popular?: boolean
+}
+
+interface VAPackage {
+  id: string
+  name: string
+  hours: number
+  price: number
+  hourlyRate: number
+  features: string[]
+  popular?: boolean
+}
+
+interface PhysicalProduct {
+  id: string
+  name: string
+  category: string
+  description: string
+  price: number
+  quantity?: string
+  features: string[]
   popular?: boolean
 }
 
@@ -86,69 +107,116 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     price: 649,
     icon: <MapPin className="h-6 w-6" />,
   },
+]
+
+const VA_PACKAGES: VAPackage[] = [
   {
-    id: "zip-60611",
-    zipCode: "60611",
-    area: "Gold Coast",
-    state: "IL",
-    avgHomePrice: 1200000,
-    activeListings: 78,
-    monthlyLeads: 190,
-    marketDemand: "medium",
-    price: 349,
-    icon: <MapPin className="h-6 w-6" />,
+    id: "va-20hrs",
+    name: "Part-Time",
+    hours: 20,
+    price: 145,
+    hourlyRate: 7.25,
+    features: ["Lead follow-ups", "Email management", "Calendar scheduling", "Basic data entry"],
+    popular: false,
   },
   {
-    id: "zip-75201",
-    zipCode: "75201",
-    area: "Dallas Downtown",
-    state: "TX",
-    avgHomePrice: 750000,
-    activeListings: 95,
-    monthlyLeads: 220,
-    marketDemand: "medium",
-    price: 249,
-    icon: <MapPin className="h-6 w-6" />,
+    id: "va-40hrs",
+    name: "Full-Time",
+    hours: 40,
+    price: 290,
+    hourlyRate: 7.25,
+    features: ["Lead qualification", "Transaction support", "CRM management", "Team coordination", "Unlimited support"],
+    popular: true,
   },
   {
-    id: "zip-98102",
-    zipCode: "98102",
-    area: "Seattle Center",
-    state: "WA",
-    avgHomePrice: 1150000,
-    activeListings: 67,
-    monthlyLeads: 165,
-    marketDemand: "low",
-    price: 199,
-    icon: <MapPin className="h-6 w-6" />,
+    id: "va-60hrs",
+    name: "Extended",
+    hours: 60,
+    price: 435,
+    hourlyRate: 7.25,
+    features: ["Multiple VA support", "24/7 availability", "Advanced workflows", "Premium management", "Direct phone line"],
+  },
+]
+
+const PHYSICAL_PRODUCTS: PhysicalProduct[] = [
+  {
+    id: "sign-24x36",
+    name: "Yard Signs",
+    category: "signs",
+    description: "Professional real estate yard signs",
+    price: 12,
+    quantity: "per sign",
+    features: ["Full color printing", "Weather resistant", "Standard design included", "Free shipping (50+)"],
+    popular: true,
+  },
+  {
+    id: "cards-500",
+    name: "Business Cards",
+    category: "cards",
+    description: "Premium business cards",
+    price: 25,
+    quantity: "per 500",
+    features: ["Glossy or matte", "Custom design", "Quick turnaround", "Free design consultation"],
+    popular: true,
+  },
+  {
+    id: "flyers-500",
+    name: "Property Flyers",
+    category: "flyers",
+    description: "Full-color property listing flyers",
+    price: 35,
+    quantity: "per 500",
+    features: ["High-quality print", "MLS integration ready", "Multiple templates", "Digital version included"],
+  },
+  {
+    id: "postcards-500",
+    name: "Direct Mail Postcards",
+    category: "postcards",
+    description: "Targeted direct mail postcards",
+    price: 45,
+    quantity: "per 500",
+    features: ["Full color", "Personalized options", "Address printing", "Postage assistance"],
+  },
+  {
+    id: "banners-vinyl",
+    name: "Vinyl Banners",
+    category: "banners",
+    description: "Large format vinyl banners",
+    price: 55,
+    quantity: "per 10x3ft",
+    features: ["Custom design", "Weather-proof", "Free design", "Installation hardware included"],
+  },
+  {
+    id: "door-hangers",
+    name: "Door Hangers",
+    category: "hangers",
+    description: "Durable door hangers for prospecting",
+    price: 30,
+    quantity: "per 500",
+    features: ["Full color", "Die-cut design", "Tear-off contact card", "Recyclable material"],
   },
 ]
 
 export function MarketingMarketplace() {
+  const [activeTab, setActiveTab] = useState("zip-codes")
   const [selectedZip, setSelectedZip] = useState<ZipCodeListing | null>(null)
-  const [cart, setCart] = useState<ZipCodeListing[]>([])
+  const [selectedVA, setSelectedVA] = useState<VAPackage | null>(null)
+  const [selectedProduct, setSelectedProduct] = useState<PhysicalProduct | null>(null)
+  const [cart, setCart] = useState<(ZipCodeListing | VAPackage | PhysicalProduct)[]>([])
   const [activeMarket, setActiveMarket] = useState<"all" | "high" | "medium" | "low">("all")
   const { toast } = useToast()
 
   const filteredZips =
     activeMarket === "all" ? ZIP_CODE_LISTINGS : ZIP_CODE_LISTINGS.filter((z) => z.marketDemand === activeMarket)
 
-  const cartTotal = cart.reduce((sum, z) => sum + z.price, 0)
+  const cartTotal = cart.reduce((sum, item) => sum + (item as any).price, 0)
 
-  const handleAddToCart = (zip: ZipCodeListing) => {
-    setCart([...cart, zip])
+  const handleAddToCart = (item: any, type: string) => {
+    setCart([...cart, item])
+    const name = item.name || `${item.zipCode} - ${item.area}` || "Item"
     toast({
       title: "Added to cart",
-      description: `${zip.zipCode} - ${zip.area} has been added`,
-    })
-  }
-
-  const handleRemoveFromCart = (index: number) => {
-    const removed = cart[index]
-    setCart(cart.filter((_, i) => i !== index))
-    toast({
-      title: "Removed from cart",
-      description: `${removed.zipCode} has been removed`,
+      description: `${name} has been added`,
     })
   }
 
@@ -168,88 +236,221 @@ export function MarketingMarketplace() {
       {/* Hero Section */}
       <div className="bg-gradient-to-br from-primary/20 via-purple-500/10 to-pink-500/10 rounded-2xl p-8 border border-primary/20">
         <div className="max-w-3xl">
-          <h1 className="text-4xl font-bold mb-3 text-white">Zip Code Territory</h1>
+          <h1 className="text-4xl font-bold mb-3 text-white">Marketing Hub</h1>
           <p className="text-lg text-slate-300 mb-4">
-            Secure exclusive market territories with proven lead generation and market data
+            Scale your business with territories, virtual assistants, and professional marketing materials
           </p>
           <div className="flex items-center gap-2 text-sm text-primary">
             <Zap className="h-4 w-4" />
-            <span>Real-time market data & lead exclusivity</span>
+            <span>Everything you need to grow your real estate business</span>
           </div>
         </div>
       </div>
 
-      {/* Market Demand Tabs */}
-      <Tabs defaultValue="all" onValueChange={(v) => setActiveMarket(v as any)} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-4 bg-white/5 border border-white/10">
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="high">High Demand</TabsTrigger>
-          <TabsTrigger value="medium">Medium</TabsTrigger>
-          <TabsTrigger value="low">Low</TabsTrigger>
+      {/* Main Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-3 bg-white/5 border border-white/10">
+          <TabsTrigger value="zip-codes">Zip Codes</TabsTrigger>
+          <TabsTrigger value="va">Virtual Assistants</TabsTrigger>
+          <TabsTrigger value="physical">Physical Materials</TabsTrigger>
         </TabsList>
 
-        <TabsContent value={activeMarket} className="space-y-8 mt-8">
-          {/* Zip Codes Grid */}
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filteredZips.map((zip) => (
+        {/* ZIP CODES TAB */}
+        <TabsContent value="zip-codes" className="space-y-8 mt-8">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold text-white">Exclusive Territories</h2>
+            <div className="flex gap-2">
+              <Badge variant="outline" className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30">High Demand</Badge>
+            </div>
+          </div>
+
+          <Tabs defaultValue="all" onValueChange={(v) => setActiveMarket(v as any)} className="w-full">
+            <TabsList className="grid w-full max-w-md grid-cols-4 bg-white/5 border border-white/10">
+              <TabsTrigger value="all">All</TabsTrigger>
+              <TabsTrigger value="high">High</TabsTrigger>
+              <TabsTrigger value="medium">Medium</TabsTrigger>
+              <TabsTrigger value="low">Low</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value={activeMarket} className="space-y-8 mt-8">
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {filteredZips.map((zip) => (
+                  <Card
+                    key={zip.id}
+                    className={`group relative overflow-hidden transition-all duration-300 hover:scale-105 flex flex-col ${
+                      zip.popular ? "ring-2 ring-primary/50 shadow-lg shadow-primary/20" : ""
+                    }`}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+                    {zip.popular && (
+                      <Badge className="absolute top-4 right-4 bg-primary text-white z-10">Premium</Badge>
+                    )}
+
+                    <Badge
+                      variant="outline"
+                      className={`absolute top-4 left-4 z-10 border ${getDemandColor(zip.marketDemand)}`}
+                    >
+                      {zip.marketDemand === "high" && <TrendingUp className="h-3 w-3 mr-1" />}
+                      {zip.marketDemand.charAt(0).toUpperCase() + zip.marketDemand.slice(1)}
+                    </Badge>
+
+                    <div className="relative flex-1 p-6 space-y-6 flex flex-col">
+                      <div className="space-y-2">
+                        <div className="text-4xl font-bold text-white">{zip.zipCode}</div>
+                        <div className="space-y-1">
+                          <p className="text-lg font-semibold text-primary">{zip.area}</p>
+                          <p className="text-sm text-slate-400">{zip.state}</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 bg-white/5 rounded-lg p-4">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-slate-400">Avg Home Price</span>
+                          <span className="text-white font-semibold">${(zip.avgHomePrice / 1000000).toFixed(1)}M</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-slate-400">Leads/Month</span>
+                          <span className="text-primary font-semibold">{zip.monthlyLeads}+</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 mt-auto pt-4 border-t border-white/10">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-3xl font-bold text-white">${zip.price}</span>
+                          <span className="text-sm text-slate-400">/mo</span>
+                        </div>
+                        <Button
+                          className="w-full"
+                          onClick={() => {
+                            handleAddToCart(zip, "zip")
+                            setSelectedZip(zip)
+                          }}
+                        >
+                          <ShoppingCart className="h-4 w-4 mr-2" />
+                          Add to Cart
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </TabsContent>
+          </Tabs>
+        </TabsContent>
+
+        {/* VA TAB */}
+        <TabsContent value="va" className="space-y-8 mt-8">
+          <div>
+            <h2 className="text-2xl font-bold text-white mb-2">Virtual Assistants</h2>
+            <p className="text-slate-400">Hire dedicated VAs at $7.25/hour - choose your hours</p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-3">
+            {VA_PACKAGES.map((pkg) => (
               <Card
-                key={zip.id}
+                key={pkg.id}
                 className={`group relative overflow-hidden transition-all duration-300 hover:scale-105 flex flex-col ${
-                  zip.popular ? "md:col-span-2 lg:col-span-1 ring-2 ring-primary/50 shadow-lg shadow-primary/20" : ""
+                  pkg.popular ? "ring-2 ring-primary/50 shadow-lg shadow-primary/20" : ""
                 }`}
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-                {zip.popular && (
-                  <Badge className="absolute top-4 right-4 bg-primary text-white z-10">Premium</Badge>
+                {pkg.popular && (
+                  <Badge className="absolute top-4 right-4 bg-primary text-white z-10">Popular</Badge>
                 )}
 
-                <Badge
-                  variant="outline"
-                  className={`absolute top-4 left-4 z-10 border ${getDemandColor(zip.marketDemand)}`}
-                >
-                  {zip.marketDemand === "high" && <TrendingUp className="h-3 w-3 mr-1" />}
-                  {zip.marketDemand.charAt(0).toUpperCase() + zip.marketDemand.slice(1)} Demand
+                <div className="relative flex-1 p-6 space-y-6 flex flex-col">
+                  <div className="space-y-2">
+                    <p className="text-lg font-bold text-white">{pkg.name}</p>
+                    <p className="text-sm text-slate-400">{pkg.hours} hours/month</p>
+                  </div>
+
+                  <div className="space-y-3 bg-white/5 rounded-lg p-4">
+                    {pkg.features.map((feature, i) => (
+                      <div key={i} className="flex items-start gap-2 text-sm">
+                        <Check className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                        <span className="text-slate-300">{feature}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="space-y-3 mt-auto pt-4 border-t border-white/10">
+                    <div>
+                      <div className="text-3xl font-bold text-white">${pkg.price}</div>
+                      <p className="text-sm text-slate-400">${pkg.hourlyRate}/hr ({pkg.hours}hrs)</p>
+                    </div>
+                    <Button
+                      className="w-full"
+                      onClick={() => {
+                        handleAddToCart(pkg, "va")
+                        setSelectedVA(pkg)
+                      }}
+                    >
+                      <ShoppingCart className="h-4 w-4 mr-2" />
+                      Add to Cart
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        {/* PHYSICAL MATERIALS TAB */}
+        <TabsContent value="physical" className="space-y-8 mt-8">
+          <div>
+            <h2 className="text-2xl font-bold text-white mb-2">Physical Marketing Materials</h2>
+            <p className="text-slate-400">Professional signs, cards, flyers, and more</p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {PHYSICAL_PRODUCTS.map((product) => (
+              <Card
+                key={product.id}
+                className={`group relative overflow-hidden transition-all duration-300 hover:scale-105 flex flex-col ${
+                  product.popular ? "ring-2 ring-primary/50 shadow-lg shadow-primary/20" : ""
+                }`}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+                {product.popular && (
+                  <Badge className="absolute top-4 right-4 bg-primary text-white z-10">Popular</Badge>
+                )}
+
+                <Badge variant="outline" className="absolute top-4 left-4 bg-black/50 backdrop-blur-sm border-white/20 text-white z-10 capitalize">
+                  {product.category}
                 </Badge>
 
                 <div className="relative flex-1 p-6 space-y-6 flex flex-col">
                   <div className="space-y-2">
-                    <div className="text-4xl font-bold text-white">{zip.zipCode}</div>
-                    <div className="space-y-1">
-                      <p className="text-lg font-semibold text-primary">{zip.area}</p>
-                      <p className="text-sm text-slate-400">{zip.state}</p>
-                    </div>
+                    <p className="text-lg font-bold text-white">{product.name}</p>
+                    <p className="text-sm text-slate-400">{product.description}</p>
                   </div>
 
-                  <div className="space-y-3 bg-white/5 rounded-lg p-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-400 text-sm">Avg Home Price</span>
-                      <span className="text-white font-semibold">${(zip.avgHomePrice / 1000000).toFixed(1)}M</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-400 text-sm">Active Listings</span>
-                      <span className="text-white font-semibold">{zip.activeListings}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-400 text-sm">Monthly Leads</span>
-                      <span className="text-primary font-semibold">{zip.monthlyLeads}+</span>
-                    </div>
+                  <div className="space-y-2 bg-white/5 rounded-lg p-4">
+                    {product.features.map((feature, i) => (
+                      <div key={i} className="flex items-start gap-2 text-sm">
+                        <Check className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                        <span className="text-slate-300">{feature}</span>
+                      </div>
+                    ))}
                   </div>
 
                   <div className="space-y-3 mt-auto pt-4 border-t border-white/10">
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-3xl font-bold text-white">${zip.price}</span>
-                      <span className="text-sm text-slate-400">/month</span>
+                    <div>
+                      <div className="text-3xl font-bold text-white">${product.price}</div>
+                      <p className="text-sm text-slate-400">{product.quantity}</p>
                     </div>
                     <Button
-                      className="w-full group/btn"
+                      className="w-full"
                       onClick={() => {
-                        handleAddToCart(zip)
-                        setSelectedZip(zip)
+                        handleAddToCart(product, "physical")
+                        setSelectedProduct(product)
                       }}
                     >
                       <ShoppingCart className="h-4 w-4 mr-2" />
-                      Secure Territory
+                      Add to Cart
                     </Button>
                   </div>
                 </div>
@@ -265,7 +466,7 @@ export function MarketingMarketplace() {
           <div className="flex items-center justify-between gap-4">
             <div className="space-y-1">
               <p className="text-sm text-slate-300">
-                {cart.length} zip code{cart.length !== 1 ? "s" : ""} selected
+                {cart.length} item{cart.length !== 1 ? "s" : ""} in cart
               </p>
               <p className="text-2xl font-bold text-white">
                 ${cartTotal}
@@ -284,80 +485,6 @@ export function MarketingMarketplace() {
           </div>
         </Card>
       )}
-
-      {/* Zip Detail Dialog */}
-      <Dialog open={!!selectedZip} onOpenChange={() => setSelectedZip(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5" />
-              {selectedZip?.zipCode} - {selectedZip?.area}
-            </DialogTitle>
-            <DialogDescription>{selectedZip?.state}</DialogDescription>
-          </DialogHeader>
-
-          {selectedZip && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-primary/10 rounded-lg p-4">
-                  <p className="text-sm text-slate-400 mb-1">Avg Home Price</p>
-                  <p className="text-2xl font-bold text-white">${(selectedZip.avgHomePrice / 1000000).toFixed(1)}M</p>
-                </div>
-                <div className="bg-primary/10 rounded-lg p-4">
-                  <p className="text-sm text-slate-400 mb-1">Active Listings</p>
-                  <p className="text-2xl font-bold text-white">{selectedZip.activeListings}</p>
-                </div>
-                <div className="bg-primary/10 rounded-lg p-4">
-                  <p className="text-sm text-slate-400 mb-1">Monthly Leads</p>
-                  <p className="text-2xl font-bold text-primary">{selectedZip.monthlyLeads}+</p>
-                </div>
-                <div className="bg-primary/10 rounded-lg p-4">
-                  <p className="text-sm text-slate-400 mb-1">Market Demand</p>
-                  <p className="text-2xl font-bold text-white capitalize">{selectedZip.marketDemand}</p>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <h4 className="font-semibold text-white flex items-center gap-2">
-                  <Check className="h-4 w-4 text-primary" />
-                  Territory Includes
-                </h4>
-                <ul className="space-y-2 text-sm text-slate-300">
-                  <li className="flex items-start gap-2">
-                    <Check className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
-                    Exclusive zip code territory rights
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
-                    Real-time market analytics dashboard
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
-                    Pre-qualified leads direct to your CRM
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
-                    Competitor activity tracking
-                  </li>
-                </ul>
-              </div>
-
-              <div className="bg-primary/10 rounded-lg p-4">
-                <div className="flex justify-between mb-2">
-                  <span className="text-slate-300">Monthly Territory Fee:</span>
-                  <span className="font-semibold text-white">${selectedZip.price}</span>
-                </div>
-                <p className="text-xs text-slate-400">Cancel anytime, no long-term commitment</p>
-              </div>
-
-              <Button className="w-full" size="lg">
-                <ShoppingCart className="h-4 w-4 mr-2" />
-                Secure This Territory
-              </Button>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
