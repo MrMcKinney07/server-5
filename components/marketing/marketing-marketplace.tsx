@@ -6,8 +6,12 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { Check, ShoppingCart, Zap, MapPin, TrendingUp, Users, ArrowRight, Package } from "lucide-react"
+import { Check, ShoppingCart, Zap, MapPin, TrendingUp, Users, ArrowRight, Package, Palette, Upload, Eye } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 
 interface ZipCodeListing {
   id: string
@@ -43,6 +47,18 @@ interface PhysicalProduct {
   quantity?: string
   features: string[]
   popular?: boolean
+  customFields: string[]
+}
+
+interface ProductCustomization {
+  agentName: string
+  phone: string
+  email: string
+  brokerage: string
+  tagline: string
+  colorScheme: string
+  logoUrl: string
+  quantity: number
 }
 
 const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
@@ -293,6 +309,7 @@ const PHYSICAL_PRODUCTS: PhysicalProduct[] = [
     quantity: "per sign",
     features: ["Full color printing", "Weather resistant", "Standard design included", "Free shipping (50+)"],
     popular: true,
+    customFields: ["agentName", "phone", "brokerage", "colorScheme", "logo"],
   },
   {
     id: "cards-500",
@@ -303,6 +320,7 @@ const PHYSICAL_PRODUCTS: PhysicalProduct[] = [
     quantity: "per 500",
     features: ["Glossy or matte", "Custom design", "Quick turnaround", "Free design consultation"],
     popular: true,
+    customFields: ["agentName", "phone", "email", "brokerage", "tagline", "colorScheme", "logo"],
   },
   {
     id: "flyers-500",
@@ -312,6 +330,7 @@ const PHYSICAL_PRODUCTS: PhysicalProduct[] = [
     price: 35,
     quantity: "per 500",
     features: ["High-quality print", "MLS integration ready", "Multiple templates", "Digital version included"],
+    customFields: ["agentName", "phone", "email", "brokerage", "colorScheme", "logo"],
   },
   {
     id: "postcards-500",
@@ -321,6 +340,7 @@ const PHYSICAL_PRODUCTS: PhysicalProduct[] = [
     price: 45,
     quantity: "per 500",
     features: ["Full color", "Personalized options", "Address printing", "Postage assistance"],
+    customFields: ["agentName", "phone", "email", "brokerage", "tagline", "colorScheme", "logo"],
   },
   {
     id: "banners-vinyl",
@@ -330,6 +350,7 @@ const PHYSICAL_PRODUCTS: PhysicalProduct[] = [
     price: 55,
     quantity: "per 10x3ft",
     features: ["Custom design", "Weather-proof", "Free design", "Installation hardware included"],
+    customFields: ["agentName", "phone", "brokerage", "tagline", "colorScheme", "logo"],
   },
   {
     id: "door-hangers",
@@ -339,7 +360,17 @@ const PHYSICAL_PRODUCTS: PhysicalProduct[] = [
     price: 30,
     quantity: "per 500",
     features: ["Full color", "Die-cut design", "Tear-off contact card", "Recyclable material"],
+    customFields: ["agentName", "phone", "email", "tagline", "colorScheme"],
   },
+]
+
+const COLOR_SCHEMES = [
+  { id: "navy-gold", name: "Navy & Gold", primary: "#1e3a5f", secondary: "#d4af37" },
+  { id: "black-red", name: "Black & Red", primary: "#1a1a1a", secondary: "#dc2626" },
+  { id: "green-white", name: "Forest Green", primary: "#166534", secondary: "#ffffff" },
+  { id: "blue-white", name: "Ocean Blue", primary: "#1d4ed8", secondary: "#ffffff" },
+  { id: "burgundy-cream", name: "Burgundy & Cream", primary: "#7c2d12", secondary: "#fef3c7" },
+  { id: "teal-coral", name: "Teal & Coral", primary: "#0d9488", secondary: "#fb7185" },
 ]
 
 export function MarketingMarketplace() {
@@ -347,8 +378,19 @@ export function MarketingMarketplace() {
   const [selectedZip, setSelectedZip] = useState<ZipCodeListing | null>(null)
   const [selectedVA, setSelectedVA] = useState<VAPackage | null>(null)
   const [selectedProduct, setSelectedProduct] = useState<PhysicalProduct | null>(null)
+  const [customizeProduct, setCustomizeProduct] = useState<PhysicalProduct | null>(null)
   const [cart, setCart] = useState<(ZipCodeListing | VAPackage | PhysicalProduct)[]>([])
   const [activeMarket, setActiveMarket] = useState<"all" | "high" | "medium" | "low">("all")
+  const [customization, setCustomization] = useState<ProductCustomization>({
+    agentName: "",
+    phone: "",
+    email: "",
+    brokerage: "",
+    tagline: "",
+    colorScheme: "navy-gold",
+    logoUrl: "",
+    quantity: 1,
+  })
   const { toast } = useToast()
 
   const filteredZips =
@@ -598,13 +640,10 @@ export function MarketingMarketplace() {
                     </div>
                     <Button
                       className="w-full"
-                      onClick={() => {
-                        handleAddToCart(product, "physical")
-                        setSelectedProduct(product)
-                      }}
+                      onClick={() => setCustomizeProduct(product)}
                     >
-                      <ShoppingCart className="h-4 w-4 mr-2" />
-                      Add to Cart
+                      <Palette className="h-4 w-4 mr-2" />
+                      Customize & Order
                     </Button>
                   </div>
                 </div>
@@ -639,6 +678,332 @@ export function MarketingMarketplace() {
           </div>
         </Card>
       )}
+
+      {/* Product Customization Dialog */}
+      <Dialog open={!!customizeProduct} onOpenChange={() => setCustomizeProduct(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Palette className="h-5 w-5 text-primary" />
+              Customize Your {customizeProduct?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Personalize your marketing materials with your branding
+            </DialogDescription>
+          </DialogHeader>
+
+          {customizeProduct && (
+            <div className="grid md:grid-cols-2 gap-6 mt-4">
+              {/* Customization Form */}
+              <div className="space-y-5">
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-white flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs text-primary">1</span>
+                    Your Information
+                  </h3>
+                  
+                  {customizeProduct.customFields.includes("agentName") && (
+                    <div className="space-y-2">
+                      <Label htmlFor="agentName">Agent Name</Label>
+                      <Input
+                        id="agentName"
+                        placeholder="John Smith"
+                        value={customization.agentName}
+                        onChange={(e) => setCustomization({ ...customization, agentName: e.target.value })}
+                      />
+                    </div>
+                  )}
+
+                  {customizeProduct.customFields.includes("phone") && (
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone Number</Label>
+                      <Input
+                        id="phone"
+                        placeholder="(555) 123-4567"
+                        value={customization.phone}
+                        onChange={(e) => setCustomization({ ...customization, phone: e.target.value })}
+                      />
+                    </div>
+                  )}
+
+                  {customizeProduct.customFields.includes("email") && (
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="john@realestate.com"
+                        value={customization.email}
+                        onChange={(e) => setCustomization({ ...customization, email: e.target.value })}
+                      />
+                    </div>
+                  )}
+
+                  {customizeProduct.customFields.includes("brokerage") && (
+                    <div className="space-y-2">
+                      <Label htmlFor="brokerage">Brokerage Name</Label>
+                      <Input
+                        id="brokerage"
+                        placeholder="Premier Realty Group"
+                        value={customization.brokerage}
+                        onChange={(e) => setCustomization({ ...customization, brokerage: e.target.value })}
+                      />
+                    </div>
+                  )}
+
+                  {customizeProduct.customFields.includes("tagline") && (
+                    <div className="space-y-2">
+                      <Label htmlFor="tagline">Tagline / Slogan</Label>
+                      <Textarea
+                        id="tagline"
+                        placeholder="Your dream home awaits..."
+                        value={customization.tagline}
+                        onChange={(e) => setCustomization({ ...customization, tagline: e.target.value })}
+                        className="resize-none h-20"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-white flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs text-primary">2</span>
+                    Branding
+                  </h3>
+
+                  {customizeProduct.customFields.includes("colorScheme") && (
+                    <div className="space-y-2">
+                      <Label>Color Scheme</Label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {COLOR_SCHEMES.map((scheme) => (
+                          <button
+                            key={scheme.id}
+                            onClick={() => setCustomization({ ...customization, colorScheme: scheme.id })}
+                            className={`p-3 rounded-lg border transition-all ${
+                              customization.colorScheme === scheme.id
+                                ? "border-primary ring-2 ring-primary/50"
+                                : "border-white/10 hover:border-white/30"
+                            }`}
+                          >
+                            <div className="flex gap-1 mb-2">
+                              <div
+                                className="w-6 h-6 rounded"
+                                style={{ backgroundColor: scheme.primary }}
+                              />
+                              <div
+                                className="w-6 h-6 rounded border border-white/20"
+                                style={{ backgroundColor: scheme.secondary }}
+                              />
+                            </div>
+                            <p className="text-xs text-slate-300">{scheme.name}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {customizeProduct.customFields.includes("logo") && (
+                    <div className="space-y-2">
+                      <Label>Upload Logo</Label>
+                      <div className="border-2 border-dashed border-white/20 rounded-lg p-6 text-center hover:border-primary/50 transition-colors cursor-pointer">
+                        <Upload className="h-8 w-8 mx-auto text-slate-400 mb-2" />
+                        <p className="text-sm text-slate-400">Click to upload or drag and drop</p>
+                        <p className="text-xs text-slate-500 mt-1">PNG, JPG up to 5MB</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-white flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs text-primary">3</span>
+                    Quantity
+                  </h3>
+                  <div className="flex items-center gap-4">
+                    <Select
+                      value={String(customization.quantity)}
+                      onValueChange={(v) => setCustomization({ ...customization, quantity: Number(v) })}
+                    >
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1</SelectItem>
+                        <SelectItem value="2">2</SelectItem>
+                        <SelectItem value="5">5</SelectItem>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="25">25</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <span className="text-slate-400">{customizeProduct.quantity}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Preview */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-white flex items-center gap-2">
+                  <Eye className="h-4 w-4" />
+                  Live Preview
+                </h3>
+                
+                <div 
+                  className="rounded-xl overflow-hidden border border-white/10"
+                  style={{ 
+                    backgroundColor: COLOR_SCHEMES.find(s => s.id === customization.colorScheme)?.primary || "#1e3a5f"
+                  }}
+                >
+                  {/* Preview based on product type */}
+                  {customizeProduct.category === "cards" && (
+                    <div className="p-6 aspect-[3.5/2] flex flex-col justify-between">
+                      <div>
+                        <p 
+                          className="text-xl font-bold"
+                          style={{ color: COLOR_SCHEMES.find(s => s.id === customization.colorScheme)?.secondary || "#d4af37" }}
+                        >
+                          {customization.agentName || "Your Name"}
+                        </p>
+                        <p className="text-white/80 text-sm mt-1">
+                          {customization.brokerage || "Your Brokerage"}
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-white/90 text-sm">{customization.phone || "(555) 123-4567"}</p>
+                        <p className="text-white/90 text-sm">{customization.email || "email@example.com"}</p>
+                        {customization.tagline && (
+                          <p 
+                            className="text-xs italic mt-2"
+                            style={{ color: COLOR_SCHEMES.find(s => s.id === customization.colorScheme)?.secondary || "#d4af37" }}
+                          >
+                            "{customization.tagline}"
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {customizeProduct.category === "signs" && (
+                    <div className="p-8 aspect-[3/4] flex flex-col items-center justify-center text-center">
+                      <p 
+                        className="text-3xl font-bold mb-2"
+                        style={{ color: COLOR_SCHEMES.find(s => s.id === customization.colorScheme)?.secondary || "#d4af37" }}
+                      >
+                        FOR SALE
+                      </p>
+                      <div className="my-4 py-4 border-t border-b border-white/30 w-full">
+                        <p className="text-white text-xl font-semibold">
+                          {customization.agentName || "Agent Name"}
+                        </p>
+                        <p className="text-white/80 text-lg mt-1">
+                          {customization.phone || "(555) 123-4567"}
+                        </p>
+                      </div>
+                      <p className="text-white/70 text-sm">
+                        {customization.brokerage || "Brokerage Name"}
+                      </p>
+                    </div>
+                  )}
+
+                  {(customizeProduct.category === "flyers" || customizeProduct.category === "postcards") && (
+                    <div className="p-6 aspect-[8.5/11] flex flex-col">
+                      <div 
+                        className="text-center py-4 mb-4"
+                        style={{ borderBottom: `2px solid ${COLOR_SCHEMES.find(s => s.id === customization.colorScheme)?.secondary || "#d4af37"}` }}
+                      >
+                        <p 
+                          className="text-2xl font-bold"
+                          style={{ color: COLOR_SCHEMES.find(s => s.id === customization.colorScheme)?.secondary || "#d4af37" }}
+                        >
+                          {customization.brokerage || "Your Brokerage"}
+                        </p>
+                      </div>
+                      <div className="flex-1 bg-white/10 rounded-lg flex items-center justify-center">
+                        <p className="text-white/50">Property Image</p>
+                      </div>
+                      <div className="mt-4 pt-4 border-t border-white/20 flex justify-between items-end">
+                        <div>
+                          <p className="text-white font-semibold">{customization.agentName || "Agent Name"}</p>
+                          <p className="text-white/80 text-sm">{customization.phone || "(555) 123-4567"}</p>
+                        </div>
+                        {customization.tagline && (
+                          <p 
+                            className="text-sm italic"
+                            style={{ color: COLOR_SCHEMES.find(s => s.id === customization.colorScheme)?.secondary || "#d4af37" }}
+                          >
+                            {customization.tagline}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {(customizeProduct.category === "banners" || customizeProduct.category === "hangers") && (
+                    <div className="p-6 aspect-[3/1] flex items-center justify-between">
+                      <div>
+                        <p 
+                          className="text-2xl font-bold"
+                          style={{ color: COLOR_SCHEMES.find(s => s.id === customization.colorScheme)?.secondary || "#d4af37" }}
+                        >
+                          {customization.agentName || "Agent Name"}
+                        </p>
+                        <p className="text-white/80">{customization.brokerage || "Brokerage"}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-white text-xl">{customization.phone || "(555) 123-4567"}</p>
+                        {customization.tagline && (
+                          <p className="text-white/70 text-sm italic">"{customization.tagline}"</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Order Summary */}
+                <Card className="p-4 bg-white/5">
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-slate-400">Unit Price:</span>
+                    <span className="text-white">${customizeProduct.price}</span>
+                  </div>
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-slate-400">Quantity:</span>
+                    <span className="text-white">{customization.quantity} x {customizeProduct.quantity}</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-3 border-t border-white/10">
+                    <span className="text-white font-semibold">Total:</span>
+                    <span className="text-2xl font-bold text-primary">
+                      ${(customizeProduct.price * customization.quantity).toFixed(2)}
+                    </span>
+                  </div>
+                </Card>
+
+                <Button 
+                  className="w-full" 
+                  size="lg"
+                  onClick={() => {
+                    handleAddToCart({ ...customizeProduct, customization }, "physical")
+                    setCustomizeProduct(null)
+                    setCustomization({
+                      agentName: "",
+                      phone: "",
+                      email: "",
+                      brokerage: "",
+                      tagline: "",
+                      colorScheme: "navy-gold",
+                      logoUrl: "",
+                      quantity: 1,
+                    })
+                  }}
+                >
+                  <ShoppingCart className="h-4 w-4 mr-2" />
+                  Add to Cart - ${(customizeProduct.price * customization.quantity).toFixed(2)}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
