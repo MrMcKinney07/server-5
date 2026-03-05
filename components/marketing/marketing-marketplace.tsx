@@ -982,7 +982,57 @@ export function MarketingMarketplace() {
   </div>
   </div>
 
-  {filteredZips.length === 0 ? (
+  {filteredZips.length === 0 && zipSearch ? (
+  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <Card className="group relative overflow-hidden flex flex-col opacity-75">
+      {/* Taken overlay */}
+      <div className="relative h-40 overflow-hidden bg-slate-800">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20" />
+        <Badge className="absolute top-3 right-3 bg-red-600 text-white z-10">Taken</Badge>
+        <Badge variant="outline" className="absolute top-3 left-3 z-10 border border-red-500/50 text-red-400">
+          Unavailable
+        </Badge>
+        <div className="absolute bottom-3 left-4">
+          <div className="text-3xl font-bold text-white/60 drop-shadow-lg">{zipSearch}</div>
+        </div>
+      </div>
+      <div className="relative flex-1 p-5 space-y-4 flex flex-col">
+        <div className="space-y-1">
+          <p className="text-lg font-semibold text-slate-400">{zipSearch}</p>
+          <p className="text-sm text-slate-500">FL</p>
+        </div>
+        <div className="space-y-2 bg-white/5 rounded-lg p-3">
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-slate-500">Status</span>
+            <span className="text-red-400 font-semibold">Already Claimed</span>
+          </div>
+          <div className="flex justify-between items-center text-sm pt-2 border-t border-white/10">
+            <span className="text-slate-500">Spots Available</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-slate-600" />
+              <div className="w-2.5 h-2.5 rounded-full bg-slate-600" />
+              <div className="w-2.5 h-2.5 rounded-full bg-slate-600" />
+              <span className="ml-1 font-semibold text-red-400">0/3</span>
+            </div>
+          </div>
+        </div>
+        <div className="space-y-3 mt-auto pt-3 border-t border-white/10">
+          <Button className="w-full" variant="outline" disabled>
+            All Spots Taken
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="w-full text-slate-400"
+            onClick={() => { setZipSearch(""); setActiveMarket("all"); }}
+          >
+            Browse Available Areas
+          </Button>
+        </div>
+      </div>
+    </Card>
+  </div>
+  ) : filteredZips.length === 0 ? (
   <div className="text-center py-12">
     <MapPin className="h-12 w-12 mx-auto text-slate-500 mb-4" />
     <h3 className="text-lg font-semibold text-white mb-2">No zip codes found</h3>
@@ -993,7 +1043,6 @@ export function MarketingMarketplace() {
   </div>
   ) : (
   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {filteredZips.map((zip) => (
                   <Card
                     key={zip.id}
