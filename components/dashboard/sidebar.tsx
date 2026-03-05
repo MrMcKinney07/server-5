@@ -13,6 +13,7 @@ import {
   Shield,
   Trophy,
   BookOpen,
+  Megaphone,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -22,6 +23,7 @@ const navItems = [
   { label: "Leads", href: "/dashboard/leads", icon: Users, color: "text-cyan-400" },
   { label: "Campaigns", href: "/dashboard/campaigns", icon: Mail, color: "text-rose-400" },
   { label: "Properties", href: "/dashboard/properties", icon: Home, color: "text-emerald-400" },
+  { label: "Marketing", href: "/dashboard/marketing", icon: Megaphone, color: "text-pink-400" },
   { label: "Earnings", href: "/dashboard/earnings", icon: DollarSign, color: "text-emerald-400" },
   { label: "Knowledge Base", href: "/dashboard/knowledge", icon: BookOpen, color: "text-violet-400" },
   { label: "Prestige", href: "/dashboard/prestige", icon: Trophy, color: "text-amber-400" },
