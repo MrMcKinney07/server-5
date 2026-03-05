@@ -6,161 +6,140 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { Check, ShoppingCart, Zap, Users, Megaphone, BarChart3, ArrowRight } from "lucide-react"
+import { Check, ShoppingCart, Zap, MapPin, TrendingUp, Users, ArrowRight } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
-interface MarketingProduct {
+interface ZipCodeListing {
   id: string
-  name: string
-  category: "ads" | "va" | "templates" | "tools"
-  description: string
-  features: string[]
+  zipCode: string
+  area: string
+  state: string
+  avgHomePrice: number
+  activeListings: number
+  monthlyLeads: number
+  marketDemand: "high" | "medium" | "low"
   price: number
   icon: React.ReactNode
   popular?: boolean
-  image?: string
-  tier?: "starter" | "pro" | "enterprise"
 }
 
-const MARKETING_PRODUCTS: MarketingProduct[] = [
-  // Ads
+const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
   {
-    id: "social-ads-starter",
-    name: "Social Media Ads Kit",
-    category: "ads",
-    description: "Pre-designed Facebook & Instagram ads for real estate listings",
-    features: ["50 Ad templates", "MLS integration", "Lead capture forms", "Analytics dashboard"],
-    price: 49,
-    tier: "starter",
-    icon: <Megaphone className="h-6 w-6" />,
-  },
-  {
-    id: "social-ads-pro",
-    name: "Premium Social Ads",
-    category: "ads",
-    description: "Advanced targeting and retargeting campaigns",
-    features: ["500 Ad templates", "AI optimization", "Multi-platform support", "Lead scoring", "Conversion tracking"],
-    price: 149,
-    tier: "pro",
-    icon: <Megaphone className="h-6 w-6" />,
+    id: "zip-90210",
+    zipCode: "90210",
+    area: "Beverly Hills",
+    state: "CA",
+    avgHomePrice: 2850000,
+    activeListings: 157,
+    monthlyLeads: 340,
+    marketDemand: "high",
+    price: 599,
+    icon: <MapPin className="h-6 w-6" />,
     popular: true,
   },
   {
-    id: "google-ads-suite",
-    name: "Google Ads Suite",
-    category: "ads",
-    description: "Google Ads setup, optimization & management",
-    features: ["Keyword research", "Campaign setup", "Monthly optimization", "Performance reports"],
-    price: 199,
-    tier: "pro",
-    icon: <BarChart3 className="h-6 w-6" />,
+    id: "zip-10021",
+    zipCode: "10021",
+    area: "Manhattan",
+    state: "NY",
+    avgHomePrice: 3200000,
+    activeListings: 203,
+    monthlyLeads: 425,
+    marketDemand: "high",
+    price: 749,
+    icon: <MapPin className="h-6 w-6" />,
+    popular: true,
   },
-
-  // Virtual Assistants
   {
-    id: "va-part-time",
-    name: "Part-Time Virtual Assistant",
-    category: "va",
-    description: "20 hours/week - Calls, emails, scheduling",
-    features: ["Lead follow-ups", "Calendar management", "Email management", "Basic CRM updates"],
+    id: "zip-33139",
+    zipCode: "33139",
+    area: "Miami Beach",
+    state: "FL",
+    avgHomePrice: 1850000,
+    activeListings: 89,
+    monthlyLeads: 210,
+    marketDemand: "high",
+    price: 449,
+    icon: <MapPin className="h-6 w-6" />,
+  },
+  {
+    id: "zip-78701",
+    zipCode: "78701",
+    area: "Downtown Austin",
+    state: "TX",
+    avgHomePrice: 950000,
+    activeListings: 112,
+    monthlyLeads: 280,
+    marketDemand: "medium",
     price: 299,
-    tier: "starter",
-    icon: <Users className="h-6 w-6" />,
+    icon: <MapPin className="h-6 w-6" />,
   },
   {
-    id: "va-full-time",
-    name: "Full-Time Virtual Assistant",
-    category: "va",
-    description: "40 hours/week - Complete administrative support",
-    features: ["24/7 availability", "Lead qualification", "Transaction support", "Database management", "Team coordination"],
-    price: 799,
-    tier: "pro",
-    icon: <Users className="h-6 w-6" />,
-    popular: true,
+    id: "zip-94301",
+    zipCode: "94301",
+    area: "Palo Alto",
+    state: "CA",
+    avgHomePrice: 2600000,
+    activeListings: 134,
+    monthlyLeads: 305,
+    marketDemand: "high",
+    price: 649,
+    icon: <MapPin className="h-6 w-6" />,
   },
   {
-    id: "va-dedicated-admin",
-    name: "Dedicated Admin Team",
-    category: "va",
-    description: "Multiple specialists for your entire operation",
-    features: ["Team of 3-5 people", "Custom workflows", "Premium support", "Training included"],
-    price: 1999,
-    tier: "enterprise",
-    icon: <Users className="h-6 w-6" />,
-  },
-
-  // Templates
-  {
-    id: "email-templates",
-    name: "Email Campaign Templates",
-    category: "templates",
-    description: "100+ professional email templates",
-    features: ["Buyer sequences", "Seller sequences", "Follow-up templates", "Holiday campaigns"],
-    price: 29,
-    tier: "starter",
-    icon: <Megaphone className="h-6 w-6" />,
+    id: "zip-60611",
+    zipCode: "60611",
+    area: "Gold Coast",
+    state: "IL",
+    avgHomePrice: 1200000,
+    activeListings: 78,
+    monthlyLeads: 190,
+    marketDemand: "medium",
+    price: 349,
+    icon: <MapPin className="h-6 w-6" />,
   },
   {
-    id: "video-templates",
-    name: "Video Marketing Pack",
-    category: "templates",
-    description: "Property showcase & testimonial video templates",
-    features: ["20 video templates", "Editing software access", "Music library", "Stock footage"],
-    price: 79,
-    tier: "pro",
-    icon: <Megaphone className="h-6 w-6" />,
+    id: "zip-75201",
+    zipCode: "75201",
+    area: "Dallas Downtown",
+    state: "TX",
+    avgHomePrice: 750000,
+    activeListings: 95,
+    monthlyLeads: 220,
+    marketDemand: "medium",
+    price: 249,
+    icon: <MapPin className="h-6 w-6" />,
   },
   {
-    id: "landing-pages",
-    name: "High-Converting Landing Pages",
-    category: "templates",
-    description: "Done-for-you landing page templates",
-    features: ["10 page templates", "CRM integration", "Mobile optimized", "A/B testing tools"],
-    price: 99,
-    tier: "pro",
-    icon: <Megaphone className="h-6 w-6" />,
-  },
-
-  // Tools
-  {
-    id: "crm-integration",
-    name: "Advanced CRM Tools",
-    category: "tools",
-    description: "Automation & workflow enhancements",
-    features: ["Custom automations", "Integration support", "Priority support"],
-    price: 39,
-    tier: "starter",
-    icon: <Zap className="h-6 w-6" />,
-  },
-  {
-    id: "analytics-premium",
-    name: "Premium Analytics Suite",
-    category: "tools",
-    description: "Deep insights into your marketing ROI",
-    features: ["Real-time dashboards", "Custom reports", "Predictive analytics", "Team performance tracking"],
-    price: 149,
-    tier: "pro",
-    icon: <BarChart3 className="h-6 w-6" />,
-    popular: true,
+    id: "zip-98102",
+    zipCode: "98102",
+    area: "Seattle Center",
+    state: "WA",
+    avgHomePrice: 1150000,
+    activeListings: 67,
+    monthlyLeads: 165,
+    marketDemand: "low",
+    price: 199,
+    icon: <MapPin className="h-6 w-6" />,
   },
 ]
 
 export function MarketingMarketplace() {
-  const [selectedProduct, setSelectedProduct] = useState<MarketingProduct | null>(null)
-  const [cart, setCart] = useState<MarketingProduct[]>([])
-  const [activeCategory, setActiveCategory] = useState<"all" | "ads" | "va" | "templates" | "tools">("all")
+  const [selectedZip, setSelectedZip] = useState<ZipCodeListing | null>(null)
+  const [cart, setCart] = useState<ZipCodeListing[]>([])
+  const [activeMarket, setActiveMarket] = useState<"all" | "high" | "medium" | "low">("all")
   const { toast } = useToast()
 
-  const filteredProducts =
-    activeCategory === "all" ? MARKETING_PRODUCTS : MARKETING_PRODUCTS.filter((p) => p.category === activeCategory)
+  const filteredZips =
+    activeMarket === "all" ? ZIP_CODE_LISTINGS : ZIP_CODE_LISTINGS.filter((z) => z.marketDemand === activeMarket)
 
-  const cartTotal = cart.reduce((sum, p) => sum + p.price, 0)
+  const cartTotal = cart.reduce((sum, z) => sum + z.price, 0)
 
-  const handleAddToCart = (product: MarketingProduct) => {
-    setCart([...cart, product])
+  const handleAddToCart = (zip: ZipCodeListing) => {
+    setCart([...cart, zip])
     toast({
       title: "Added to cart",
-      description: `${product.name} has been added to your cart`,
+      description: `${zip.zipCode} - ${zip.area} has been added`,
     })
   }
 
@@ -169,8 +148,19 @@ export function MarketingMarketplace() {
     setCart(cart.filter((_, i) => i !== index))
     toast({
       title: "Removed from cart",
-      description: `${removed.name} has been removed`,
+      description: `${removed.zipCode} has been removed`,
     })
+  }
+
+  const getDemandColor = (demand: string) => {
+    switch (demand) {
+      case "high":
+        return "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+      case "medium":
+        return "bg-amber-500/20 text-amber-300 border-amber-500/30"
+      default:
+        return "bg-blue-500/20 text-blue-300 border-blue-500/30"
+    }
   }
 
   return (
@@ -178,113 +168,94 @@ export function MarketingMarketplace() {
       {/* Hero Section */}
       <div className="bg-gradient-to-br from-primary/20 via-purple-500/10 to-pink-500/10 rounded-2xl p-8 border border-primary/20">
         <div className="max-w-3xl">
-          <h1 className="text-4xl font-bold mb-3 text-white">Marketing Marketplace</h1>
+          <h1 className="text-4xl font-bold mb-3 text-white">Zip Code Territory</h1>
           <p className="text-lg text-slate-300 mb-4">
-            Scale your business with premium marketing materials, virtual assistants, and proven strategies
+            Secure exclusive market territories with proven lead generation and market data
           </p>
           <div className="flex items-center gap-2 text-sm text-primary">
             <Zap className="h-4 w-4" />
-            <span>All products come with full support and integration</span>
+            <span>Real-time market data & lead exclusivity</span>
           </div>
         </div>
       </div>
 
-      {/* Category Tabs */}
-      <Tabs defaultValue="all" onValueChange={(v) => setActiveCategory(v as any)} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-5 bg-white/5 border border-white/10">
+      {/* Market Demand Tabs */}
+      <Tabs defaultValue="all" onValueChange={(v) => setActiveMarket(v as any)} className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-4 bg-white/5 border border-white/10">
           <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="ads">Ads</TabsTrigger>
-          <TabsTrigger value="va">VA</TabsTrigger>
-          <TabsTrigger value="templates">Templates</TabsTrigger>
-          <TabsTrigger value="tools">Tools</TabsTrigger>
+          <TabsTrigger value="high">High Demand</TabsTrigger>
+          <TabsTrigger value="medium">Medium</TabsTrigger>
+          <TabsTrigger value="low">Low</TabsTrigger>
         </TabsList>
 
-        <TabsContent value={activeCategory} className="space-y-8 mt-8">
-          {/* Products Grid */}
+        <TabsContent value={activeMarket} className="space-y-8 mt-8">
+          {/* Zip Codes Grid */}
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filteredProducts.map((product) => (
+            {filteredZips.map((zip) => (
               <Card
-                key={product.id}
+                key={zip.id}
                 className={`group relative overflow-hidden transition-all duration-300 hover:scale-105 flex flex-col ${
-                  product.popular ? "md:col-span-2 lg:col-span-1 ring-2 ring-primary/50 shadow-lg shadow-primary/20" : ""
+                  zip.popular ? "md:col-span-2 lg:col-span-1 ring-2 ring-primary/50 shadow-lg shadow-primary/20" : ""
                 }`}
               >
-                {/* Background gradient */}
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-                {/* Popular Badge */}
-                {product.popular && (
-                  <Badge className="absolute top-4 right-4 bg-primary text-white z-10">Popular</Badge>
+                {zip.popular && (
+                  <Badge className="absolute top-4 right-4 bg-primary text-white z-10">Premium</Badge>
                 )}
 
-                {/* Tier Badge */}
                 <Badge
                   variant="outline"
-                  className="absolute top-4 left-4 bg-black/50 backdrop-blur-sm border-white/20 text-white z-10 capitalize"
+                  className={`absolute top-4 left-4 z-10 border ${getDemandColor(zip.marketDemand)}`}
                 >
-                  {product.tier}
+                  {zip.marketDemand === "high" && <TrendingUp className="h-3 w-3 mr-1" />}
+                  {zip.marketDemand.charAt(0).toUpperCase() + zip.marketDemand.slice(1)} Demand
                 </Badge>
 
                 <div className="relative flex-1 p-6 space-y-6 flex flex-col">
-                  {/* Icon */}
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/30 to-purple-500/30 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                    {product.icon}
-                  </div>
-
-                  {/* Content */}
-                  <div className="space-y-3">
-                    <div>
-                      <h3 className="text-lg font-bold text-white group-hover:text-primary transition-colors">
-                        {product.name}
-                      </h3>
-                      <p className="text-sm text-slate-400 mt-1">{product.description}</p>
+                  <div className="space-y-2">
+                    <div className="text-4xl font-bold text-white">{zip.zipCode}</div>
+                    <div className="space-y-1">
+                      <p className="text-lg font-semibold text-primary">{zip.area}</p>
+                      <p className="text-sm text-slate-400">{zip.state}</p>
                     </div>
-
-                    {/* Features */}
-                    <ul className="space-y-2">
-                      {product.features.slice(0, 3).map((feature, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
-                          <Check className="h-4 w-4 text-primary/80 flex-shrink-0 mt-0.5" />
-                          <span>{feature}</span>
-                        </li>
-                      ))}
-                      {product.features.length > 3 && (
-                        <li className="text-sm text-primary/80 font-medium">+{product.features.length - 3} more</li>
-                      )}
-                    </ul>
                   </div>
 
-                  {/* Price & CTA */}
+                  <div className="space-y-3 bg-white/5 rounded-lg p-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400 text-sm">Avg Home Price</span>
+                      <span className="text-white font-semibold">${(zip.avgHomePrice / 1000000).toFixed(1)}M</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400 text-sm">Active Listings</span>
+                      <span className="text-white font-semibold">{zip.activeListings}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400 text-sm">Monthly Leads</span>
+                      <span className="text-primary font-semibold">{zip.monthlyLeads}+</span>
+                    </div>
+                  </div>
+
                   <div className="space-y-3 mt-auto pt-4 border-t border-white/10">
                     <div className="flex items-baseline gap-1">
-                      <span className="text-3xl font-bold text-white">${product.price}</span>
+                      <span className="text-3xl font-bold text-white">${zip.price}</span>
                       <span className="text-sm text-slate-400">/month</span>
                     </div>
                     <Button
                       className="w-full group/btn"
                       onClick={() => {
-                        handleAddToCart(product)
-                        setSelectedProduct(product)
+                        handleAddToCart(zip)
+                        setSelectedZip(zip)
                       }}
                     >
-                      <ShoppingCart className="h-4 w-4 mr-2 group-hover/btn:scale-110 transition-transform" />
-                      Add to Cart
+                      <ShoppingCart className="h-4 w-4 mr-2" />
+                      Secure Territory
                     </Button>
                   </div>
                 </div>
               </Card>
             ))}
           </div>
-
-          {filteredProducts.length === 0 && (
-            <Card className="p-12">
-              <div className="text-center space-y-2">
-                <Megaphone className="h-16 w-16 mx-auto text-muted-foreground" />
-                <h3 className="text-xl font-semibold">No products in this category</h3>
-                <p className="text-muted-foreground">Check back soon for more options!</p>
-              </div>
-            </Card>
-          )}
         </TabsContent>
       </Tabs>
 
@@ -294,7 +265,7 @@ export function MarketingMarketplace() {
           <div className="flex items-center justify-between gap-4">
             <div className="space-y-1">
               <p className="text-sm text-slate-300">
-                {cart.length} item{cart.length !== 1 ? "s" : ""} in cart
+                {cart.length} zip code{cart.length !== 1 ? "s" : ""} selected
               </p>
               <p className="text-2xl font-bold text-white">
                 ${cartTotal}
@@ -303,10 +274,10 @@ export function MarketingMarketplace() {
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setCart([])}>
-                Clear Cart
+                Clear
               </Button>
               <Button className="gap-2">
-                Proceed to Checkout
+                Checkout
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
@@ -314,45 +285,74 @@ export function MarketingMarketplace() {
         </Card>
       )}
 
-      {/* Product Detail Dialog */}
-      <Dialog open={!!selectedProduct} onOpenChange={() => setSelectedProduct(null)}>
+      {/* Zip Detail Dialog */}
+      <Dialog open={!!selectedZip} onOpenChange={() => setSelectedZip(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {selectedProduct?.icon}
-              {selectedProduct?.name}
+              <MapPin className="h-5 w-5" />
+              {selectedZip?.zipCode} - {selectedZip?.area}
             </DialogTitle>
-            <DialogDescription>{selectedProduct?.description}</DialogDescription>
+            <DialogDescription>{selectedZip?.state}</DialogDescription>
           </DialogHeader>
 
-          {selectedProduct && (
+          {selectedZip && (
             <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-primary/10 rounded-lg p-4">
+                  <p className="text-sm text-slate-400 mb-1">Avg Home Price</p>
+                  <p className="text-2xl font-bold text-white">${(selectedZip.avgHomePrice / 1000000).toFixed(1)}M</p>
+                </div>
+                <div className="bg-primary/10 rounded-lg p-4">
+                  <p className="text-sm text-slate-400 mb-1">Active Listings</p>
+                  <p className="text-2xl font-bold text-white">{selectedZip.activeListings}</p>
+                </div>
+                <div className="bg-primary/10 rounded-lg p-4">
+                  <p className="text-sm text-slate-400 mb-1">Monthly Leads</p>
+                  <p className="text-2xl font-bold text-primary">{selectedZip.monthlyLeads}+</p>
+                </div>
+                <div className="bg-primary/10 rounded-lg p-4">
+                  <p className="text-sm text-slate-400 mb-1">Market Demand</p>
+                  <p className="text-2xl font-bold text-white capitalize">{selectedZip.marketDemand}</p>
+                </div>
+              </div>
+
               <div className="space-y-3">
-                <h4 className="font-semibold text-white">Included Features:</h4>
-                <ul className="space-y-2">
-                  {selectedProduct.features.map((feature, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
-                      <Check className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
+                <h4 className="font-semibold text-white flex items-center gap-2">
+                  <Check className="h-4 w-4 text-primary" />
+                  Territory Includes
+                </h4>
+                <ul className="space-y-2 text-sm text-slate-300">
+                  <li className="flex items-start gap-2">
+                    <Check className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                    Exclusive zip code territory rights
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                    Real-time market analytics dashboard
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                    Pre-qualified leads direct to your CRM
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                    Competitor activity tracking
+                  </li>
                 </ul>
               </div>
 
-              <div className="bg-primary/10 rounded-lg p-4 space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-slate-300">Price per month:</span>
-                  <span className="font-semibold text-white">${selectedProduct.price}</span>
+              <div className="bg-primary/10 rounded-lg p-4">
+                <div className="flex justify-between mb-2">
+                  <span className="text-slate-300">Monthly Territory Fee:</span>
+                  <span className="font-semibold text-white">${selectedZip.price}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-400">Cancel anytime</span>
-                  <span className="text-primary">No lock-in</span>
-                </div>
+                <p className="text-xs text-slate-400">Cancel anytime, no long-term commitment</p>
               </div>
 
               <Button className="w-full" size="lg">
                 <ShoppingCart className="h-4 w-4 mr-2" />
-                Confirm Add to Cart
+                Secure This Territory
               </Button>
             </div>
           )}
