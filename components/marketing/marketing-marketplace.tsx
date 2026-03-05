@@ -114,7 +114,7 @@ const VA_PACKAGES: VAPackage[] = [
     id: "va-20hrs",
     name: "Part-Time",
     hours: 20,
-    price: 145,
+    price: 149,
     hourlyRate: 7.25,
     features: ["Lead follow-ups", "Email management", "Calendar scheduling", "Basic data entry"],
     popular: false,
@@ -123,18 +123,10 @@ const VA_PACKAGES: VAPackage[] = [
     id: "va-40hrs",
     name: "Full-Time",
     hours: 40,
-    price: 290,
+    price: 299,
     hourlyRate: 7.25,
     features: ["Lead qualification", "Transaction support", "CRM management", "Team coordination", "Unlimited support"],
     popular: true,
-  },
-  {
-    id: "va-60hrs",
-    name: "Extended",
-    hours: 60,
-    price: 435,
-    hourlyRate: 7.25,
-    features: ["Multiple VA support", "24/7 availability", "Advanced workflows", "Premium management", "Direct phone line"],
   },
 ]
 
