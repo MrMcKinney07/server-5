@@ -45,7 +45,7 @@ interface PhysicalProduct {
 }
 
 const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
-  // Miami & Beaches
+  // Miami & Beaches - Premium
   {
     id: "zip-33139",
     zipCode: "33139",
@@ -55,7 +55,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     activeListings: 89,
     monthlyLeads: 210,
     marketDemand: "high",
-    price: 449,
+    price: 349,
     icon: <MapPin className="h-6 w-6" />,
     popular: true,
   },
@@ -68,7 +68,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     activeListings: 45,
     monthlyLeads: 85,
     marketDemand: "high",
-    price: 599,
+    price: 399,
     icon: <MapPin className="h-6 w-6" />,
     popular: true,
   },
@@ -81,7 +81,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     activeListings: 112,
     monthlyLeads: 185,
     marketDemand: "high",
-    price: 399,
+    price: 299,
     icon: <MapPin className="h-6 w-6" />,
   },
   {
@@ -93,7 +93,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     activeListings: 78,
     monthlyLeads: 120,
     marketDemand: "high",
-    price: 549,
+    price: 379,
     icon: <MapPin className="h-6 w-6" />,
     popular: true,
   },
@@ -106,7 +106,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     activeListings: 134,
     monthlyLeads: 165,
     marketDemand: "medium",
-    price: 299,
+    price: 199,
     icon: <MapPin className="h-6 w-6" />,
   },
   {
@@ -118,7 +118,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     activeListings: 95,
     monthlyLeads: 140,
     marketDemand: "medium",
-    price: 249,
+    price: 179,
     icon: <MapPin className="h-6 w-6" />,
   },
   // Central Florida - Orlando Area
@@ -131,7 +131,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     activeListings: 156,
     monthlyLeads: 220,
     marketDemand: "high",
-    price: 349,
+    price: 249,
     icon: <MapPin className="h-6 w-6" />,
   },
   {
@@ -143,7 +143,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     activeListings: 98,
     monthlyLeads: 175,
     marketDemand: "high",
-    price: 379,
+    price: 279,
     icon: <MapPin className="h-6 w-6" />,
   },
   {
@@ -155,7 +155,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     activeListings: 87,
     monthlyLeads: 145,
     marketDemand: "high",
-    price: 429,
+    price: 329,
     icon: <MapPin className="h-6 w-6" />,
   },
   {
@@ -167,7 +167,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     activeListings: 124,
     monthlyLeads: 195,
     marketDemand: "medium",
-    price: 299,
+    price: 189,
     icon: <MapPin className="h-6 w-6" />,
   },
   {
@@ -179,7 +179,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     activeListings: 89,
     monthlyLeads: 160,
     marketDemand: "medium",
-    price: 279,
+    price: 169,
     icon: <MapPin className="h-6 w-6" />,
   },
   {
@@ -191,7 +191,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     activeListings: 76,
     monthlyLeads: 130,
     marketDemand: "medium",
-    price: 289,
+    price: 179,
     icon: <MapPin className="h-6 w-6" />,
   },
   // Surrounding Areas
@@ -204,7 +204,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     activeListings: 145,
     monthlyLeads: 185,
     marketDemand: "medium",
-    price: 259,
+    price: 149,
     icon: <MapPin className="h-6 w-6" />,
   },
   {
@@ -216,7 +216,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     activeListings: 178,
     monthlyLeads: 210,
     marketDemand: "medium",
-    price: 239,
+    price: 129,
     icon: <MapPin className="h-6 w-6" />,
   },
   {
@@ -228,7 +228,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     activeListings: 112,
     monthlyLeads: 155,
     marketDemand: "low",
-    price: 199,
+    price: 99,
     icon: <MapPin className="h-6 w-6" />,
   },
   {
@@ -240,7 +240,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     activeListings: 198,
     monthlyLeads: 240,
     marketDemand: "low",
-    price: 189,
+    price: 90,
     icon: <MapPin className="h-6 w-6" />,
   },
 ]
