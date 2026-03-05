@@ -21,6 +21,7 @@ interface ZipCodeListing {
   price: number
   icon: React.ReactNode
   popular?: boolean
+  image: string
 }
 
 interface VAPackage {
@@ -58,6 +59,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     price: 349,
     icon: <MapPin className="h-6 w-6" />,
     popular: true,
+    image: "/images/zip-codes/miami-beach.jpg",
   },
   {
     id: "zip-33109",
@@ -71,6 +73,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     price: 399,
     icon: <MapPin className="h-6 w-6" />,
     popular: true,
+    image: "/images/zip-codes/fisher-island.jpg",
   },
   {
     id: "zip-33301",
@@ -83,6 +86,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     marketDemand: "high",
     price: 299,
     icon: <MapPin className="h-6 w-6" />,
+    image: "/images/zip-codes/fort-lauderdale.jpg",
   },
   {
     id: "zip-33480",
@@ -96,6 +100,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     price: 379,
     icon: <MapPin className="h-6 w-6" />,
     popular: true,
+    image: "/images/zip-codes/palm-beach.jpg",
   },
   {
     id: "zip-33140",
@@ -108,6 +113,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     marketDemand: "medium",
     price: 199,
     icon: <MapPin className="h-6 w-6" />,
+    image: "/images/zip-codes/north-miami-beach.jpg",
   },
   {
     id: "zip-33304",
@@ -120,6 +126,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     marketDemand: "medium",
     price: 179,
     icon: <MapPin className="h-6 w-6" />,
+    image: "/images/zip-codes/wilton-manors.jpg",
   },
   // Central Florida - Orlando Area
   {
@@ -133,6 +140,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     marketDemand: "high",
     price: 249,
     icon: <MapPin className="h-6 w-6" />,
+    image: "/images/zip-codes/downtown-orlando.jpg",
   },
   {
     id: "zip-32789",
@@ -145,6 +153,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     marketDemand: "high",
     price: 279,
     icon: <MapPin className="h-6 w-6" />,
+    image: "/images/zip-codes/winter-park.jpg",
   },
   {
     id: "zip-34786",
@@ -157,6 +166,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     marketDemand: "high",
     price: 329,
     icon: <MapPin className="h-6 w-6" />,
+    image: "/images/zip-codes/windermere.jpg",
   },
   {
     id: "zip-32819",
@@ -169,6 +179,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     marketDemand: "medium",
     price: 189,
     icon: <MapPin className="h-6 w-6" />,
+    image: "/images/zip-codes/dr-phillips.jpg",
   },
   {
     id: "zip-32836",
@@ -181,6 +192,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     marketDemand: "medium",
     price: 169,
     icon: <MapPin className="h-6 w-6" />,
+    image: "/images/zip-codes/lake-buena-vista.jpg",
   },
   {
     id: "zip-34747",
@@ -193,6 +205,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     marketDemand: "medium",
     price: 179,
     icon: <MapPin className="h-6 w-6" />,
+    image: "/images/zip-codes/celebration.jpg",
   },
   // Surrounding Areas
   {
@@ -206,6 +219,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     marketDemand: "medium",
     price: 149,
     icon: <MapPin className="h-6 w-6" />,
+    image: "/images/zip-codes/lake-mary.jpg",
   },
   {
     id: "zip-34711",
@@ -218,6 +232,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     marketDemand: "medium",
     price: 129,
     icon: <MapPin className="h-6 w-6" />,
+    image: "/images/zip-codes/clermont.jpg",
   },
   {
     id: "zip-32765",
@@ -230,6 +245,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     marketDemand: "low",
     price: 99,
     icon: <MapPin className="h-6 w-6" />,
+    image: "/images/zip-codes/oviedo.jpg",
   },
   {
     id: "zip-34744",
@@ -242,6 +258,7 @@ const ZIP_CODE_LISTINGS: ZipCodeListing[] = [
     marketDemand: "low",
     price: 90,
     icon: <MapPin className="h-6 w-6" />,
+    image: "/images/zip-codes/kissimmee.jpg",
   },
 ]
 
@@ -409,30 +426,39 @@ export function MarketingMarketplace() {
                       zip.popular ? "ring-2 ring-primary/50 shadow-lg shadow-primary/20" : ""
                     }`}
                   >
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    {/* Image */}
+                    <div className="relative h-40 overflow-hidden">
+                      <img 
+                        src={zip.image} 
+                        alt={`${zip.area}, ${zip.state}`}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                      
+                      {zip.popular && (
+                        <Badge className="absolute top-3 right-3 bg-primary text-white z-10">Premium</Badge>
+                      )}
 
-                    {zip.popular && (
-                      <Badge className="absolute top-4 right-4 bg-primary text-white z-10">Premium</Badge>
-                    )}
+                      <Badge
+                        variant="outline"
+                        className={`absolute top-3 left-3 z-10 border ${getDemandColor(zip.marketDemand)}`}
+                      >
+                        {zip.marketDemand === "high" && <TrendingUp className="h-3 w-3 mr-1" />}
+                        {zip.marketDemand.charAt(0).toUpperCase() + zip.marketDemand.slice(1)}
+                      </Badge>
 
-                    <Badge
-                      variant="outline"
-                      className={`absolute top-4 left-4 z-10 border ${getDemandColor(zip.marketDemand)}`}
-                    >
-                      {zip.marketDemand === "high" && <TrendingUp className="h-3 w-3 mr-1" />}
-                      {zip.marketDemand.charAt(0).toUpperCase() + zip.marketDemand.slice(1)}
-                    </Badge>
+                      <div className="absolute bottom-3 left-4">
+                        <div className="text-3xl font-bold text-white drop-shadow-lg">{zip.zipCode}</div>
+                      </div>
+                    </div>
 
-                    <div className="relative flex-1 p-6 space-y-6 flex flex-col">
-                      <div className="space-y-2">
-                        <div className="text-4xl font-bold text-white">{zip.zipCode}</div>
-                        <div className="space-y-1">
-                          <p className="text-lg font-semibold text-primary">{zip.area}</p>
-                          <p className="text-sm text-slate-400">{zip.state}</p>
-                        </div>
+                    <div className="relative flex-1 p-5 space-y-4 flex flex-col">
+                      <div className="space-y-1">
+                        <p className="text-lg font-semibold text-primary">{zip.area}</p>
+                        <p className="text-sm text-slate-400">{zip.state}</p>
                       </div>
 
-                      <div className="space-y-3 bg-white/5 rounded-lg p-4">
+                      <div className="space-y-2 bg-white/5 rounded-lg p-3">
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-slate-400">Avg Home Price</span>
                           <span className="text-white font-semibold">${(zip.avgHomePrice / 1000000).toFixed(1)}M</span>
@@ -443,9 +469,9 @@ export function MarketingMarketplace() {
                         </div>
                       </div>
 
-                      <div className="space-y-3 mt-auto pt-4 border-t border-white/10">
+                      <div className="space-y-3 mt-auto pt-3 border-t border-white/10">
                         <div className="flex items-baseline gap-1">
-                          <span className="text-3xl font-bold text-white">${zip.price}</span>
+                          <span className="text-2xl font-bold text-white">${zip.price}</span>
                           <span className="text-sm text-slate-400">/mo</span>
                         </div>
                         <Button
