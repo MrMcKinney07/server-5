@@ -188,7 +188,7 @@ export function PrizesManager() {
           }}
         >
           <DialogTrigger asChild>
-            <Button>
+            <Button onClick={() => { resetForm(); setOpen(true) }}>
               <Plus className="h-4 w-4 mr-2" />
               Add Prize
             </Button>
