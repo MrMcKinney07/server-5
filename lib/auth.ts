@@ -50,6 +50,10 @@ export async function getCurrentAgent(): Promise<CurrentAgent | null> {
   }
 
   if (!agent) {
+    // Use role from user metadata if available (set during signup for admins/brokers)
+    // Otherwise default to "agent"
+    const userRole = (user.user_metadata?.role as string) || "agent"
+
     const { data: newAgent, error: insertError } = await supabase
       .from("agents")
       .insert({
@@ -57,7 +61,7 @@ export async function getCurrentAgent(): Promise<CurrentAgent | null> {
         Email: user.email || "",
         Name: user.user_metadata?.full_name || user.email?.split("@")[0] || "",
         Phone: "",
-        Role: "agent",
+        Role: userRole,
         exp_season: 0,
         exp_bank: 0,
         lifetime_xp: 0,
