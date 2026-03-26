@@ -67,7 +67,39 @@ export async function getCurrentAgent(): Promise<CurrentAgent | null> {
       .select()
       .single()
 
-    if (insertError || !newAgent) {
+    if (insertError) {
+      // Handle race condition: if duplicate key error (23505), the agent was created by another request
+      // Re-fetch the agent that was just created
+      if (insertError.code === "23505") {
+        const { data: existingAgent } = await supabase
+          .from("agents")
+          .select("*, exp_season, exp_bank, lifetime_xp, prestige_tier, prestige_icon_url")
+          .eq("id", user.id)
+          .single()
+
+        if (existingAgent) {
+          return {
+            id: existingAgent.id,
+            created_at: existingAgent.created_at,
+            email: existingAgent.Email,
+            full_name: existingAgent.Name,
+            phone: existingAgent.Phone,
+            role: existingAgent.Role,
+            Role: existingAgent.Role,
+            user_id: user.id,
+            team_id: existingAgent.team_id || null,
+            exp_season: existingAgent.exp_season || 0,
+            exp_bank: existingAgent.exp_bank || 0,
+            lifetime_xp: existingAgent.lifetime_xp || 0,
+            prestige_tier: existingAgent.prestige_tier || 1,
+            prestige_icon_url: existingAgent.prestige_icon_url || null,
+          } as CurrentAgent
+        }
+      }
+      return null
+    }
+
+    if (!newAgent) {
       return null
     }
 
