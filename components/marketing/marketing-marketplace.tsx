@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { MarketingFiles } from "./marketing-files"
 
 interface TerritoryListing {
   id: string
@@ -604,10 +605,11 @@ export function MarketingMarketplace() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-white/5 border border-white/10">
+        <TabsList className="grid w-full grid-cols-4 bg-white/5 border border-white/10">
           <TabsTrigger value="physical">Marketing Materials</TabsTrigger>
           <TabsTrigger value="va">Virtual Assistants</TabsTrigger>
           <TabsTrigger value="territories">Buy Territory</TabsTrigger>
+          <TabsTrigger value="files">My Files</TabsTrigger>
         </TabsList>
 
 {/* TERRITORIES TAB */}
@@ -934,6 +936,11 @@ export function MarketingMarketplace() {
               </Card>
             ))}
           </div>
+        </TabsContent>
+
+        {/* MY FILES TAB */}
+        <TabsContent value="files" className="mt-8">
+          <MarketingFiles />
         </TabsContent>
       </Tabs>
 
