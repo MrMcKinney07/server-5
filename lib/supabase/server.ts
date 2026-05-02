@@ -18,6 +18,13 @@ export async function createClient() {
         }
       },
     },
+    auth: {
+      // Disable lock on server-side to prevent lock contention errors
+      // Server components use cookies for session state, not in-memory locks
+      lock: async (name, acquireTimeout, fn) => {
+        return await fn()
+      },
+    },
   })
 }
 
