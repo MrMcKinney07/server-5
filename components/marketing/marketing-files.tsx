@@ -44,7 +44,7 @@ const CATEGORIES = [
   { value: "other", label: "Other" },
 ]
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json())
+const fetcher = (url: string) => fetch(url).then((r) => r.json()).then((data) => data.files || [])
 
 export function MarketingFiles() {
   const [uploading, setUploading] = useState(false)
@@ -54,7 +54,7 @@ export function MarketingFiles() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isOpen, setIsOpen] = useState(false)
 
-  const { data: files, mutate } = useSWR<MarketingFile[]>(
+  const { data: files = [], mutate } = useSWR<MarketingFile[]>(
     "/api/marketing-files/list",
     fetcher,
     { revalidateOnFocus: false }
