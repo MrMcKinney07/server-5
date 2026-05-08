@@ -1,19 +1,22 @@
 import { createBrowserClient as createSupabaseBrowserClient } from "@supabase/ssr"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
-let browserClient: SupabaseClient | null = null
+// Use a global to persist the singleton across hot reloads in development
+const globalForSupabase = globalThis as typeof globalThis & {
+  supabaseBrowserClient?: SupabaseClient
+}
 
 export function createClient() {
-  if (browserClient) {
-    return browserClient
+  if (globalForSupabase.supabaseBrowserClient) {
+    return globalForSupabase.supabaseBrowserClient
   }
 
-  browserClient = createSupabaseBrowserClient(
+  globalForSupabase.supabaseBrowserClient = createSupabaseBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  return browserClient
+  return globalForSupabase.supabaseBrowserClient
 }
 
 export const createBrowserClient = createClient
