@@ -44,7 +44,15 @@ const CATEGORIES = [
   { value: "other", label: "Other" },
 ]
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json()).then((data) => data.files || [])
+const fetcher = async (url: string) => {
+  const res = await fetch(url)
+  if (!res.ok) {
+    console.log("[v0] API error:", res.status, await res.text())
+    throw new Error(`API error: ${res.status}`)
+  }
+  const data = await res.json()
+  return data.files || []
+}
 
 export function MarketingFiles() {
   const [uploading, setUploading] = useState(false)
@@ -54,11 +62,17 @@ export function MarketingFiles() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isOpen, setIsOpen] = useState(false)
 
-  const { data: files = [], mutate } = useSWR<MarketingFile[]>(
+  const { data: files = [], mutate, error, isLoading } = useSWR<MarketingFile[]>(
     "/api/marketing-files/list",
     fetcher,
     { revalidateOnFocus: false }
   )
+
+  useEffect(() => {
+    if (error) {
+      console.log("[v0] SWR error:", error)
+    }
+  }, [error])
 
   const filteredFiles = files?.filter((file) => {
     const matchesSearch =
@@ -140,7 +154,21 @@ export function MarketingFiles() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row gap-4 justify-between">
+      {error && (
+        <Card className="p-4 bg-red-500/10 border-red-500/30">
+          <p className="text-red-400 text-sm">Error loading files: {error.message}</p>
+        </Card>
+      )}
+
+      {isLoading && (
+        <Card className="p-8 bg-white/5 border-white/10 text-center">
+          <p className="text-slate-400">Loading your files...</p>
+        </Card>
+      )}
+
+      {!isLoading && !error && (
+        <>
+          <div className="flex flex-col md:flex-row gap-4 justify-between">
         <div>
           <h2 className="text-2xl font-bold text-white">My Marketing Files</h2>
           <p className="text-slate-400 text-sm mt-1">{filteredFiles.length} files</p>
@@ -289,6 +317,8 @@ export function MarketingFiles() {
             </Card>
           ))}
         </div>
+      )}
+        </>
       )}
     </div>
   )
