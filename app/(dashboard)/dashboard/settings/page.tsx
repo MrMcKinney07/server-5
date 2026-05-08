@@ -2,10 +2,12 @@ import { createClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/auth"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { AgentProfileForm } from "@/components/settings/agent-profile-form"
+import { CommissionEditForm } from "@/components/settings/commission-edit-form"
 
 export default async function SettingsPage() {
   const agent = await requireAuth()
   const supabase = await createClient()
+  const isAdmin = agent.role === "admin" || agent.role === "broker"
 
   // Fetch commission plan for this agent
   const { data: agentPlan } = await supabase
@@ -16,6 +18,13 @@ export default async function SettingsPage() {
 
   // Fetch default plan if agent doesn't have one assigned
   const { data: defaultPlan } = await supabase.from("commission_plans").select("*").eq("is_default", true).maybeSingle()
+
+  // Fetch all active plans for admin edit dropdown
+  const { data: allPlans } = await supabase
+    .from("commission_plans")
+    .select("*")
+    .eq("is_active", true)
+    .order("split_percentage", { ascending: false })
 
   const currentPlan = agentPlan?.plan || defaultPlan
 
@@ -41,8 +50,21 @@ export default async function SettingsPage() {
         {/* Commission Plan Card */}
         <Card className="border-l-4 border-l-emerald-500">
           <CardHeader>
-            <CardTitle className="text-emerald-600">Commission Plan</CardTitle>
-            <CardDescription>Your current commission structure</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-emerald-600">Commission Plan</CardTitle>
+                <CardDescription>Your current commission structure</CardDescription>
+              </div>
+              {isAdmin && (
+                <CommissionEditForm
+                  agentId={agent.id}
+                  currentPlan={currentPlan}
+                  agentPlan={agentPlan}
+                  allPlans={allPlans || []}
+                  isAdmin={isAdmin}
+                />
+              )}
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             {currentPlan ? (
