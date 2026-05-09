@@ -4,7 +4,7 @@ import { useState, useRef } from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ChevronDown, Upload, Check, Clock, Circle, Plus, X, Loader2 } from "lucide-react"
+import { ChevronDown, Upload, Check, Clock, Circle, Plus, X, Loader2, CheckCircle2 } from "lucide-react"
 
 interface ContractDocument {
   id: string
@@ -39,7 +39,7 @@ interface DocumentChecklistProps {
 const STATUS_ICONS = {
   not_uploaded: <Circle className="h-4 w-4 text-slate-500" />,
   uploaded: <Clock className="h-4 w-4 text-amber-400" />,
-  approved: <Check className="h-4 w-4 text-emerald-400" />,
+  approved: <CheckCircle2 className="h-4 w-4 text-emerald-400" />,
 }
 
 const STATUS_COLORS = {
@@ -50,7 +50,7 @@ const STATUS_COLORS = {
 
 const STATUS_LABELS = {
   not_uploaded: "Not uploaded",
-  uploaded: "Needs review",
+  uploaded: "Pending broker review",
   approved: "Approved",
 }
 
@@ -90,21 +90,6 @@ function DocRow({
     }
   }
 
-  async function handleApprove() {
-    setLoading(true)
-    try {
-      const res = await fetch(`/api/contracts/${contractId}/documents`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ document_key: doc.document_key, status: "approved" }),
-      })
-      const data = await res.json()
-      onUpdate(doc.document_key, "approved", data.progress ?? 0)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   return (
     <div className={cn("flex items-center gap-3 p-3 rounded-lg border transition-all", STATUS_COLORS[doc.status])}>
       <div className="shrink-0">{STATUS_ICONS[doc.status]}</div>
@@ -132,7 +117,7 @@ function DocRow({
           <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
         ) : (
           <>
-            {doc.status !== "approved" && (
+            {doc.status === "not_uploaded" && (
               <>
                 <input ref={fileRef} type="file" className="hidden" onChange={handleFileChange} />
                 <Button
@@ -147,14 +132,10 @@ function DocRow({
               </>
             )}
             {doc.status === "uploaded" && (
-              <Button
-                size="sm"
-                onClick={handleApprove}
-                className="h-7 px-2 text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/20"
-              >
-                <Check className="h-3 w-3 mr-1" />
-                Approve
-              </Button>
+              <span className="text-[11px] px-2 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                Pending Review
+              </span>
             )}
           </>
         )}
