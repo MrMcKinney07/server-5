@@ -42,7 +42,7 @@ export default async function EarningsPage() {
   ytdStats.agentEarnings = ytdStats.totalGCI * (splitPercent / 100)
   ytdStats.brokerShare = ytdStats.totalGCI - ytdStats.agentEarnings
 
-  const marketingThreshold = 15000
+  const marketingThreshold = 20000
   const hasReachedThreshold = ytdStats.brokerShare >= marketingThreshold
 
   // Calculate marketing budget: 10% of broker share above threshold

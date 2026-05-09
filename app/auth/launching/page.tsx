@@ -2,8 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Star, Sparkles, Zap } from "lucide-react"
-import Image from "next/image"
+import { Rocket, Star, Sparkles, Zap } from "lucide-react"
 
 interface Firework {
   id: number
@@ -221,33 +220,26 @@ export default function LaunchingPage() {
       >
         <div className="mb-8 relative" style={{ transformStyle: "preserve-3d" }}>
           <div
-            className="relative w-40 h-40 mx-auto flex items-center justify-center"
+            className="w-32 h-32 mx-auto rounded-3xl bg-gradient-to-br from-cyan-400 via-blue-500 to-violet-600 flex items-center justify-center shadow-[0_0_60px_rgba(34,211,238,0.5),0_0_100px_rgba(59,130,246,0.3)]"
             style={{
-              animation: "logoPulse 1.5s ease-in-out infinite alternate",
-              filter: "drop-shadow(0 0 40px rgba(251,191,36,0.7)) drop-shadow(0 0 80px rgba(251,191,36,0.4))",
+              animation: "rocketPulse 0.5s ease-in-out infinite alternate",
+              transform: "rotateX(-10deg) rotateY(10deg)",
             }}
           >
-            {/* Outer glow ring */}
+            <Rocket
+              className="w-16 h-16 text-white drop-shadow-2xl"
+              style={{ animation: "rocketShake 0.1s ease-in-out infinite" }}
+            />
+          </div>
+
+          <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center">
             <div
-              className="absolute inset-0 rounded-full border-2 border-amber-400/40"
-              style={{ animation: "ringExpand 2s ease-in-out infinite" }}
+              className="w-12 h-24 bg-gradient-to-b from-orange-500 via-orange-400 to-yellow-300 blur-md opacity-80"
+              style={{ animation: "exhaustFlicker 0.1s ease-in-out infinite" }}
             />
             <div
-              className="absolute inset-[-12px] rounded-full border border-amber-400/20"
-              style={{ animation: "ringExpand 2s ease-in-out infinite 0.4s" }}
-            />
-            <div
-              className="absolute inset-[-24px] rounded-full border border-amber-400/10"
-              style={{ animation: "ringExpand 2s ease-in-out infinite 0.8s" }}
-            />
-            <Image
-              src="/images/m1-crm-logo-bottom-left.png"
-              alt="M1 CRM"
-              width={140}
-              height={140}
-              className="relative z-10"
-              style={{ animation: "logoShake 0.12s ease-in-out infinite" }}
-              priority
+              className="w-8 h-32 bg-gradient-to-b from-orange-400/60 via-red-500/40 to-transparent blur-lg"
+              style={{ animation: "exhaustFlicker 0.15s ease-in-out infinite" }}
             />
           </div>
 
@@ -335,19 +327,19 @@ export default function LaunchingPage() {
           0% { opacity: 0; transform: translateZ(-200px) scale(0.5); }
           100% { opacity: 1; transform: translateZ(0) scale(1); }
         }
-        @keyframes logoPulse {
-          0% { transform: scale(1) rotate(-1deg); }
-          100% { transform: scale(1.08) rotate(1deg); }
+        @keyframes rocketPulse {
+          0% { transform: rotateX(-10deg) rotateY(10deg) scale(1); }
+          100% { transform: rotateX(-10deg) rotateY(10deg) scale(1.05); }
         }
-        @keyframes logoShake {
-          0%, 100% { transform: translateX(0) translateY(0) rotate(0deg); }
-          25% { transform: translateX(-1px) translateY(1px) rotate(-0.5deg); }
-          50% { transform: translateX(1px) translateY(-1px) rotate(0.5deg); }
-          75% { transform: translateX(-1px) translateY(0px) rotate(-0.3deg); }
+        @keyframes rocketShake {
+          0%, 100% { transform: translateX(0) translateY(0); }
+          25% { transform: translateX(-2px) translateY(1px); }
+          50% { transform: translateX(2px) translateY(-1px); }
+          75% { transform: translateX(-1px) translateY(2px); }
         }
-        @keyframes ringExpand {
-          0% { opacity: 0.8; transform: scale(1); }
-          100% { opacity: 0; transform: scale(1.6); }
+        @keyframes exhaustFlicker {
+          0%, 100% { opacity: 0.8; transform: scaleY(1) scaleX(1); }
+          50% { opacity: 1; transform: scaleY(1.1) scaleX(0.9); }
         }
         @keyframes orbit {
           from { transform: rotate(0deg); }

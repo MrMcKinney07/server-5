@@ -1,31 +1,30 @@
-import { createServerClient as createSupabaseServerClient } from "@supabase/ssr"
+import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 
 export async function createClient() {
   const cookieStore = await cookies()
 
-  return createSupabaseServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll()
-      },
-      setAll(cookiesToSet) {
-        try {
-          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
-        } catch {
-          // The "setAll" method was called from a Server Component.
-          // This can be ignored if you have proxy refreshing user sessions.
-        }
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://uycumplltmplglqzmdno.supabase.co",
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5Y3VtcGxsdG1wbGdscXptZG5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5NDg2NjEsImV4cCI6MjA4MDUyNDY2MX0.hCjBk6JiHaggrLtXP_sXiPZQLD-1OaP80KZT--tkWUs",
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options),
+            )
+          } catch {
+            // The "setAll" method was called from a Server Component.
+            // This can be ignored if you have middleware refreshing user sessions.
+          }
+        },
       },
     },
-    auth: {
-      // Disable lock on server-side to prevent lock contention errors
-      // Server components use cookies for session state, not in-memory locks
-      lock: async (name, acquireTimeout, fn) => {
-        return await fn()
-      },
-    },
-  })
+  )
 }
 
 export { createClient as createServerClient }

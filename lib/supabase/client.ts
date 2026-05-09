@@ -1,29 +1,13 @@
-import { createBrowserClient as createSupabaseBrowserClient } from "@supabase/ssr"
-import type { SupabaseClient } from "@supabase/supabase-js"
+"use client"
 
-// Use a global to persist the singleton across hot reloads in development
-const globalForSupabase = globalThis as typeof globalThis & {
-  supabaseBrowserClient?: SupabaseClient
-}
+import { createBrowserClient } from "@supabase/ssr"
+
+const SUPABASE_URL = "https://uycumplltmplglqzmdno.supabase.co"
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5Y3VtcGxsdG1wbGdscXptZG5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5NDg2NjEsImV4cCI6MjA4MDUyNDY2MX0.hCjBk6JiHaggrLtXP_sXiPZQLD-1OaP80KZT--tkWUs"
 
 export function createClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!url || !key) {
-    throw new Error(
-      "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables."
-    )
-  }
-
-  // Only reuse the cached instance if it was created with the same credentials
-  if (globalForSupabase.supabaseBrowserClient) {
-    return globalForSupabase.supabaseBrowserClient
-  }
-
-  globalForSupabase.supabaseBrowserClient = createSupabaseBrowserClient(url, key)
-
-  return globalForSupabase.supabaseBrowserClient
+  return createBrowserClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 }
 
-export const createBrowserClient = createClient
+export { createClient as createBrowserClient }
