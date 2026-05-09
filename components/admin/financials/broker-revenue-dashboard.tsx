@@ -1,60 +1,46 @@
 "use client"
 
+import useSWR from "swr"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Skeleton } from "@/components/ui/skeleton"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts"
 import { DollarSign, Users, TrendingUp, Building } from "lucide-react"
-interface AgentSummary {
-  id: string
-  name: string
-  total_deals: number
-  total_volume: number
-  total_gci: number
-  total_broker_share: number
-  total_agent_commission: number
-}
 
-interface CommissionPlan {
-  id: string
-  name: string
-  split_percentage: number | string
-  cap_amount: number | string | null
-  transaction_fee: number | string | null
-  monthly_fee: number | string | null
-  is_default: boolean
-}
-
-interface BrokerRevenueDashboardProps {
-  agentSummaries: AgentSummary[]
-  monthlyRevenue: { month: number; broker_share: number; gci: number }[]
-  commissionPlans: CommissionPlan[]
-  currentYear: number
-}
+const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
-export function BrokerRevenueDashboard({
-  agentSummaries,
-  monthlyRevenue,
-  commissionPlans,
-  currentYear,
-}: BrokerRevenueDashboardProps) {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount)
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount)
+
+export function BrokerRevenueDashboard() {
+  const { data, isLoading } = useSWR("/api/broker/financials", fetcher, {
+    refreshInterval: 15000,
+    revalidateOnFocus: true,
+  })
+
+  if (isLoading || !data) {
+    return (
+      <div className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i}><CardContent className="pt-6"><Skeleton className="h-16 w-full" /></CardContent></Card>
+          ))}
+        </div>
+        <Card><CardContent className="pt-6"><Skeleton className="h-64 w-full" /></CardContent></Card>
+      </div>
+    )
   }
 
-  const totalBrokerShare = agentSummaries.reduce((sum, s) => sum + (s.total_broker_share || 0), 0)
-  const totalGCI = agentSummaries.reduce((sum, s) => sum + (s.total_gci || 0), 0)
-  const totalDeals = agentSummaries.reduce((sum, s) => sum + (s.total_deals || 0), 0)
-  const totalVolume = agentSummaries.reduce((sum, s) => sum + (s.total_volume || 0), 0)
+  const { agentSummaries, monthlyRevenue, commissionPlans, currentYear } = data
 
-  const chartData = monthlyRevenue.map((m, i) => ({
+  const totalBrokerShare = agentSummaries.reduce((sum: number, s: any) => sum + (s.total_broker_share || 0), 0)
+  const totalGCI = agentSummaries.reduce((sum: number, s: any) => sum + (s.total_gci || 0), 0)
+  const totalDeals = agentSummaries.reduce((sum: number, s: any) => sum + (s.total_deals || 0), 0)
+
+  const chartData = monthlyRevenue.map((m: any, i: number) => ({
     name: monthNames[i],
     "Broker Share": m.broker_share,
     "Total GCI": m.gci,
@@ -113,7 +99,7 @@ export function BrokerRevenueDashboard({
       <Card>
         <CardHeader>
           <CardTitle>Monthly Revenue</CardTitle>
-          <CardDescription>Company dollar by month</CardDescription>
+          <CardDescription>Company dollar vs total GCI by month</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="h-[300px]">
@@ -145,33 +131,37 @@ export function BrokerRevenueDashboard({
           <Card>
             <CardHeader>
               <CardTitle>Agent Profitability</CardTitle>
-              <CardDescription>Company dollar generated per agent</CardDescription>
+              <CardDescription>Company dollar generated per agent this year</CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Agent</TableHead>
-                    <TableHead className="text-right">Deals</TableHead>
-                    <TableHead className="text-right">Volume</TableHead>
-                    <TableHead className="text-right">GCI</TableHead>
-                    <TableHead className="text-right">Company $</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {agentSummaries.map((summary) => (
-                    <TableRow key={summary.id}>
-                      <TableCell className="font-medium">{summary.name}</TableCell>
-                      <TableCell className="text-right">{summary.total_deals}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(summary.total_volume)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(summary.total_gci)}</TableCell>
-                      <TableCell className="text-right font-medium text-primary">
-                        {formatCurrency(summary.total_broker_share)}
-                      </TableCell>
+              {agentSummaries.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No closed transactions yet this year.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Agent</TableHead>
+                      <TableHead className="text-right">Deals</TableHead>
+                      <TableHead className="text-right">Volume</TableHead>
+                      <TableHead className="text-right">GCI</TableHead>
+                      <TableHead className="text-right">Company $</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {agentSummaries.map((summary: any) => (
+                      <TableRow key={summary.id}>
+                        <TableCell className="font-medium">{summary.name}</TableCell>
+                        <TableCell className="text-right">{summary.total_deals}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(summary.total_volume)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(summary.total_gci)}</TableCell>
+                        <TableCell className="text-right font-medium text-primary">
+                          {formatCurrency(summary.total_broker_share)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -194,7 +184,7 @@ export function BrokerRevenueDashboard({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {commissionPlans.map((plan) => (
+                  {commissionPlans.map((plan: any) => (
                     <TableRow key={plan.id}>
                       <TableCell className="font-medium">
                         {plan.split_percentage}% / {100 - Number(plan.split_percentage)}%

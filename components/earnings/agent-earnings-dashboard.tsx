@@ -1,56 +1,49 @@
 "use client"
 
+import useSWR from "swr"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { DollarSign, TrendingUp, Target, Award, Megaphone } from "lucide-react"
 
-interface AgentEarningsDashboardProps {
-  agent: { id: string; Name: string }
-  ytdStats: {
-    totalGCI: number
-    totalVolume: number
-    totalDeals: number
-    agentEarnings: number
-    brokerShare: number
-    marketingBudget: number
+const fetcher = (url: string) => fetch(url).then((r) => r.json())
+
+const fmt = (n: number) =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n)
+
+export function AgentEarningsDashboard() {
+  const { data, isLoading } = useSWR("/api/agent/earnings", fetcher, {
+    refreshInterval: 15000,
+    revalidateOnFocus: true,
+  })
+
+  if (isLoading || !data) {
+    return (
+      <div className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i}><CardContent className="pt-6"><Skeleton className="h-16 w-full" /></CardContent></Card>
+          ))}
+        </div>
+        <Card><CardContent className="pt-6"><Skeleton className="h-32 w-full" /></CardContent></Card>
+      </div>
+    )
   }
-  splitPercent: number
-  transactionFee: number
-  planName: string
-  capAmount: number | null
-  marketingThreshold: number
-  hasReachedThreshold: boolean
-  recentDeals: Array<{
-    id: string
-    property_address: string
-    sale_price: number | null
-    gross_commission: number | null
-    agent_commission: number | null
-    broker_commission: number | null
-    closing_date: string | null
-    transaction_type: string | null
-  }>
-  currentYear: number
-}
 
-export function AgentEarningsDashboard({
-  agent,
-  ytdStats,
-  splitPercent,
-  transactionFee,
-  planName,
-  capAmount,
-  marketingThreshold,
-  hasReachedThreshold,
-  recentDeals,
-  currentYear,
-}: AgentEarningsDashboardProps) {
-  const fmt = (n: number) =>
-    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n)
+  const {
+    ytdStats,
+    splitPercent,
+    transactionFee,
+    planName,
+    capAmount,
+    marketingThreshold,
+    hasReachedThreshold,
+    recentDeals,
+    currentYear,
+  } = data
 
-  // Threshold progress uses broker paid funds only
   const thresholdProgress = Math.min(ytdStats.brokerShare, marketingThreshold)
   const thresholdPct = marketingThreshold > 0 ? (thresholdProgress / marketingThreshold) * 100 : 0
 
@@ -88,7 +81,9 @@ export function AgentEarningsDashboard({
           <CardContent>
             <div className="text-2xl font-bold text-pink-600">{fmt(ytdStats.marketingBudget)}</div>
             <p className="text-xs text-muted-foreground">
-              {hasReachedThreshold ? "10% of broker dollars above cap" : `Unlocks at ${fmt(marketingThreshold)} broker dollars`}
+              {hasReachedThreshold
+                ? "10% of broker dollars above cap"
+                : `Unlocks at ${fmt(marketingThreshold)} broker dollars`}
             </p>
           </CardContent>
         </Card>
@@ -105,7 +100,7 @@ export function AgentEarningsDashboard({
         </Card>
       </div>
 
-      {/* Marketing Threshold — broker paid funds only */}
+      {/* Marketing Threshold */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -127,7 +122,7 @@ export function AgentEarningsDashboard({
             <span>{fmt(marketingThreshold)} threshold</span>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            The threshold is calculated from broker-received funds only ({100 - splitPercent}% of each deal&apos;s GCI).
+            Calculated from broker-received funds only ({100 - splitPercent}% of each deal&apos;s GCI).
             {capAmount ? ` Your cap is ${fmt(capAmount)}.` : ""}
           </p>
           {hasReachedThreshold && (
@@ -183,7 +178,9 @@ export function AgentEarningsDashboard({
             <div className="text-center py-12">
               <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">No closings yet this year</p>
-              <p className="text-sm text-muted-foreground">Closed transactions will appear here after broker marks check sent</p>
+              <p className="text-sm text-muted-foreground">
+                Closed transactions appear here after your broker marks a check as sent
+              </p>
             </div>
           ) : (
             <Table>
@@ -199,30 +196,25 @@ export function AgentEarningsDashboard({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {recentDeals.map((deal) => {
-                  const gci = Number(deal.gross_commission) || 0
-                  const brokerPaid = Number(deal.broker_commission) || 0
-                  const agentNet = Number(deal.agent_commission) || 0
-                  return (
-                    <TableRow key={deal.id}>
-                      <TableCell>
-                        {deal.closing_date ? new Date(deal.closing_date).toLocaleDateString() : "-"}
-                      </TableCell>
-                      <TableCell className="max-w-[180px] truncate font-medium">
-                        {deal.property_address || "N/A"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="capitalize">
-                          {deal.transaction_type || "buyer"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">{fmt(Number(deal.sale_price) || 0)}</TableCell>
-                      <TableCell className="text-right">{fmt(gci)}</TableCell>
-                      <TableCell className="text-right text-rose-500">{fmt(brokerPaid)}</TableCell>
-                      <TableCell className="text-right font-medium text-emerald-600">{fmt(agentNet)}</TableCell>
-                    </TableRow>
-                  )
-                })}
+                {recentDeals.map((deal: any) => (
+                  <TableRow key={deal.id}>
+                    <TableCell>
+                      {deal.closing_date ? new Date(deal.closing_date).toLocaleDateString() : "-"}
+                    </TableCell>
+                    <TableCell className="max-w-[180px] truncate font-medium">
+                      {deal.property_address || "N/A"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="capitalize">
+                        {deal.transaction_type || "buyer"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">{fmt(Number(deal.sale_price) || 0)}</TableCell>
+                    <TableCell className="text-right">{fmt(Number(deal.gross_commission) || 0)}</TableCell>
+                    <TableCell className="text-right text-rose-500">{fmt(Number(deal.broker_commission) || 0)}</TableCell>
+                    <TableCell className="text-right font-medium text-emerald-600">{fmt(Number(deal.agent_commission) || 0)}</TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           )}
