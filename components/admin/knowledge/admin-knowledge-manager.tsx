@@ -22,7 +22,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, Pencil, Eye, EyeOff, Upload, FileText, Trash2 } from "lucide-react"
-import { createBrowserClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import type { KnowledgeArticleWithRelations, MissionTemplate } from "@/lib/types/database"
 
@@ -42,7 +41,6 @@ const categories = [
 
 export function AdminKnowledgeManager({ articles, missionTemplates }: AdminKnowledgeManagerProps) {
   const router = useRouter()
-  const supabase = createBrowserClient()
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [editingArticle, setEditingArticle] = useState<KnowledgeArticleWithRelations | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -90,24 +88,36 @@ export function AdminKnowledgeManager({ articles, missionTemplates }: AdminKnowl
     setIsLoading(true)
 
     const formData = new FormData(e.currentTarget)
-    const title = formData.get("title") as string
 
-    const { error } = await supabase.from("knowledge_articles").insert({
-      title,
-      content: formData.get("content") as string,
-      category: formData.get("category") as string,
-      related_mission_template_id: (formData.get("related_mission_template_id") as string) || null,
-      is_published: formData.get("is_published") === "on",
-      file_url: fileUrl,
-      file_name: fileName,
-      file_type: fileType,
-    })
+    try {
+      const res = await fetch("/api/admin/knowledge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create",
+          title: formData.get("title"),
+          content: formData.get("content"),
+          category: formData.get("category"),
+          related_mission_template_id: formData.get("related_mission_template_id") || null,
+          is_published: formData.get("is_published") === "on",
+          file_url: fileUrl,
+          file_name: fileName,
+          file_type: fileType,
+        }),
+      })
 
-    setIsLoading(false)
-    if (!error) {
+      if (!res.ok) {
+        const { error } = await res.json()
+        throw new Error(error || "Failed to create article")
+      }
+
       setIsAddOpen(false)
       handleRemoveFile()
       router.refresh()
+    } catch (error: any) {
+      console.error("Error creating article:", error)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -118,40 +128,51 @@ export function AdminKnowledgeManager({ articles, missionTemplates }: AdminKnowl
 
     const formData = new FormData(e.currentTarget)
 
-    const updateData: Record<string, unknown> = {
-      title: formData.get("title") as string,
-      content: formData.get("content") as string,
-      category: formData.get("category") as string,
-      related_mission_template_id: (formData.get("related_mission_template_id") as string) || null,
-      is_published: formData.get("is_published") === "on",
-      updated_at: new Date().toISOString(),
-    }
-    
-    // Only update file fields if a new file was uploaded
-    if (fileUrl) {
-      updateData.file_url = fileUrl
-      updateData.file_name = fileName
-      updateData.file_type = fileType
-    }
+    try {
+      const payload: Record<string, unknown> = {
+        action: "update",
+        id: editingArticle.id,
+        title: formData.get("title"),
+        content: formData.get("content"),
+        category: formData.get("category"),
+        related_mission_template_id: formData.get("related_mission_template_id") || null,
+        is_published: formData.get("is_published") === "on",
+      }
 
-    const { error } = await supabase
-      .from("knowledge_articles")
-      .update(updateData)
-      .eq("id", editingArticle.id)
+      // Only send file fields if a new file was uploaded
+      if (fileUrl) {
+        payload.file_url = fileUrl
+        payload.file_name = fileName
+        payload.file_type = fileType
+      }
 
-    setIsLoading(false)
-    if (!error) {
+      const res = await fetch("/api/admin/knowledge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        const { error } = await res.json()
+        throw new Error(error || "Failed to update article")
+      }
+
       setEditingArticle(null)
       handleRemoveFile()
       router.refresh()
+    } catch (error: any) {
+      console.error("Error updating article:", error)
+    } finally {
+      setIsLoading(false)
     }
   }
 
   const togglePublished = async (articleId: string, currentState: boolean) => {
-    await supabase
-      .from("knowledge_articles")
-      .update({ is_published: !currentState, updated_at: new Date().toISOString() })
-      .eq("id", articleId)
+    await fetch("/api/admin/knowledge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "toggle_published", id: articleId, is_published: !currentState }),
+    })
     router.refresh()
   }
 
