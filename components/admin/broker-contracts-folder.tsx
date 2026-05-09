@@ -132,7 +132,7 @@ function DocApprovalRow({ doc, contractId }: { doc: ContractDoc; contractId: str
           <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" />
         ) : (
           <>
-            {doc.status === "uploaded" && (
+            {(doc.status === "uploaded" || (!doc.is_required && doc.status === "not_uploaded")) && (
               <div className="flex gap-1">
                 <Button
                   size="sm"
@@ -148,7 +148,7 @@ function DocApprovalRow({ doc, contractId }: { doc: ContractDoc; contractId: str
                   className="h-6 px-2 text-[11px] bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20"
                 >
                   <X className="h-3 w-3 mr-1" />
-                  Reject
+                  {doc.status === "uploaded" ? "Reject" : "Deny"}
                 </Button>
               </div>
             )}
