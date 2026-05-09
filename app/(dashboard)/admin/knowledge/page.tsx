@@ -13,7 +13,7 @@ export default async function AdminKnowledgePage() {
 
   const { data: articles } = await supabase
     .from("knowledge_articles")
-    .select("*, created_by_agent:agents(*), related_mission_template:mission_templates(*)")
+    .select("id, title, content, category, is_published, created_at, updated_at, file_url, file_name, file_type, related_mission_template_id")
     .order("created_at", { ascending: false })
 
   const { data: missionTemplates } = await supabase
