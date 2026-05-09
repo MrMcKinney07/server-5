@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+import { createClient, createServiceClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/auth"
 import { NextResponse } from "next/server"
 
@@ -62,6 +62,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       .in("Role", ["admin", "broker"])
 
     if (contract && agentRow && brokers && brokers.length > 0) {
+      const serviceClient = createServiceClient()
       const notifRows = brokers.map((b) => ({
         recipient_id: b.id,
         contract_id: contractId,
@@ -71,7 +72,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         property_address: contract.property_address,
         read: false,
       }))
-      await supabase.from("contract_notifications").insert(notifRows)
+      await serviceClient.from("contract_notifications").insert(notifRows)
     }
   }
 

@@ -28,3 +28,14 @@ export async function createClient() {
 }
 
 export { createClient as createServerClient }
+
+// Service role client — bypasses RLS for server-side operations that write on behalf of other users.
+// Never expose this to the client.
+export function createServiceClient() {
+  const { createClient: createSupabaseClient } = require("@supabase/supabase-js")
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://uycumplltmplglqzmdno.supabase.co",
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } },
+  )
+}
