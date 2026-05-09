@@ -278,14 +278,14 @@ function TransactionFolder({ contract }: { contract: Contract }) {
           </div>
           <Progress value={contract.progress_percent} className="h-1.5 mb-4 bg-white/10" />
 
-          {/* Payment request banner */}
+          {/* Pay requested banner + Check Sent button */}
           {contract.payment_status === "pending" && (
-            <div className="flex items-center justify-between gap-3 p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.04] mb-3">
+            <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.05] mb-3">
               <div className="flex items-center gap-2">
                 <DollarSign className="h-4 w-4 text-emerald-400 shrink-0" />
                 <div>
                   <p className="text-xs font-semibold text-emerald-400">Payment Requested</p>
-                  <p className="text-[11px] text-slate-400">Agent has requested disbursement for this transaction.</p>
+                  <p className="text-[11px] text-slate-500">Agent is awaiting disbursement.</p>
                 </div>
               </div>
               <CheckSentButton contractId={contract.id} />
@@ -293,9 +293,12 @@ function TransactionFolder({ contract }: { contract: Contract }) {
           )}
 
           {contract.payment_status === "sent" && (
-            <div className="flex items-center gap-2 p-3 rounded-lg border border-cyan-500/20 bg-cyan-500/[0.04] mb-3">
+            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-cyan-500/20 bg-cyan-500/[0.05] mb-3">
               <Mail className="h-4 w-4 text-cyan-400 shrink-0" />
-              <p className="text-xs font-semibold text-cyan-400">Check marked as sent</p>
+              <div>
+                <p className="text-xs font-semibold text-cyan-400">Check Sent</p>
+                <p className="text-[11px] text-slate-500">Agent has been notified their check is on the way.</p>
+              </div>
             </div>
           )}
 
