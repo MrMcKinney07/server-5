@@ -36,6 +36,9 @@ interface Contract {
   notes: string | null
   progress_percent: number
   payment_status: "pending" | "sent" | null
+  sale_price: number | null
+  commission_type: "percent" | "dollar" | null
+  commission_value: number | null
   created_at: string
 }
 
@@ -156,6 +159,32 @@ export function ContractDetailClient({ contract, documents, dealDocs, isAdmin }:
               <Users className="h-4 w-4 text-slate-500" />
               {contract.client_name}
             </div>
+
+            {(contract.sale_price || contract.commission_value) && (
+              <div className="flex items-center gap-3 flex-wrap mt-1">
+                {contract.sale_price && (
+                  <span className="text-xs text-slate-400 flex items-center gap-1">
+                    <DollarSign className="h-3.5 w-3.5 text-slate-500" />
+                    Sale: <span className="text-white font-medium">${contract.sale_price.toLocaleString()}</span>
+                  </span>
+                )}
+                {contract.commission_value && (
+                  <span className="text-xs text-slate-400 flex items-center gap-1">
+                    Commission:
+                    <span className="text-emerald-400 font-medium">
+                      {contract.commission_type === "percent"
+                        ? `${contract.commission_value}%`
+                        : `$${contract.commission_value.toLocaleString()}`}
+                    </span>
+                    {contract.commission_type === "percent" && contract.sale_price && (
+                      <span className="text-slate-500">
+                        (${((contract.sale_price * contract.commission_value) / 100).toLocaleString()})
+                      </span>
+                    )}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="text-right space-y-1">

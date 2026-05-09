@@ -32,6 +32,9 @@ export function SubmitContractDialog({ open, onOpenChange, onSuccess }: SubmitCo
     client_name: "",
     contract_date: new Date().toISOString().split("T")[0],
     expected_closing_date: "",
+    sale_price: "",
+    commission_type: "percent" as "percent" | "dollar",
+    commission_value: "",
     notes: "",
   })
 
@@ -105,6 +108,62 @@ export function SubmitContractDialog({ open, onOpenChange, onSuccess }: SubmitCo
               placeholder="123 Main St, City, FL 32801"
               className=""
             />
+          </div>
+
+          {/* Sale price + commission */}
+          <div className="space-y-2">
+            <Label className="text-slate-300">Sale Price</Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+              <Input
+                type="number"
+                min="0"
+                step="1000"
+                value={form.sale_price}
+                onChange={(e) => setForm((p) => ({ ...p, sale_price: e.target.value }))}
+                placeholder="500,000"
+                className="pl-7"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-slate-300">Commission</Label>
+            <div className="flex gap-2">
+              <div className="flex rounded-lg border border-white/10 overflow-hidden shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setForm((p) => ({ ...p, commission_type: "percent" }))}
+                  className={`px-3 py-2 text-xs font-medium transition-colors ${form.commission_type === "percent" ? "bg-cyan-500/20 text-cyan-400" : "text-slate-400 hover:text-slate-200"}`}
+                >
+                  %
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm((p) => ({ ...p, commission_type: "dollar" }))}
+                  className={`px-3 py-2 text-xs font-medium transition-colors ${form.commission_type === "dollar" ? "bg-cyan-500/20 text-cyan-400" : "text-slate-400 hover:text-slate-200"}`}
+                >
+                  $
+                </button>
+              </div>
+              <div className="relative flex-1">
+                {form.commission_type === "dollar" && (
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                )}
+                <Input
+                  type="number"
+                  min="0"
+                  step={form.commission_type === "percent" ? "0.1" : "100"}
+                  value={form.commission_value}
+                  onChange={(e) => setForm((p) => ({ ...p, commission_value: e.target.value }))}
+                  placeholder={form.commission_type === "percent" ? "3.0" : "15,000"}
+                  className={form.commission_type === "dollar" ? "pl-7" : ""}
+                />
+                {form.commission_type === "percent" && (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">%</span>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

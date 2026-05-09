@@ -41,6 +41,9 @@ export async function POST(req: Request) {
     has_cdd,
     notes,
     risk_status,
+    sale_price,
+    commission_type,
+    commission_value,
   } = body
 
   // Create the contract
@@ -57,6 +60,9 @@ export async function POST(req: Request) {
       has_cdd: has_cdd ?? false,
       notes: notes || null,
       risk_status: risk_status || "green",
+      sale_price: sale_price ? parseFloat(sale_price) : null,
+      commission_type: commission_type || null,
+      commission_value: commission_value ? parseFloat(commission_value) : null,
     })
     .select()
     .single()
