@@ -71,32 +71,19 @@ function DocRow({
     if (!file) return
     setLoading(true)
     try {
-      // Step 1: Upload file to Vercel Blob
-      const uploadForm = new FormData()
-      uploadForm.append("file", file)
-      uploadForm.append("document_key", doc.document_key)
-      const uploadRes = await fetch(`/api/contracts/${contractId}/upload`, {
-        method: "POST",
-        body: uploadForm,
-      })
-      if (!uploadRes.ok) throw new Error("Upload failed")
-      const { url, file_name } = await uploadRes.json()
-
-      // Step 2: Record the real URL and mark as uploaded
-      const patchRes = await fetch(`/api/contracts/${contractId}/documents`, {
+      // Mark as uploaded (file_name stored, no actual cloud upload in this version)
+      const res = await fetch(`/api/contracts/${contractId}/documents`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           document_key: doc.document_key,
           status: "uploaded",
-          file_name,
-          file_url: url,
+          file_name: file.name,
+          file_url: null,
         }),
       })
-      const data = await patchRes.json()
+      const data = await res.json()
       onUpdate(doc.document_key, "uploaded", data.progress ?? 0)
-    } catch (err) {
-      console.error("[v0] Document upload error:", err)
     } finally {
       setLoading(false)
       if (fileRef.current) fileRef.current.value = ""

@@ -84,6 +84,8 @@ function getProgressBarColor(percent: number) {
 export function ContractDetailClient({ contract, documents, dealDocs, isAdmin }: ContractDetailClientProps) {
   const [progress, setProgress] = useState(contract.progress_percent)
   const [showComplete, setShowComplete] = useState(false)
+  const [paymentStatus, setPaymentStatus] = useState<"pending" | "sent" | null>(contract.payment_status)
+  const [requestingPay, setRequestingPay] = useState(false)
 
   const risk = RISK_CONFIG[contract.risk_status] ?? RISK_CONFIG.green
   const progressLabel = getProgressLabel(progress)
@@ -95,6 +97,19 @@ export function ContractDetailClient({ contract, documents, dealDocs, isAdmin }:
   function handleComplete() {
     if (progress === 100) {
       setShowComplete(true)
+    }
+  }
+
+  async function handleRequestPay() {
+    setRequestingPay(true)
+    try {
+      const res = await fetch(`/api/contracts/${contract.id}/request-pay`, { method: "POST" })
+      if (res.ok) {
+        setPaymentStatus("pending")
+        setShowComplete(true)
+      }
+    } finally {
+      setRequestingPay(false)
     }
   }
 
@@ -197,18 +212,59 @@ export function ContractDetailClient({ contract, documents, dealDocs, isAdmin }:
         )}
       </div>
 
-      {/* Request Pay — only shown when all docs are approved */}
-      {progress === 100 && !showComplete && (
+      {/* Payment status banner */}
+      {paymentStatus === "sent" && (
+        <div className="border border-cyan-500/20 rounded-xl bg-cyan-500/[0.04] p-5 flex items-center gap-4">
+          <div className="h-10 w-10 rounded-full bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center shrink-0">
+            <Mail className="h-5 w-5 text-cyan-400" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-cyan-400">In the Mail</p>
+            <p className="text-xs text-slate-400 mt-0.5">Your broker has confirmed your check is on its way.</p>
+          </div>
+          <div className="ml-auto">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-32 rounded-full bg-white/10 overflow-hidden">
+                <div className="h-full w-full bg-cyan-500 rounded-full animate-pulse" />
+              </div>
+              <span className="text-xs text-cyan-400 font-medium">Sent</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {paymentStatus === "pending" && (
+        <div className="border border-amber-500/20 rounded-xl bg-amber-500/[0.04] p-5 flex items-center gap-4">
+          <div className="h-10 w-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+            <Clock className="h-5 w-5 text-amber-400" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-amber-400">Pending Disbursement</p>
+            <p className="text-xs text-slate-400 mt-0.5">Your payment request has been sent to your broker for processing.</p>
+          </div>
+          <div className="ml-auto">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-32 rounded-full bg-white/10 overflow-hidden">
+                <div className="h-full w-2/3 bg-amber-500 rounded-full" />
+              </div>
+              <span className="text-xs text-amber-400 font-medium">Pending</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {progress === 100 && !paymentStatus && !showComplete && (
         <div className="border border-emerald-500/20 rounded-xl bg-emerald-500/[0.04] p-5 flex items-center justify-between gap-4 flex-wrap">
           <div>
             <p className="text-sm font-semibold text-emerald-400">All Documents Approved</p>
             <p className="text-xs text-slate-400 mt-0.5">Your file is fully compliant. You can now request payment.</p>
           </div>
           <Button
-            onClick={() => setShowComplete(true)}
+            onClick={handleRequestPay}
+            disabled={requestingPay}
             className="bg-emerald-500 hover:bg-emerald-400 text-black font-semibold gap-2 shrink-0"
           >
-            <DollarSign className="h-4 w-4" />
+            {requestingPay ? <Loader2 className="h-4 w-4 animate-spin" /> : <DollarSign className="h-4 w-4" />}
             Request Pay
           </Button>
         </div>

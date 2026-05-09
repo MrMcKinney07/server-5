@@ -18,6 +18,8 @@ import {
   Users,
   Loader2,
   X,
+  DollarSign,
+  Mail,
 } from "lucide-react"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
@@ -44,6 +46,7 @@ interface Contract {
   status: string
   risk_status: string
   progress_percent: number
+  payment_status: "pending" | "sent" | null
   contract_date: string
   expected_closing_date: string | null
   contract_documents: ContractDoc[]
@@ -169,6 +172,32 @@ function DocApprovalRow({ doc, contractId }: { doc: ContractDoc; contractId: str
   )
 }
 
+function CheckSentButton({ contractId }: { contractId: string }) {
+  const [loading, setLoading] = useState(false)
+
+  async function handleCheckSent() {
+    setLoading(true)
+    try {
+      await fetch(`/api/broker/contracts/${contractId}/check-sent`, { method: "POST" })
+      mutate("/api/broker/contracts")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Button
+      size="sm"
+      onClick={handleCheckSent}
+      disabled={loading}
+      className="h-7 px-3 text-xs bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 border border-cyan-500/20 gap-1.5 shrink-0"
+    >
+      {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Mail className="h-3 w-3" />}
+      Check Sent
+    </Button>
+  )
+}
+
 function TransactionFolder({ contract }: { contract: Contract }) {
   const [open, setOpen] = useState(false)
   const pendingCount = contract.contract_documents.filter((d) => d.status === "uploaded").length
@@ -196,6 +225,18 @@ function TransactionFolder({ contract }: { contract: Contract }) {
             {pendingCount > 0 && (
               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25">
                 {pendingCount} pending
+              </span>
+            )}
+            {contract.payment_status === "pending" && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 flex items-center gap-1">
+                <DollarSign className="h-2.5 w-2.5" />
+                Pay Requested
+              </span>
+            )}
+            {contract.payment_status === "sent" && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/25 flex items-center gap-1">
+                <Mail className="h-2.5 w-2.5" />
+                Check Sent
               </span>
             )}
           </div>
@@ -236,6 +277,27 @@ function TransactionFolder({ contract }: { contract: Contract }) {
             <span className="text-white font-medium">{contract.progress_percent}%</span>
           </div>
           <Progress value={contract.progress_percent} className="h-1.5 mb-4 bg-white/10" />
+
+          {/* Payment request banner */}
+          {contract.payment_status === "pending" && (
+            <div className="flex items-center justify-between gap-3 p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.04] mb-3">
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-emerald-400 shrink-0" />
+                <div>
+                  <p className="text-xs font-semibold text-emerald-400">Payment Requested</p>
+                  <p className="text-[11px] text-slate-400">Agent has requested disbursement for this transaction.</p>
+                </div>
+              </div>
+              <CheckSentButton contractId={contract.id} />
+            </div>
+          )}
+
+          {contract.payment_status === "sent" && (
+            <div className="flex items-center gap-2 p-3 rounded-lg border border-cyan-500/20 bg-cyan-500/[0.04] mb-3">
+              <Mail className="h-4 w-4 text-cyan-400 shrink-0" />
+              <p className="text-xs font-semibold text-cyan-400">Check marked as sent</p>
+            </div>
+          )}
 
           {contract.contract_documents.length === 0 ? (
             <p className="text-sm text-slate-500 text-center py-4">No documents on this contract yet.</p>
