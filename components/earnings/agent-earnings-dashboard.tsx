@@ -166,7 +166,7 @@ export function AgentEarningsDashboard({
             </div>
             <div className="p-4 bg-muted/50 rounded-lg">
               <p className="text-sm text-muted-foreground">Transaction Fee</p>
-              <p className="text-2xl font-bold">{formatCurrency(500)}</p>
+              <p className="text-2xl font-bold">{formatCurrency(499)}</p>
             </div>
           </div>
         </CardContent>
