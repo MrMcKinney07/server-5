@@ -32,12 +32,12 @@ interface AdminKnowledgeManagerProps {
 }
 
 const categories = [
-  { id: "lead_handling", label: "Lead Handling" },
-  { id: "listings", label: "Listings" },
-  { id: "transactions", label: "Transactions" },
-  { id: "open_house", label: "Open Houses" },
-  { id: "training", label: "Training" },
-  { id: "general", label: "General" },
+  { id: "lead_handling", label: "Lead Mastery" },
+  { id: "listings", label: "Listing Excellence" },
+  { id: "transactions", label: "Deal Management" },
+  { id: "open_house", label: "Open House Strategies" },
+  { id: "training", label: "Agent Development" },
+  { id: "general", label: "Quick Reference" },
 ]
 
 export function AdminKnowledgeManager({ articles, missionTemplates }: AdminKnowledgeManagerProps) {

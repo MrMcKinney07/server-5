@@ -7,7 +7,7 @@ export default async function AdminKnowledgePage() {
   const supabase = await createServerClient()
   const agent = await requireAuth()
 
-  if (!agent || agent.role !== "admin") {
+  if (!agent || agent.role !== "broker") {
     redirect("/dashboard")
   }
 
