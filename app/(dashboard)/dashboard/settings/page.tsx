@@ -86,7 +86,12 @@ export default async function SettingsPage() {
                 <div className="flex justify-between items-center py-2 border-b">
                   <span className="text-muted-foreground">Split</span>
                   <span className="font-medium text-emerald-600">
-                    {Number(currentPlan.split_percentage)}% / {100 - Number(currentPlan.split_percentage)}%
+                    {(() => {
+                      const split = Number(currentPlan.split_percentage)
+                      // Handle both decimal (0.70) and percentage (70) formats
+                      const displaySplit = split <= 1 ? Math.round(split * 100) : Math.round(split)
+                      return `${displaySplit}% / ${100 - displaySplit}%`
+                    })()}
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b">

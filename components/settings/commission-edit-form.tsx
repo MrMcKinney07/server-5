@@ -212,15 +212,21 @@ export function CommissionEditForm({
                   <SelectValue placeholder="Select a plan" />
                 </SelectTrigger>
                 <SelectContent>
-                  {allPlans.map((plan) => (
-                    <SelectItem key={plan.id} value={plan.id}>
-                      {plan.split_percentage}% Split
-                      {plan.is_default && " (Default)"}
-                      {plan.marketing_fund_threshold
-                        ? ` - $${plan.marketing_fund_threshold.toLocaleString()} threshold`
-                        : ""}
-                    </SelectItem>
-                  ))}
+                  {allPlans.map((plan) => {
+                    // Handle both decimal (0.70) and percentage (70) formats
+                    const displaySplit = plan.split_percentage <= 1 
+                      ? Math.round(plan.split_percentage * 100) 
+                      : Math.round(plan.split_percentage)
+                    return (
+                      <SelectItem key={plan.id} value={plan.id}>
+                        {displaySplit}% Split
+                        {plan.is_default && " (Default)"}
+                        {plan.marketing_fund_threshold
+                          ? ` - $${plan.marketing_fund_threshold.toLocaleString()} threshold`
+                          : ""}
+                      </SelectItem>
+                    )
+                  })}
                 </SelectContent>
               </Select>
             </div>
