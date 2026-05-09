@@ -5,10 +5,28 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts"
 import { DollarSign, Users, TrendingUp, Building } from "lucide-react"
-import type { AgentAnnualSummaryWithAgent, CommissionPlan } from "@/lib/types/database"
+interface AgentSummary {
+  id: string
+  name: string
+  total_deals: number
+  total_volume: number
+  total_gci: number
+  total_broker_share: number
+  total_agent_commission: number
+}
+
+interface CommissionPlan {
+  id: string
+  name: string
+  split_percentage: number | string
+  cap_amount: number | string | null
+  transaction_fee: number | string | null
+  monthly_fee: number | string | null
+  is_default: boolean
+}
 
 interface BrokerRevenueDashboardProps {
-  agentSummaries: AgentAnnualSummaryWithAgent[]
+  agentSummaries: AgentSummary[]
   monthlyRevenue: { month: number; broker_share: number; gci: number }[]
   commissionPlans: CommissionPlan[]
   currentYear: number
@@ -143,11 +161,11 @@ export function BrokerRevenueDashboard({
                 <TableBody>
                   {agentSummaries.map((summary) => (
                     <TableRow key={summary.id}>
-                      <TableCell className="font-medium">{summary.agent?.full_name || "Unknown"}</TableCell>
+                      <TableCell className="font-medium">{summary.name}</TableCell>
                       <TableCell className="text-right">{summary.total_deals}</TableCell>
                       <TableCell className="text-right">{formatCurrency(summary.total_volume)}</TableCell>
                       <TableCell className="text-right">{formatCurrency(summary.total_gci)}</TableCell>
-                      <TableCell className="text-right font-medium">
+                      <TableCell className="text-right font-medium text-primary">
                         {formatCurrency(summary.total_broker_share)}
                       </TableCell>
                     </TableRow>

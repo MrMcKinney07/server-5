@@ -17,6 +17,9 @@ interface AgentEarningsDashboardProps {
     marketingBudget: number
   }
   splitPercent: number
+  transactionFee: number
+  planName: string
+  capAmount: number | null
   marketingThreshold: number
   hasReachedThreshold: boolean
   recentDeals: Array<{
@@ -24,6 +27,8 @@ interface AgentEarningsDashboardProps {
     property_address: string
     sale_price: number | null
     gross_commission: number | null
+    agent_commission: number | null
+    broker_commission: number | null
     closing_date: string | null
     transaction_type: string | null
   }>
@@ -34,22 +39,20 @@ export function AgentEarningsDashboard({
   agent,
   ytdStats,
   splitPercent,
+  transactionFee,
+  planName,
+  capAmount,
   marketingThreshold,
   hasReachedThreshold,
   recentDeals,
   currentYear,
 }: AgentEarningsDashboardProps) {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount)
-  }
+  const fmt = (n: number) =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n)
 
+  // Threshold progress uses broker paid funds only
   const thresholdProgress = Math.min(ytdStats.brokerShare, marketingThreshold)
-  const thresholdPercentage = marketingThreshold > 0 ? (thresholdProgress / marketingThreshold) * 100 : 0
+  const thresholdPct = marketingThreshold > 0 ? (thresholdProgress / marketingThreshold) * 100 : 0
 
   return (
     <div className="space-y-6">
@@ -61,7 +64,7 @@ export function AgentEarningsDashboard({
             <DollarSign className="h-4 w-4 text-emerald-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-emerald-600">{formatCurrency(ytdStats.totalGCI)}</div>
+            <div className="text-2xl font-bold text-emerald-600">{fmt(ytdStats.totalGCI)}</div>
             <p className="text-xs text-muted-foreground">{ytdStats.totalDeals} deals closed</p>
           </CardContent>
         </Card>
@@ -72,8 +75,8 @@ export function AgentEarningsDashboard({
             <TrendingUp className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{formatCurrency(ytdStats.agentEarnings)}</div>
-            <p className="text-xs text-muted-foreground">{splitPercent}% commission split</p>
+            <div className="text-2xl font-bold text-blue-600">{fmt(ytdStats.agentEarnings)}</div>
+            <p className="text-xs text-muted-foreground">{splitPercent}% split · {fmt(transactionFee)} fee/deal</p>
           </CardContent>
         </Card>
 
@@ -83,9 +86,9 @@ export function AgentEarningsDashboard({
             <Megaphone className="h-4 w-4 text-pink-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-pink-600">{formatCurrency(ytdStats.marketingBudget)}</div>
+            <div className="text-2xl font-bold text-pink-600">{fmt(ytdStats.marketingBudget)}</div>
             <p className="text-xs text-muted-foreground">
-              {hasReachedThreshold ? "10% of company share" : "Unlocks at $15k"}
+              {hasReachedThreshold ? "10% of broker dollars above cap" : `Unlocks at ${fmt(marketingThreshold)} broker dollars`}
             </p>
           </CardContent>
         </Card>
@@ -96,12 +99,13 @@ export function AgentEarningsDashboard({
             <Award className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-600">{formatCurrency(ytdStats.totalVolume)}</div>
+            <div className="text-2xl font-bold text-purple-600">{fmt(ytdStats.totalVolume)}</div>
             <p className="text-xs text-muted-foreground">Sales volume {currentYear}</p>
           </CardContent>
         </Card>
       </div>
 
+      {/* Marketing Threshold — broker paid funds only */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -112,47 +116,43 @@ export function AgentEarningsDashboard({
             {hasReachedThreshold ? (
               <Badge className="bg-pink-600">Threshold Reached! Earning 10% Marketing Budget</Badge>
             ) : (
-              `${formatCurrency(marketingThreshold - thresholdProgress)} remaining to unlock marketing budget`
+              `${fmt(marketingThreshold - thresholdProgress)} in broker dollars remaining to unlock`
             )}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
-          <Progress value={Math.min(thresholdPercentage, 100)} className="h-3" />
+          <Progress value={Math.min(thresholdPct, 100)} className="h-3" />
           <div className="flex justify-between text-sm text-muted-foreground">
-            <span>{formatCurrency(thresholdProgress)} company dollar</span>
-            <span>{formatCurrency(marketingThreshold)} threshold</span>
+            <span>{fmt(thresholdProgress)} broker dollars paid</span>
+            <span>{fmt(marketingThreshold)} threshold</span>
           </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            The threshold is calculated from broker-received funds only ({100 - splitPercent}% of each deal&apos;s GCI).
+            {capAmount ? ` Your cap is ${fmt(capAmount)}.` : ""}
+          </p>
           {hasReachedThreshold && (
             <div className="mt-4 p-4 bg-pink-50 dark:bg-pink-950/20 rounded-lg border border-pink-200 dark:border-pink-800">
               <p className="text-sm text-pink-700 dark:text-pink-300 font-medium">
-                Congratulations! You've unlocked your marketing budget. You now receive 10% of all future company dollar
-                as marketing funds.
+                You&apos;ve unlocked your marketing budget — 10% of all broker dollars above {fmt(marketingThreshold)}.
               </p>
               <p className="text-xs text-pink-600 dark:text-pink-400 mt-1">
-                Current marketing budget: {formatCurrency(ytdStats.marketingBudget)}
+                Current marketing budget: {fmt(ytdStats.marketingBudget)}
               </p>
             </div>
           )}
-          {!hasReachedThreshold && (
-            <p className="text-sm text-muted-foreground mt-2">
-              After reaching {formatCurrency(marketingThreshold)} in company dollar, you'll earn a 10% marketing budget
-              from future company share.
-            </p>
-          )}
           <div className="mt-3 p-3 bg-muted/50 rounded-lg">
             <p className="text-xs text-muted-foreground">
-              <span className="font-medium">Note:</span> This threshold resets annually on January 1st. Your current
-              progress is for {currentYear}.
+              <span className="font-medium">Note:</span> Threshold resets annually on January 1st. Progress shown is for {currentYear}.
             </p>
           </div>
         </CardContent>
       </Card>
 
-      {/* Commission Plan Details */}
+      {/* Commission Plan */}
       <Card>
         <CardHeader>
           <CardTitle>Your Commission Plan</CardTitle>
-          <CardDescription>McKinney Realty Commission Structure</CardDescription>
+          <CardDescription>{planName}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-3">
@@ -161,12 +161,12 @@ export function AgentEarningsDashboard({
               <p className="text-2xl font-bold text-emerald-600">{splitPercent}%</p>
             </div>
             <div className="p-4 bg-muted/50 rounded-lg">
-              <p className="text-sm text-muted-foreground">Marketing Threshold</p>
-              <p className="text-2xl font-bold">{formatCurrency(marketingThreshold)}</p>
+              <p className="text-sm text-muted-foreground">Marketing Threshold (Broker $)</p>
+              <p className="text-2xl font-bold">{fmt(marketingThreshold)}</p>
             </div>
             <div className="p-4 bg-muted/50 rounded-lg">
               <p className="text-sm text-muted-foreground">Transaction Fee</p>
-              <p className="text-2xl font-bold">{formatCurrency(499)}</p>
+              <p className="text-2xl font-bold">{fmt(transactionFee)}</p>
             </div>
           </div>
         </CardContent>
@@ -183,7 +183,7 @@ export function AgentEarningsDashboard({
             <div className="text-center py-12">
               <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">No closings yet this year</p>
-              <p className="text-sm text-muted-foreground">Closed transactions will appear here</p>
+              <p className="text-sm text-muted-foreground">Closed transactions will appear here after broker marks check sent</p>
             </div>
           ) : (
             <Table>
@@ -194,19 +194,21 @@ export function AgentEarningsDashboard({
                   <TableHead>Type</TableHead>
                   <TableHead className="text-right">Sale Price</TableHead>
                   <TableHead className="text-right">GCI</TableHead>
-                  <TableHead className="text-right">Your Share</TableHead>
+                  <TableHead className="text-right">Broker Paid</TableHead>
+                  <TableHead className="text-right">Your Net</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {recentDeals.map((deal) => {
                   const gci = Number(deal.gross_commission) || 0
-                  const agentShare = gci * (splitPercent / 100)
+                  const brokerPaid = Number(deal.broker_commission) || 0
+                  const agentNet = Number(deal.agent_commission) || 0
                   return (
                     <TableRow key={deal.id}>
                       <TableCell>
                         {deal.closing_date ? new Date(deal.closing_date).toLocaleDateString() : "-"}
                       </TableCell>
-                      <TableCell className="max-w-[200px] truncate font-medium">
+                      <TableCell className="max-w-[180px] truncate font-medium">
                         {deal.property_address || "N/A"}
                       </TableCell>
                       <TableCell>
@@ -214,11 +216,10 @@ export function AgentEarningsDashboard({
                           {deal.transaction_type || "buyer"}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">{formatCurrency(Number(deal.sale_price) || 0)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(gci)}</TableCell>
-                      <TableCell className="text-right font-medium text-emerald-600">
-                        {formatCurrency(agentShare)}
-                      </TableCell>
+                      <TableCell className="text-right">{fmt(Number(deal.sale_price) || 0)}</TableCell>
+                      <TableCell className="text-right">{fmt(gci)}</TableCell>
+                      <TableCell className="text-right text-rose-500">{fmt(brokerPaid)}</TableCell>
+                      <TableCell className="text-right font-medium text-emerald-600">{fmt(agentNet)}</TableCell>
                     </TableRow>
                   )
                 })}
