@@ -4,7 +4,7 @@ import { useState, useRef } from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ChevronDown, Upload, Check, Clock, Circle, Plus, X, Loader2, CheckCircle2 } from "lucide-react"
+import { ChevronDown, Upload, Clock, Circle, Plus, X, Loader2, CheckCircle2 } from "lucide-react"
 
 interface ContractDocument {
   id: string
@@ -157,6 +157,9 @@ function CategorySection({
 }) {
   const [open, setOpen] = useState(true)
   const approvedCount = docs.filter((d) => d.status === "approved").length
+  const uploadedCount = docs.filter((d) => d.status === "uploaded").length
+  const submittedCount = approvedCount + uploadedCount
+  const allApproved = approvedCount === docs.length && docs.length > 0
 
   return (
     <div className="border border-white/[0.06] rounded-xl overflow-hidden">
@@ -166,12 +169,16 @@ function CategorySection({
       >
         <div className="flex items-center gap-3">
           <span className="text-sm font-medium text-white">{category}</span>
-          <span className="text-xs text-slate-500">{approvedCount}/{docs.length} complete</span>
-          {approvedCount === docs.length && docs.length > 0 && (
+          <span className="text-xs text-slate-500">{submittedCount}/{docs.length} submitted</span>
+          {allApproved ? (
             <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              All done
+              All approved
             </span>
-          )}
+          ) : submittedCount === docs.length ? (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+              Pending review
+            </span>
+          ) : null}
         </div>
         <ChevronDown className={cn("h-4 w-4 text-slate-500 transition-transform", open && "rotate-180")} />
       </button>
