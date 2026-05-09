@@ -62,7 +62,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       .in("Role", ["admin", "broker"])
 
     if (contract && agentRow && brokers && brokers.length > 0) {
-      const serviceClient = createServiceClient()
+      const serviceClient = await createServiceClient()
       const notifRows = brokers.map((b) => ({
         recipient_id: b.id,
         contract_id: contractId,

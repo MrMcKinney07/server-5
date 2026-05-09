@@ -1,30 +1,12 @@
-import { createClient, createServiceClient } from "@/lib/supabase/server"
+import { createServiceClient } from "@/lib/supabase/server"
 import { grantXP } from "@/lib/xp-service"
 import { NextResponse } from "next/server"
 
 const CLOSE_XP = 15
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const serviceClient = createServiceClient()
-
-  // Verify caller is authenticated via user-scoped client
-  const userClient = await createClient()
-  const { data: { user } } = await userClient.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
-  // Verify broker/admin role from agents table using service client
-  const { data: callerAgent } = await serviceClient
-    .from("agents")
-    .select("Role")
-    .eq("id", user.id)
-    .maybeSingle()
-
-  const role = (callerAgent?.Role || "").toLowerCase()
-  if (role !== "admin" && role !== "broker") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-  }
-
   const { id: contractId } = await params
+  const serviceClient = await createServiceClient()
 
   // Fetch the full contract
   const { data: contract, error: fetchError } = await serviceClient
@@ -33,8 +15,14 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     .eq("id", contractId)
     .single()
 
-  if (fetchError || !contract) return NextResponse.json({ error: "Contract not found" }, { status: 404 })
-  if (contract.payment_status === "sent") return NextResponse.json({ success: true, already: true })
+  if (fetchError || !contract) {
+    return NextResponse.json({ error: "Contract not found" }, { status: 404 })
+  }
+
+  // Already processed — return success without duplicating
+  if (contract.payment_status === "sent") {
+    return NextResponse.json({ success: true, already: true })
+  }
 
   // Fetch the agent's active commission plan
   const { data: agentPlan } = await serviceClient
@@ -48,7 +36,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   // split_percentage stored as decimal fraction (0.70, 0.80, 0.85)
   let agentFraction = 0.70
   let capAmount: number | null = null
-  let transactionFee = 499 // default fallback
+  let transactionFee = 499
 
   const plan = agentPlan?.plan as any
   if (plan) {
@@ -70,7 +58,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
 
   const brokerFraction = 1 - agentFraction
 
-  // Compute gross commission from contract fields
+  // Compute gross commission
   let grossCommission = 0
   if (contract.commission_value) {
     if (contract.commission_type === "percent" && contract.sale_price) {
@@ -91,7 +79,9 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     .update({ payment_status: "sent", status: "closed" })
     .eq("id", contractId)
 
-  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
+  if (updateError) {
+    return NextResponse.json({ error: updateError.message }, { status: 500 })
+  }
 
   // 2. Write transaction record
   await serviceClient.from("transactions").insert({
@@ -110,7 +100,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     notes: contract.notes ?? null,
   })
 
-  // 3. Update agent commission plan cap progress + ytd GCI
+  // 3. Update cap_progress + ytd_gci on agent commission plan
   if (agentPlan?.id) {
     const newCapProgress = capAmount
       ? Math.min(Number(agentPlan.cap_progress || 0) + brokerShare, capAmount)
@@ -123,7 +113,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
       .eq("id", agentPlan.id)
   }
 
-  // 4. Award 15 XP to agent
+  // 4. Award 15 XP to agent for closing
   await grantXP(contract.agent_id, CLOSE_XP, "Contract closed — check sent", "CONTRACT")
 
   return NextResponse.json({ success: true, grossCommission, brokerShare, agentNet })
