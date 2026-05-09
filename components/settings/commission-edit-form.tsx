@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { createBrowserClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -53,7 +52,6 @@ export function CommissionEditForm({
   isBroker,
 }: CommissionEditFormProps) {
   const router = useRouter()
-  const supabase = createBrowserClient()
   const [open, setOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   
@@ -72,90 +70,40 @@ export function CommissionEditForm({
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      if (useCustom) {
-        // Create or update a custom plan for this agent
-        const customPlanName = `Custom Plan - Agent ${agentId.slice(0, 8)}`
-        
-        // Check if custom plan exists
-        const { data: existingPlan } = await supabase
-          .from("commission_plans")
-          .select("id")
-          .eq("name", customPlanName)
-          .maybeSingle()
-
-        let planId: string
-
-        if (existingPlan) {
-          // Update existing custom plan
-          await supabase
-            .from("commission_plans")
-            .update({
-              split_percentage: parseFloat(customSplit),
-              marketing_fund_threshold: parseFloat(customThreshold),
-              transaction_fee: parseFloat(customTransactionFee),
-            })
-            .eq("id", existingPlan.id)
-          planId = existingPlan.id
-        } else {
-          // Create new custom plan
-          const { data: newPlan, error: planError } = await supabase
-            .from("commission_plans")
-            .insert({
-              name: customPlanName,
-              description: "Custom commission plan",
-              split_percentage: parseFloat(customSplit),
-              marketing_fund_threshold: parseFloat(customThreshold),
-              transaction_fee: parseFloat(customTransactionFee),
-              monthly_fee: 0,
-              is_default: false,
-              is_active: true,
-            })
-            .select()
-            .single()
-
-          if (planError) throw planError
-          planId = newPlan.id
-        }
-
-        // Assign plan to agent
-        if (agentPlan) {
-          await supabase
-            .from("agent_commission_plans")
-            .update({ plan_id: planId })
-            .eq("id", agentPlan.id)
-        } else {
-          await supabase.from("agent_commission_plans").insert({
+      const action = useCustom ? "assign_custom_plan" : "assign_plan"
+      const payload = useCustom
+        ? {
+            action,
             agent_id: agentId,
-            plan_id: planId,
-            effective_date: new Date().toISOString().split("T")[0],
-            cap_progress: 0,
-            ytd_gci: 0,
-          })
-        }
-      } else {
-        // Assign existing plan
-        if (agentPlan) {
-          await supabase
-            .from("agent_commission_plans")
-            .update({ plan_id: selectedPlanId })
-            .eq("id", agentPlan.id)
-        } else {
-          await supabase.from("agent_commission_plans").insert({
+            existing_agent_plan_id: agentPlan?.id || null,
+            split_percentage: parseFloat(customSplit),
+            marketing_fund_threshold: parseFloat(customThreshold),
+            transaction_fee: parseFloat(customTransactionFee),
+          }
+        : {
+            action,
             agent_id: agentId,
             plan_id: selectedPlanId,
-            effective_date: new Date().toISOString().split("T")[0],
-            cap_progress: 0,
-            ytd_gci: 0,
-          })
-        }
+            existing_agent_plan_id: agentPlan?.id || null,
+          }
+
+      const res = await fetch("/api/admin/commission", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        const { error } = await res.json()
+        throw new Error(error || "Request failed")
       }
 
       toast.success("Commission plan updated successfully")
       setOpen(false)
       router.refresh()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating commission:", error)
-      toast.error("Failed to update commission plan")
+      toast.error(error.message || "Failed to update commission plan")
     } finally {
       setIsSaving(false)
     }
