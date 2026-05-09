@@ -1,10 +1,11 @@
-import { requireAuth } from "@/lib/auth"
+import { getCurrentAgent } from "@/lib/auth"
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
 export async function POST(request: Request) {
   try {
-    const agent = await requireAuth()
+    const agent = await getCurrentAgent()
+    if (!agent) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     const supabase = await createClient()
     const { amount, reason, type, source } = await request.json()
 

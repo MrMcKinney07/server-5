@@ -1,11 +1,11 @@
 import { createClient } from "@/lib/supabase/server"
-import { requireAuth } from "@/lib/auth"
+import { getCurrentAgent } from "@/lib/auth"
 import { NextResponse } from "next/server"
 import { getDocumentsForContract } from "@/lib/contracts/document-definitions"
 
 export async function GET() {
   const supabase = await createClient()
-  const agent = await requireAuth()
+  const agent = await getCurrentAgent()
   if (!agent) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const isAdmin = agent.Role === "admin" || agent.Role === "broker"
@@ -27,7 +27,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const supabase = await createClient()
-  const agent = await requireAuth()
+  const agent = await getCurrentAgent()
   if (!agent) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const body = await req.json()

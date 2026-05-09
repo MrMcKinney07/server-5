@@ -1,10 +1,10 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server"
-import { requireAuth } from "@/lib/auth"
+import { getCurrentAgent } from "@/lib/auth"
 import { NextResponse } from "next/server"
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient()
-  const agent = await requireAuth()
+  const agent = await getCurrentAgent()
   if (!agent) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { id: contractId } = await params
