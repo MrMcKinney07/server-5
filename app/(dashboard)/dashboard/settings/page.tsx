@@ -7,7 +7,7 @@ import { CommissionEditForm } from "@/components/settings/commission-edit-form"
 export default async function SettingsPage() {
   const agent = await requireAuth()
   const supabase = await createClient()
-  const isAdmin = agent.role === "admin" || agent.role === "broker"
+  const isAdmin = agent.role === "broker"
 
   // Get agent's commission plan
   let agentPlan = null
@@ -75,7 +75,7 @@ export default async function SettingsPage() {
                   currentPlan={currentPlan}
                   agentPlan={agentPlan}
                   allPlans={allPlans || []}
-                  isAdmin={isAdmin}
+                  isBroker={isAdmin}
                 />
               )}
             </div>

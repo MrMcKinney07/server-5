@@ -42,7 +42,7 @@ interface CommissionEditFormProps {
   currentPlan: CommissionPlan | null
   agentPlan: AgentPlan | null
   allPlans: CommissionPlan[]
-  isAdmin: boolean
+  isBroker: boolean
 }
 
 export function CommissionEditForm({
@@ -50,7 +50,7 @@ export function CommissionEditForm({
   currentPlan,
   agentPlan,
   allPlans,
-  isAdmin,
+  isBroker,
 }: CommissionEditFormProps) {
   const router = useRouter()
   const supabase = createBrowserClient()
@@ -58,7 +58,9 @@ export function CommissionEditForm({
   const [isSaving, setIsSaving] = useState(false)
   
   const [selectedPlanId, setSelectedPlanId] = useState(agentPlan?.plan_id || currentPlan?.id || "")
-  const [customSplit, setCustomSplit] = useState(currentPlan?.split_percentage?.toString() || "70")
+  const [customSplit, setCustomSplit] = useState(
+    currentPlan?.split_percentage ? String(Math.round(currentPlan.split_percentage * (currentPlan.split_percentage <= 1 ? 100 : 1))) : "70"
+  )
   const [customThreshold, setCustomThreshold] = useState(
     currentPlan?.marketing_fund_threshold?.toString() || "20000"
   )
@@ -159,7 +161,7 @@ export function CommissionEditForm({
     }
   }
 
-  if (!isAdmin) {
+  if (!isBroker) {
     return null
   }
 
