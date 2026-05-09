@@ -25,7 +25,7 @@ export async function GET() {
   let capAmount: number | null = null
   let transactionFee = 0
   let planName = "Standard Plan"
-  let marketingThreshold = 25000
+  const marketingThreshold = 20000
 
   const plan = agentPlan?.plan as any
   if (plan) {
@@ -33,7 +33,6 @@ export async function GET() {
     capAmount = plan.cap_amount ? Number(plan.cap_amount) : null
     transactionFee = Number(plan.transaction_fee) || 0
     planName = plan.name || planName
-    marketingThreshold = capAmount ?? 25000
   } else {
     const { data: defaultPlan } = await supabase
       .from("commission_plans")
@@ -45,7 +44,6 @@ export async function GET() {
       capAmount = defaultPlan.cap_amount ? Number(defaultPlan.cap_amount) : null
       transactionFee = Number(defaultPlan.transaction_fee) || 0
       planName = defaultPlan.name || planName
-      marketingThreshold = capAmount ?? 25000
     }
   }
 
