@@ -13,12 +13,19 @@ export async function POST(req: NextRequest) {
 
     if (action === "create_plan") {
       const { name, description, split_percentage, marketing_fund_threshold, monthly_fee, transaction_fee, is_default, is_active } = body
+      
+      // Normalize split_percentage to decimal (0.70) format
+      let normalizedSplit = Number(split_percentage)
+      if (normalizedSplit > 1) {
+        normalizedSplit = normalizedSplit / 100
+      }
+      
       const { data, error } = await supabase
         .from("commission_plans")
         .insert({
           name,
           description: description || null,
-          split_percentage: Number(split_percentage),
+          split_percentage: normalizedSplit,
           marketing_fund_threshold: Number(marketing_fund_threshold),
           monthly_fee: Number(monthly_fee),
           transaction_fee: Number(transaction_fee),
@@ -34,12 +41,19 @@ export async function POST(req: NextRequest) {
 
     if (action === "update_plan") {
       const { plan_id, name, description, split_percentage, marketing_fund_threshold, monthly_fee, transaction_fee, is_default, is_active } = body
+      
+      // Normalize split_percentage to decimal (0.70) format
+      let normalizedSplit = Number(split_percentage)
+      if (normalizedSplit > 1) {
+        normalizedSplit = normalizedSplit / 100
+      }
+      
       const { data, error } = await supabase
         .from("commission_plans")
         .update({
           name,
           description: description || null,
-          split_percentage: Number(split_percentage),
+          split_percentage: normalizedSplit,
           marketing_fund_threshold: Number(marketing_fund_threshold),
           monthly_fee: Number(monthly_fee),
           transaction_fee: Number(transaction_fee),
