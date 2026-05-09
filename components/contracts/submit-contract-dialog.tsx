@@ -16,7 +16,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Checkbox } from "@/components/ui/checkbox"
 
 interface SubmitContractDialogProps {
   open: boolean
@@ -33,8 +32,6 @@ export function SubmitContractDialog({ open, onOpenChange, onSuccess }: SubmitCo
     client_name: "",
     contract_date: new Date().toISOString().split("T")[0],
     expected_closing_date: "",
-    has_hoa: false,
-    has_cdd: false,
     risk_status: "green",
     notes: "",
   })
@@ -149,27 +146,6 @@ export function SubmitContractDialog({ open, onOpenChange, onSuccess }: SubmitCo
                 onChange={(e) => setForm((p) => ({ ...p, expected_closing_date: e.target.value }))}
                 className="bg-white/5 border-white/10 text-white"
               />
-            </div>
-          </div>
-
-          <div className="flex gap-6">
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="has_hoa"
-                checked={form.has_hoa}
-                onCheckedChange={(v) => setForm((p) => ({ ...p, has_hoa: !!v }))}
-                className="border-white/20"
-              />
-              <Label htmlFor="has_hoa" className="text-slate-300 cursor-pointer">HOA</Label>
-            </div>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="has_cdd"
-                checked={form.has_cdd}
-                onCheckedChange={(v) => setForm((p) => ({ ...p, has_cdd: !!v }))}
-                className="border-white/20"
-              />
-              <Label htmlFor="has_cdd" className="text-slate-300 cursor-pointer">CDD</Label>
             </div>
           </div>
 
