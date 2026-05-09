@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { DollarSign, TrendingUp, Target, Award, Building2, Megaphone } from "lucide-react"
+import { DollarSign, TrendingUp, Target, Award, Megaphone } from "lucide-react"
 
 interface AgentEarningsDashboardProps {
   agent: { id: string; Name: string }
@@ -54,7 +54,7 @@ export function AgentEarningsDashboard({
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="border-l-4 border-l-emerald-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">YTD GCI</CardTitle>
@@ -73,18 +73,7 @@ export function AgentEarningsDashboard({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">{formatCurrency(ytdStats.agentEarnings)}</div>
-            <p className="text-xs text-muted-foreground">After {splitPercent}% split</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-amber-500">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Company Dollar</CardTitle>
-            <Building2 className="h-4 w-4 text-amber-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-amber-600">{formatCurrency(ytdStats.brokerShare)}</div>
-            <p className="text-xs text-muted-foreground">Broker share paid</p>
+            <p className="text-xs text-muted-foreground">{splitPercent}% commission split</p>
           </CardContent>
         </Card>
 
