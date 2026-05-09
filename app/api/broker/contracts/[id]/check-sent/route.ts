@@ -1,21 +1,30 @@
-import { createServiceClient } from "@/lib/supabase/server"
-import { getCurrentAgent } from "@/lib/auth"
+import { createClient, createServiceClient } from "@/lib/supabase/server"
 import { grantXP } from "@/lib/xp-service"
 import { NextResponse } from "next/server"
 
 const CLOSE_XP = 15
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  // Use getCurrentAgent (returns null instead of redirecting) so Route Handler stays alive
-  const agent = await getCurrentAgent()
-  if (!agent) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const serviceClient = createServiceClient()
 
-  const roleLower = (agent.role || "").toLowerCase()
-  const isBroker = roleLower === "admin" || roleLower === "broker"
-  if (!isBroker) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  // Verify caller is authenticated via user-scoped client
+  const userClient = await createClient()
+  const { data: { user } } = await userClient.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  // Verify broker/admin role from agents table using service client
+  const { data: callerAgent } = await serviceClient
+    .from("agents")
+    .select("Role")
+    .eq("id", user.id)
+    .maybeSingle()
+
+  const role = (callerAgent?.Role || "").toLowerCase()
+  if (role !== "admin" && role !== "broker") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
 
   const { id: contractId } = await params
-  const serviceClient = createServiceClient()
 
   // Fetch the full contract
   const { data: contract, error: fetchError } = await serviceClient
@@ -25,44 +34,40 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     .single()
 
   if (fetchError || !contract) return NextResponse.json({ error: "Contract not found" }, { status: 404 })
-
-  // Already closed — skip
   if (contract.payment_status === "sent") return NextResponse.json({ success: true, already: true })
 
   // Fetch the agent's active commission plan
   const { data: agentPlan } = await serviceClient
     .from("agent_commission_plans")
-    .select("id, plan_id, cap_progress, ytd_gci, plan:commission_plans(id, split_percentage, cap_amount, transaction_fee)")
+    .select("id, cap_progress, ytd_gci, plan:commission_plans(id, split_percentage, cap_amount, transaction_fee)")
     .eq("agent_id", contract.agent_id)
     .order("effective_date", { ascending: false })
     .limit(1)
     .maybeSingle()
 
-  // split_percentage is stored as a decimal fraction (0.70, 0.80, 0.85)
+  // split_percentage stored as decimal fraction (0.70, 0.80, 0.85)
   let agentFraction = 0.70
   let capAmount: number | null = null
-  let transactionFee = 0
-  let agentPlanId: string | null = agentPlan?.id ?? null
+  let transactionFee = 499 // default fallback
 
   const plan = agentPlan?.plan as any
   if (plan) {
     agentFraction = Number(plan.split_percentage) || 0.70
     capAmount = plan.cap_amount ? Number(plan.cap_amount) : null
-    transactionFee = Number(plan.transaction_fee) || 0
+    transactionFee = Number(plan.transaction_fee) || 499
   } else {
     const { data: defaultPlan } = await serviceClient
       .from("commission_plans")
-      .select("id, split_percentage, cap_amount, transaction_fee")
+      .select("split_percentage, cap_amount, transaction_fee")
       .eq("is_default", true)
       .maybeSingle()
     if (defaultPlan) {
       agentFraction = Number(defaultPlan.split_percentage) || 0.70
       capAmount = defaultPlan.cap_amount ? Number(defaultPlan.cap_amount) : null
-      transactionFee = Number(defaultPlan.transaction_fee) || 0
+      transactionFee = Number(defaultPlan.transaction_fee) || 499
     }
   }
 
-  // broker fraction is what's left over (30%, 20%, or 15%)
   const brokerFraction = 1 - agentFraction
 
   // Compute gross commission from contract fields
@@ -105,18 +110,17 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     notes: contract.notes ?? null,
   })
 
-  // 3. Update agent commission plan progress
-  if (agentPlan && agentPlanId) {
-    const currentCapProgress = Number(agentPlan.cap_progress || 0)
+  // 3. Update agent commission plan cap progress + ytd GCI
+  if (agentPlan?.id) {
     const newCapProgress = capAmount
-      ? Math.min(currentCapProgress + brokerShare, capAmount)
-      : currentCapProgress + brokerShare
+      ? Math.min(Number(agentPlan.cap_progress || 0) + brokerShare, capAmount)
+      : Number(agentPlan.cap_progress || 0) + brokerShare
     const newYtdGci = Number(agentPlan.ytd_gci || 0) + grossCommission
 
     await serviceClient
       .from("agent_commission_plans")
       .update({ cap_progress: newCapProgress, ytd_gci: newYtdGci })
-      .eq("id", agentPlanId)
+      .eq("id", agentPlan.id)
   }
 
   // 4. Award 15 XP to agent
