@@ -328,15 +328,18 @@ export type ArticleCategory = "lead_handling" | "listings" | "transactions" | "o
 export interface KnowledgeArticle {
   id: string
   title: string
-  slug: string
+  slug?: string
   content: string
   category: ArticleCategory
   related_mission_template_id: string | null
-  related_transaction_stage: string | null
+  related_transaction_stage?: string | null
   is_published: boolean
-  created_by_agent_id: string | null
+  created_by?: string | null
   created_at: string
   updated_at: string
+  file_url?: string | null
+  file_name?: string | null
+  file_type?: string | null
 }
 
 export interface KnowledgeArticleWithRelations extends KnowledgeArticle {

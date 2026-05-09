@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Search, BookOpen, Target } from "lucide-react"
+import { Search, BookOpen, Target, FileText, Download } from "lucide-react"
 import type { KnowledgeArticleWithRelations } from "@/lib/types/database"
 
 interface KnowledgeBaseListProps {
@@ -98,6 +98,18 @@ function ArticleCard({ article }: { article: KnowledgeArticleWithRelations }) {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground line-clamp-3">{article.content.substring(0, 150)}...</p>
+          {article.file_url && (
+            <a
+              href={article.file_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="flex items-center gap-1 mt-3 text-xs text-blue-600 hover:underline"
+            >
+              <FileText className="h-3 w-3" />
+              {article.file_name || "Download attachment"}
+            </a>
+          )}
           {article.related_mission_template && (
             <div className="flex items-center gap-1 mt-3 text-xs text-muted-foreground">
               <Target className="h-3 w-3" />

@@ -21,7 +21,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Pencil, Eye, EyeOff } from "lucide-react"
+import { Plus, Pencil, Eye, EyeOff, Upload, FileText, Trash2 } from "lucide-react"
 import { createBrowserClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import type { KnowledgeArticleWithRelations, MissionTemplate } from "@/lib/types/database"
@@ -46,6 +46,44 @@ export function AdminKnowledgeManager({ articles, missionTemplates }: AdminKnowl
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [editingArticle, setEditingArticle] = useState<KnowledgeArticleWithRelations | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const [fileUrl, setFileUrl] = useState<string | null>(null)
+  const [fileName, setFileName] = useState<string | null>(null)
+  const [fileType, setFileType] = useState<string | null>(null)
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, articleId?: string) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingFile(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("articleId", articleId || "new")
+
+      const res = await fetch("/api/admin/knowledge/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!res.ok) throw new Error("Upload failed")
+
+      const data = await res.json()
+      setFileUrl(data.url)
+      setFileName(data.filename)
+      setFileType(data.contentType)
+    } catch (error) {
+      console.error("File upload error:", error)
+    } finally {
+      setUploadingFile(false)
+    }
+  }
+
+  const handleRemoveFile = () => {
+    setFileUrl(null)
+    setFileName(null)
+    setFileType(null)
+  }
 
   const handleAddArticle = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -59,13 +97,16 @@ export function AdminKnowledgeManager({ articles, missionTemplates }: AdminKnowl
       content: formData.get("content") as string,
       category: formData.get("category") as string,
       related_mission_template_id: (formData.get("related_mission_template_id") as string) || null,
-      related_transaction_stage: (formData.get("related_transaction_stage") as string) || null,
       is_published: formData.get("is_published") === "on",
+      file_url: fileUrl,
+      file_name: fileName,
+      file_type: fileType,
     })
 
     setIsLoading(false)
     if (!error) {
       setIsAddOpen(false)
+      handleRemoveFile()
       router.refresh()
     }
   }
@@ -77,22 +118,31 @@ export function AdminKnowledgeManager({ articles, missionTemplates }: AdminKnowl
 
     const formData = new FormData(e.currentTarget)
 
+    const updateData: Record<string, unknown> = {
+      title: formData.get("title") as string,
+      content: formData.get("content") as string,
+      category: formData.get("category") as string,
+      related_mission_template_id: (formData.get("related_mission_template_id") as string) || null,
+      is_published: formData.get("is_published") === "on",
+      updated_at: new Date().toISOString(),
+    }
+    
+    // Only update file fields if a new file was uploaded
+    if (fileUrl) {
+      updateData.file_url = fileUrl
+      updateData.file_name = fileName
+      updateData.file_type = fileType
+    }
+
     const { error } = await supabase
       .from("knowledge_articles")
-      .update({
-        title: formData.get("title") as string,
-        content: formData.get("content") as string,
-        category: formData.get("category") as string,
-        related_mission_template_id: (formData.get("related_mission_template_id") as string) || null,
-        related_transaction_stage: (formData.get("related_transaction_stage") as string) || null,
-        is_published: formData.get("is_published") === "on",
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq("id", editingArticle.id)
 
     setIsLoading(false)
     if (!error) {
       setEditingArticle(null)
+      handleRemoveFile()
       router.refresh()
     }
   }
@@ -162,13 +212,35 @@ export function AdminKnowledgeManager({ articles, missionTemplates }: AdminKnowl
                   <Label htmlFor="content">Content *</Label>
                   <Textarea id="content" name="content" required rows={10} />
                 </div>
+                <div className="grid gap-2">
+                  <Label>Attachment (optional)</Label>
+                  {fileUrl ? (
+                    <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
+                      <FileText className="h-4 w-4" />
+                      <span className="text-sm flex-1 truncate">{fileName}</span>
+                      <Button type="button" variant="ghost" size="icon" onClick={handleRemoveFile}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="file"
+                        onChange={(e) => handleFileUpload(e)}
+                        disabled={uploadingFile}
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md"
+                      />
+                      {uploadingFile && <span className="text-sm text-muted-foreground">Uploading...</span>}
+                    </div>
+                  )}
+                </div>
                 <div className="flex items-center gap-2">
                   <Switch id="is_published" name="is_published" />
                   <Label htmlFor="is_published">Publish immediately</Label>
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit" disabled={isLoading}>
+                <Button type="submit" disabled={isLoading || uploadingFile}>
                   {isLoading ? "Creating..." : "Create Article"}
                 </Button>
               </DialogFooter>
@@ -282,13 +354,35 @@ export function AdminKnowledgeManager({ articles, missionTemplates }: AdminKnowl
                   <Label htmlFor="edit-content">Content *</Label>
                   <Textarea id="edit-content" name="content" defaultValue={editingArticle.content} required rows={10} />
                 </div>
+                <div className="grid gap-2">
+                  <Label>Attachment</Label>
+                  {(fileUrl || editingArticle.file_url) ? (
+                    <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
+                      <FileText className="h-4 w-4" />
+                      <span className="text-sm flex-1 truncate">{fileName || editingArticle.file_name}</span>
+                      <Button type="button" variant="ghost" size="icon" onClick={handleRemoveFile}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="file"
+                        onChange={(e) => handleFileUpload(e, editingArticle.id)}
+                        disabled={uploadingFile}
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md"
+                      />
+                      {uploadingFile && <span className="text-sm text-muted-foreground">Uploading...</span>}
+                    </div>
+                  )}
+                </div>
                 <div className="flex items-center gap-2">
                   <Switch id="edit-is_published" name="is_published" defaultChecked={editingArticle.is_published} />
                   <Label htmlFor="edit-is_published">Published</Label>
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit" disabled={isLoading}>
+                <Button type="submit" disabled={isLoading || uploadingFile}>
                   {isLoading ? "Saving..." : "Save Changes"}
                 </Button>
               </DialogFooter>
