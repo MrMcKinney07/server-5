@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { Rocket } from "lucide-react"
 import Image from "next/image"
 
 export default function LoginPage() {
@@ -303,7 +302,7 @@ export default function LoginPage() {
                   </span>
                 ) : (
                   <span className="flex items-center justify-center gap-2">
-                    <Rocket className="w-4 h-4" />
+                    <Image src="/images/m1-crm-logo-bottom-left.png" alt="" width={18} height={18} className="brightness-0 invert" />
                     Sign In
                   </span>
                 )}
