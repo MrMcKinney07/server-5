@@ -35,6 +35,7 @@ export function AgentEarningsDashboard() {
   const {
     ytdStats,
     splitPercent,
+    brokerPercent,
     transactionFee,
     planName,
     capAmount,
@@ -69,7 +70,7 @@ export function AgentEarningsDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">{fmt(ytdStats.agentEarnings)}</div>
-            <p className="text-xs text-muted-foreground">{splitPercent}% split · {fmt(transactionFee)} fee/deal</p>
+            <p className="text-xs text-muted-foreground">{splitPercent}/{brokerPercent} split · {fmt(transactionFee)} fee/deal</p>
           </CardContent>
         </Card>
 
@@ -122,7 +123,7 @@ export function AgentEarningsDashboard() {
             <span>{fmt(marketingThreshold)} threshold</span>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            Calculated from broker-received funds only ({100 - splitPercent}% of each deal&apos;s GCI).
+            Calculated from broker-received funds only ({brokerPercent}% of each deal&apos;s GCI).
             {capAmount ? ` Your cap is ${fmt(capAmount)}.` : ""}
           </p>
           {hasReachedThreshold && (

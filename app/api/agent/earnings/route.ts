@@ -20,19 +20,20 @@ export async function GET() {
     .limit(1)
     .maybeSingle()
 
-  let splitPct = 70
+  // split_percentage is stored as a decimal fraction (0.70, 0.80, 0.85)
+  let agentFraction = 0.70
   let capAmount: number | null = null
   let transactionFee = 0
-  let planName = "Default (70/30)"
-  let marketingThreshold = 15000
+  let planName = "Standard Plan"
+  let marketingThreshold = 25000
 
   const plan = agentPlan?.plan as any
   if (plan) {
-    splitPct = Number(plan.split_percentage) || 70
+    agentFraction = Number(plan.split_percentage) || 0.70
     capAmount = plan.cap_amount ? Number(plan.cap_amount) : null
     transactionFee = Number(plan.transaction_fee) || 0
     planName = plan.name || planName
-    marketingThreshold = capAmount ?? 15000
+    marketingThreshold = capAmount ?? 25000
   } else {
     const { data: defaultPlan } = await supabase
       .from("commission_plans")
@@ -40,13 +41,16 @@ export async function GET() {
       .eq("is_default", true)
       .maybeSingle()
     if (defaultPlan) {
-      splitPct = Number(defaultPlan.split_percentage) || 70
+      agentFraction = Number(defaultPlan.split_percentage) || 0.70
       capAmount = defaultPlan.cap_amount ? Number(defaultPlan.cap_amount) : null
       transactionFee = Number(defaultPlan.transaction_fee) || 0
       planName = defaultPlan.name || planName
-      marketingThreshold = capAmount ?? 15000
+      marketingThreshold = capAmount ?? 25000
     }
   }
+
+  const splitPct = Math.round(agentFraction * 100)
+  const brokerPct = 100 - splitPct
 
   // Fetch all closed transactions for this year
   const { data: closedTransactions } = await supabase
@@ -81,6 +85,7 @@ export async function GET() {
       marketingBudget,
     },
     splitPercent: splitPct,
+    brokerPercent: brokerPct,
     transactionFee,
     planName,
     capAmount,

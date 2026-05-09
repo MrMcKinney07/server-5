@@ -38,14 +38,15 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     .limit(1)
     .maybeSingle()
 
-  let splitPct = 70
+  // split_percentage is stored as a decimal fraction (0.70, 0.80, 0.85)
+  let agentFraction = 0.70
   let capAmount: number | null = null
   let transactionFee = 0
   let agentPlanId: string | null = agentPlan?.id ?? null
 
   const plan = agentPlan?.plan as any
   if (plan) {
-    splitPct = Number(plan.split_percentage) || 70
+    agentFraction = Number(plan.split_percentage) || 0.70
     capAmount = plan.cap_amount ? Number(plan.cap_amount) : null
     transactionFee = Number(plan.transaction_fee) || 0
   } else {
@@ -55,11 +56,14 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
       .eq("is_default", true)
       .maybeSingle()
     if (defaultPlan) {
-      splitPct = Number(defaultPlan.split_percentage) || 70
+      agentFraction = Number(defaultPlan.split_percentage) || 0.70
       capAmount = defaultPlan.cap_amount ? Number(defaultPlan.cap_amount) : null
       transactionFee = Number(defaultPlan.transaction_fee) || 0
     }
   }
+
+  // broker fraction is what's left over (30%, 20%, or 15%)
+  const brokerFraction = 1 - agentFraction
 
   // Compute gross commission from contract fields
   let grossCommission = 0
@@ -71,9 +75,10 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     }
   }
 
-  const agentGross = grossCommission * (splitPct / 100)
-  const brokerShare = grossCommission - agentGross
+  const agentGross = grossCommission * agentFraction
+  const brokerShare = grossCommission * brokerFraction
   const agentNet = Math.max(0, agentGross - transactionFee)
+  const splitPct = Math.round(agentFraction * 100)
 
   // 1. Mark contract as sent + closed
   const { error: updateError } = await serviceClient
