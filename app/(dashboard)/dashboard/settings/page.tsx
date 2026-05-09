@@ -2,10 +2,45 @@ import { createClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/auth"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { AgentProfileForm } from "@/components/settings/agent-profile-form"
+import { CommissionEditForm } from "@/components/settings/commission-edit-form"
 
 export default async function SettingsPage() {
   const agent = await requireAuth()
   const supabase = await createClient()
+  const isAdmin = agent.role === "admin" || agent.role === "broker"
+
+  // Get agent's commission plan
+  let agentPlan = null
+  let currentPlan = null
+  let allPlans = []
+
+  try {
+    const { data } = await supabase
+      .from("agent_commission_plans")
+      .select("*")
+      .eq("agent_id", agent.id)
+      .maybeSingle()
+    agentPlan = data
+  } catch (error) {
+    console.log("[v0] Error fetching agent commission plan:", error)
+  }
+
+  try {
+    const { data } = await supabase
+      .from("commission_plans")
+      .select("*")
+      .order("split_percentage", { ascending: false })
+    allPlans = data || []
+    
+    // If agent has a plan, use it; otherwise use the first available
+    if (agentPlan?.plan_id && allPlans.length > 0) {
+      currentPlan = allPlans.find((p) => p.id === agentPlan.plan_id) || allPlans[0]
+    } else {
+      currentPlan = allPlans[0]
+    }
+  } catch (error) {
+    console.log("[v0] Error fetching commission plans:", error)
+  }
 
   return (
     <div className="space-y-6">
