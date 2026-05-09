@@ -2,6 +2,7 @@
 
 import { useEffect } from "react"
 import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation"
 
 export default function Error({
   error,
@@ -10,9 +11,27 @@ export default function Error({
   error: Error & { digest?: string }
   reset: () => void
 }) {
+  const router = useRouter()
+
   useEffect(() => {
+    // Check if this is a redirect error - if so, navigate to login
+    if (
+      error.message === "NEXT_REDIRECT" ||
+      error.digest?.startsWith("NEXT_REDIRECT")
+    ) {
+      router.push("/auth/login")
+      return
+    }
     console.error("[v0] Root error boundary caught:", error)
-  }, [error])
+  }, [error, router])
+
+  // Don't render error UI for redirects
+  if (
+    error.message === "NEXT_REDIRECT" ||
+    error.digest?.startsWith("NEXT_REDIRECT")
+  ) {
+    return null
+  }
 
   return (
     <div className="min-h-screen bg-[#0a0e1a] flex items-center justify-center p-4">
