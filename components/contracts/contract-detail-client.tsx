@@ -17,6 +17,8 @@ import {
   Clock,
   FileText,
   DollarSign,
+  Mail,
+  Loader2,
 } from "lucide-react"
 import { getProgressLabel } from "@/lib/contracts/document-definitions"
 
@@ -33,6 +35,7 @@ interface Contract {
   has_cdd: boolean
   notes: string | null
   progress_percent: number
+  payment_status: "pending" | "sent" | null
   created_at: string
 }
 
