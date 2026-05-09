@@ -2,45 +2,10 @@ import { createClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/auth"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { AgentProfileForm } from "@/components/settings/agent-profile-form"
-import { CommissionEditForm } from "@/components/settings/commission-edit-form"
 
 export default async function SettingsPage() {
   const agent = await requireAuth()
   const supabase = await createClient()
-  const isAdmin = agent.role === "broker"
-
-  // Get agent's commission plan
-  let agentPlan = null
-  let currentPlan = null
-  let allPlans = []
-
-  try {
-    const { data } = await supabase
-      .from("agent_commission_plans")
-      .select("*")
-      .eq("agent_id", agent.id)
-      .maybeSingle()
-    agentPlan = data
-  } catch (error) {
-    console.log("[v0] Error fetching agent commission plan:", error)
-  }
-
-  try {
-    const { data } = await supabase
-      .from("commission_plans")
-      .select("*")
-      .order("split_percentage", { ascending: false })
-    allPlans = data || []
-    
-    // If agent has a plan, use it; otherwise use the first available
-    if (agentPlan?.plan_id && allPlans.length > 0) {
-      currentPlan = allPlans.find((p) => p.id === agentPlan.plan_id) || allPlans[0]
-    } else {
-      currentPlan = allPlans[0]
-    }
-  } catch (error) {
-    console.log("[v0] Error fetching commission plans:", error)
-  }
 
   return (
     <div className="space-y-6">
@@ -58,72 +23,6 @@ export default async function SettingsPage() {
           </CardHeader>
           <CardContent>
             <AgentProfileForm agent={agent} />
-          </CardContent>
-        </Card>
-
-        {/* Commission Plan Card */}
-        <Card className="border-l-4 border-l-emerald-500">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-emerald-600">Commission Plan</CardTitle>
-                <CardDescription>Your current commission structure</CardDescription>
-              </div>
-              {isAdmin && (
-                <CommissionEditForm
-                  agentId={agent.id}
-                  currentPlan={currentPlan}
-                  agentPlan={agentPlan}
-                  allPlans={allPlans || []}
-                  isBroker={isAdmin}
-                />
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {currentPlan ? (
-              <>
-                <div className="flex justify-between items-center py-2 border-b">
-                  <span className="text-muted-foreground">Split</span>
-                  <span className="font-medium text-emerald-600">
-                    {(() => {
-                      const split = Number(currentPlan.split_percentage)
-                      // Handle both decimal (0.70) and percentage (70) formats
-                      const displaySplit = split <= 1 ? Math.round(split * 100) : Math.round(split)
-                      return `${displaySplit}% / ${100 - displaySplit}%`
-                    })()}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b">
-                  <span className="text-muted-foreground">Marketing Fund Threshold</span>
-                  <span className="font-medium">
-                    {currentPlan.marketing_fund_threshold
-                      ? `$${Number(currentPlan.marketing_fund_threshold).toLocaleString()}`
-                      : "No Threshold"}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-muted-foreground">Transaction Fee</span>
-                  <span className="font-medium">${Number(currentPlan.transaction_fee) || 499}</span>
-                </div>
-                {agentPlan && (
-                  <div className="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
-                    <p className="text-sm text-amber-800">
-                      <span className="font-medium">Marketing Fund Progress:</span> $
-                      {agentPlan.cap_progress?.toLocaleString() || 0} / $
-                      {currentPlan.marketing_fund_threshold
-                        ? Number(currentPlan.marketing_fund_threshold).toLocaleString()
-                        : "∞"}
-                    </p>
-                    <p className="text-sm text-amber-800 mt-1">
-                      <span className="font-medium">YTD GCI:</span> ${agentPlan.ytd_gci?.toLocaleString() || 0}
-                    </p>
-                  </div>
-                )}
-              </>
-            ) : (
-              <p className="text-muted-foreground">No commission plan assigned. Contact your broker.</p>
-            )}
           </CardContent>
         </Card>
 

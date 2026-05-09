@@ -23,9 +23,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Search, MoreVertical, UserX, UserCheck, Key, FileText, Phone, Mail, Calendar, Clock } from "lucide-react"
+import { Search, MoreVertical, UserX, UserCheck, Key, FileText, Phone, Mail, Calendar, Clock, CreditCard } from "lucide-react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
+import { AgentCommissionDialog } from "./agent-commission-dialog"
 
 interface Agent {
   id: string
@@ -57,6 +58,7 @@ export function AgentManagementTable({ agents }: AgentManagementTableProps) {
   const [passwordResetDialog, setPasswordResetDialog] = useState(false)
   const [newPassword, setNewPassword] = useState("")
   const [deleteDialog, setDeleteDialog] = useState(false)
+  const [commissionDialog, setCommissionDialog] = useState(false)
 
   const filteredAgents = agents.filter(
     (agent) =>
@@ -334,6 +336,15 @@ export function AgentManagementTable({ agents }: AgentManagementTableProps) {
                           <FileText className="h-4 w-4 mr-2" />
                           View/Edit Notes
                         </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setSelectedAgent(agent)
+                            setCommissionDialog(true)
+                          }}
+                        >
+                          <CreditCard className="h-4 w-4 mr-2" />
+                          Manage Commission
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handlePasswordReset(agent)}>
                           <Key className="h-4 w-4 mr-2" />
                           Reset Password
@@ -493,6 +504,15 @@ export function AgentManagementTable({ agents }: AgentManagementTableProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Commission Dialog */}
+      {selectedAgent && (
+        <AgentCommissionDialog
+          agent={selectedAgent}
+          open={commissionDialog}
+          onOpenChange={setCommissionDialog}
+        />
+      )}
     </div>
   )
 }
