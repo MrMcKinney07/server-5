@@ -7,7 +7,7 @@ export default async function AdminCommissionPlansPage() {
   const supabase = await createServerClient()
   const agent = await requireAuth()
 
-  if (!agent || agent.Role !== "broker") {
+  if (!agent || agent.role !== "broker") {
     redirect("/dashboard")
   }
 
