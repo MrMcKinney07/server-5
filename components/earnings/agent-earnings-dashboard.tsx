@@ -155,7 +155,7 @@ export function AgentEarningsDashboard({
           <CardDescription>McKinney Realty Commission Structure</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-3">
             <div className="p-4 bg-muted/50 rounded-lg">
               <p className="text-sm text-muted-foreground">Your Split</p>
               <p className="text-2xl font-bold text-emerald-600">{splitPercent}%</p>
@@ -166,11 +166,7 @@ export function AgentEarningsDashboard({
             </div>
             <div className="p-4 bg-muted/50 rounded-lg">
               <p className="text-sm text-muted-foreground">Transaction Fee</p>
-              <p className="text-2xl font-bold">{formatCurrency(495)}</p>
-            </div>
-            <div className="p-4 bg-muted/50 rounded-lg">
-              <p className="text-sm text-muted-foreground">E&O Fee</p>
-              <p className="text-2xl font-bold">{formatCurrency(40)}</p>
+              <p className="text-2xl font-bold">{formatCurrency(500)}</p>
             </div>
           </div>
         </CardContent>
