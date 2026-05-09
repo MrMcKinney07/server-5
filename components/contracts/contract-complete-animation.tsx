@@ -114,10 +114,10 @@ export function ContractCompleteAnimation({ onDismiss }: ContractCompleteAnimati
         </div>
 
         <h2 className="text-2xl font-semibold text-white mb-2">
-          Great job! Your hard earned cash is on the way.
+          Your check is on the way!
         </h2>
         <p className="text-slate-400 text-sm mb-8">
-          All required documents are complete. This contract is fully compliant.
+          Payment has been requested. Your broker will process it shortly.
         </p>
 
         <Button

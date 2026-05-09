@@ -32,7 +32,6 @@ export function SubmitContractDialog({ open, onOpenChange, onSuccess }: SubmitCo
     client_name: "",
     contract_date: new Date().toISOString().split("T")[0],
     expected_closing_date: "",
-    risk_status: "green",
     notes: "",
   })
 
@@ -60,7 +59,7 @@ export function SubmitContractDialog({ open, onOpenChange, onSuccess }: SubmitCo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto bg-slate-900 border border-white/10 text-white">
+      <DialogContent className="dark max-w-xl max-h-[90vh] overflow-y-auto bg-slate-900 border border-white/10 text-white">
         <DialogHeader>
           <DialogTitle className="text-white">Submit Executed Contract</DialogTitle>
           <DialogDescription className="text-slate-400">
@@ -69,40 +68,21 @@ export function SubmitContractDialog({ open, onOpenChange, onSuccess }: SubmitCo
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="text-slate-300">Transaction Type *</Label>
-              <Select
-                value={form.transaction_type}
-                onValueChange={(v) => setForm((p) => ({ ...p, transaction_type: v }))}
-              >
-                <SelectTrigger className="bg-white/5 border-white/10 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-white/10 text-white">
-                  <SelectItem value="buyer">Buyer</SelectItem>
-                  <SelectItem value="listing">Listing</SelectItem>
-                  <SelectItem value="referral">Referral</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-slate-300">Risk Status</Label>
-              <Select
-                value={form.risk_status}
-                onValueChange={(v) => setForm((p) => ({ ...p, risk_status: v }))}
-              >
-                <SelectTrigger className="bg-white/5 border-white/10 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-white/10 text-white">
-                  <SelectItem value="green">Green — On Track</SelectItem>
-                  <SelectItem value="yellow">Yellow — Attention Needed</SelectItem>
-                  <SelectItem value="red">Red — At Risk</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label className="text-slate-300">Transaction Type *</Label>
+            <Select
+              value={form.transaction_type}
+              onValueChange={(v) => setForm((p) => ({ ...p, transaction_type: v }))}
+            >
+              <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-800 border-white/10 text-white">
+                <SelectItem value="buyer">Buyer</SelectItem>
+                <SelectItem value="listing">Listing</SelectItem>
+                <SelectItem value="referral">Referral</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
@@ -112,7 +92,7 @@ export function SubmitContractDialog({ open, onOpenChange, onSuccess }: SubmitCo
               value={form.client_name}
               onChange={(e) => setForm((p) => ({ ...p, client_name: e.target.value }))}
               placeholder="John & Jane Smith"
-              className="bg-white/5 border-white/10 text-white placeholder:text-slate-500"
+              className=""
             />
           </div>
 
@@ -123,7 +103,7 @@ export function SubmitContractDialog({ open, onOpenChange, onSuccess }: SubmitCo
               value={form.property_address}
               onChange={(e) => setForm((p) => ({ ...p, property_address: e.target.value }))}
               placeholder="123 Main St, City, FL 32801"
-              className="bg-white/5 border-white/10 text-white placeholder:text-slate-500"
+              className=""
             />
           </div>
 
@@ -135,7 +115,7 @@ export function SubmitContractDialog({ open, onOpenChange, onSuccess }: SubmitCo
                 type="date"
                 value={form.contract_date}
                 onChange={(e) => setForm((p) => ({ ...p, contract_date: e.target.value }))}
-                className="bg-white/5 border-white/10 text-white"
+                className="[color-scheme:dark]"
               />
             </div>
             <div className="space-y-2">
@@ -144,7 +124,7 @@ export function SubmitContractDialog({ open, onOpenChange, onSuccess }: SubmitCo
                 type="date"
                 value={form.expected_closing_date}
                 onChange={(e) => setForm((p) => ({ ...p, expected_closing_date: e.target.value }))}
-                className="bg-white/5 border-white/10 text-white"
+                className="[color-scheme:dark]"
               />
             </div>
           </div>
@@ -156,7 +136,7 @@ export function SubmitContractDialog({ open, onOpenChange, onSuccess }: SubmitCo
               onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
               placeholder="Any additional details..."
               rows={3}
-              className="bg-white/5 border-white/10 text-white placeholder:text-slate-500 resize-none"
+              className="resize-none"
             />
           </div>
 

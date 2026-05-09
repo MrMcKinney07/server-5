@@ -102,8 +102,8 @@ function DocRow({
           {doc.is_required && doc.status !== "approved" && (
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-slate-500 border border-white/10">Required</span>
           )}
-          {doc.is_conditional && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Conditional</span>
+          {!doc.is_required && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">Optional</span>
           )}
         </div>
         {doc.file_name && (
@@ -156,10 +156,11 @@ function CategorySection({
   onUpdate: (key: string, status: string, progress: number) => void
 }) {
   const [open, setOpen] = useState(true)
-  const approvedCount = docs.filter((d) => d.status === "approved").length
-  const uploadedCount = docs.filter((d) => d.status === "uploaded").length
+  const requiredDocs = docs.filter((d) => d.is_required)
+  const approvedCount = requiredDocs.filter((d) => d.status === "approved").length
+  const uploadedCount = requiredDocs.filter((d) => d.status === "uploaded").length
   const submittedCount = approvedCount + uploadedCount
-  const allApproved = approvedCount === docs.length && docs.length > 0
+  const allApproved = requiredDocs.length > 0 && approvedCount === requiredDocs.length
 
   return (
     <div className="border border-white/[0.06] rounded-xl overflow-hidden">
@@ -169,7 +170,7 @@ function CategorySection({
       >
         <div className="flex items-center gap-3">
           <span className="text-sm font-medium text-white">{category}</span>
-          <span className="text-xs text-slate-500">{submittedCount}/{docs.length} submitted</span>
+          <span className="text-xs text-slate-500">{submittedCount}/{requiredDocs.length} required submitted</span>
           {allApproved ? (
             <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               All approved
@@ -218,11 +219,12 @@ export function DocumentChecklist({
     )
     onProgressUpdate(progress)
 
-    // Check if all docs are approved
+    // Check if all required docs are approved
     const updated = documents.map((d) =>
       d.document_key === key ? { ...d, status: status as ContractDocument["status"] } : d
     )
-    if (updated.every((d) => d.status === "approved")) {
+    const requiredDocs = updated.filter((d) => d.is_required)
+    if (requiredDocs.length > 0 && requiredDocs.every((d) => d.status === "approved")) {
       onComplete()
     }
   }

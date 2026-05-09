@@ -29,14 +29,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Recalculate progress
+  // Recalculate progress — only count required docs
   const { data: allDocs } = await supabase
     .from("contract_documents")
-    .select("status")
+    .select("status, is_required")
     .eq("contract_id", contractId)
 
-  const total = allDocs?.length ?? 0
-  const approved = allDocs?.filter((d) => d.status === "approved").length ?? 0
+  const requiredDocs = allDocs?.filter((d) => d.is_required) ?? []
+  const total = requiredDocs.length
+  const approved = requiredDocs.filter((d) => d.status === "approved").length
   const progress = total > 0 ? Math.round((approved / total) * 100) : 0
 
   await supabase

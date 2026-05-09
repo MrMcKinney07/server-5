@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   Clock,
   FileText,
+  DollarSign,
 } from "lucide-react"
 import { getProgressLabel } from "@/lib/contracts/document-definitions"
 
@@ -192,6 +193,23 @@ export function ContractDetailClient({ contract, documents, dealDocs, isAdmin }:
           </div>
         )}
       </div>
+
+      {/* Request Pay — only shown when all docs are approved */}
+      {progress === 100 && !showComplete && (
+        <div className="border border-emerald-500/20 rounded-xl bg-emerald-500/[0.04] p-5 flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <p className="text-sm font-semibold text-emerald-400">All Documents Approved</p>
+            <p className="text-xs text-slate-400 mt-0.5">Your file is fully compliant. You can now request payment.</p>
+          </div>
+          <Button
+            onClick={() => setShowComplete(true)}
+            className="bg-emerald-500 hover:bg-emerald-400 text-black font-semibold gap-2 shrink-0"
+          >
+            <DollarSign className="h-4 w-4" />
+            Request Pay
+          </Button>
+        </div>
+      )}
 
       {/* Document checklist */}
       <div>

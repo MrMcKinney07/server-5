@@ -56,8 +56,34 @@ export const DOCUMENT_DEFINITIONS: DocumentDefinition[] = [
     description: "Includes the 2025 Milestone Inspection and Structural Integrity Reserve Study for condos if applicable.",
     category: "Listing Documents",
     isRequired: false,
-    isConditional: true,
-    conditionField: "has_hoa",
+    isConditional: false,
+    transactionTypes: ["listing"],
+  },
+  {
+    key: "flood_disclosure",
+    name: "Flood Disclosure",
+    description: "As of 2026, sellers must provide specific written flood disclosures before finalizing a contract.",
+    category: "Listing Documents",
+    isRequired: true,
+    isConditional: false,
+    transactionTypes: ["listing"],
+  },
+  {
+    key: "hoa_cdd_information",
+    name: "HOA / CDD Information Disclosure",
+    description: "Restrictions, mandatory memberships, and fees must be disclosed per Florida Statute 720.401.",
+    category: "Listing Documents",
+    isRequired: false,
+    isConditional: false,
+    transactionTypes: ["listing"],
+  },
+  {
+    key: "radon_gas_disclosure",
+    name: "Radon Gas Disclosure",
+    description: "A specific written notification regarding radon gas must be provided to the buyer.",
+    category: "Listing Documents",
+    isRequired: true,
+    isConditional: false,
     transactionTypes: ["listing"],
   },
   {
@@ -118,16 +144,6 @@ export const DOCUMENT_DEFINITIONS: DocumentDefinition[] = [
     isConditional: false,
     transactionTypes: ["buyer"],
   },
-  {
-    key: "commission_agreement_da",
-    name: "Commission Agreement / DA",
-    description: "Disbursement authorization instructions for the closing agent.",
-    category: "Buyer Documents",
-    isRequired: true,
-    isConditional: false,
-    transactionTypes: ["buyer"],
-  },
-
   // ── Party ID (Buyer) ─────────────────────────────────────────
   {
     key: "buyer_id",
