@@ -192,8 +192,9 @@ function CheckSentButton({ contractId, onSuccess }: { contractId: string; onSucc
       if (res.ok) {
         setDone(true)
         onSuccess()
-        // Revalidate broker contracts SWR + server page data
         mutate("/api/broker/contracts")
+        // Invalidate earnings for any agentId
+        mutate((key: unknown) => typeof key === "string" && key.startsWith("/api/agent/earnings"), undefined, { revalidate: true })
         router.refresh()
       }
     } finally {
@@ -420,7 +421,7 @@ function AgentFolder({ group }: { group: AgentGroup }) {
 }
 
 export function BrokerContractsFolder() {
-  const { data, isLoading } = useSWR("/api/broker/contracts", fetcher, { refreshInterval: 30000, revalidateOnFocus: true })
+  const { data, isLoading } = useSWR("/api/broker/contracts", fetcher, { revalidateOnFocus: true })
 
   const groups: AgentGroup[] = data?.grouped ?? []
   const total = data?.total ?? 0

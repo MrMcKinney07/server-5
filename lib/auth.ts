@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+import { createClient, createServiceClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import type { Agent } from "@/lib/types/database"
 
@@ -14,9 +14,9 @@ export interface CurrentAgent extends Agent {
 }
 
 export async function isDatabaseSetup(): Promise<boolean> {
-  const supabase = await createClient()
+  // Use service client — no GoTrueClient created
+  const supabase = createServiceClient()
   const { error } = await supabase.from("agents").select("id").limit(1)
-  // PGRST205 means table doesn't exist
   return !error || error.code !== "PGRST205"
 }
 
@@ -25,18 +25,20 @@ export async function isDatabaseSetup(): Promise<boolean> {
  * Returns null if not authenticated or agent not found
  */
 export async function getCurrentAgent(): Promise<CurrentAgent | null> {
-  const supabase = await createClient()
+  // One GoTrueClient for auth only, then switch to service client for all DB queries
+  const authClient = await createClient()
+  const db = createServiceClient()
 
   const {
     data: { user },
     error: authError,
-  } = await supabase.auth.getUser()
+  } = await authClient.auth.getUser()
 
   if (authError || !user) {
     return null
   }
 
-  const { data: agent, error: agentError } = await supabase
+  const { data: agent, error: agentError } = await db
     .from("agents")
     .select("*, exp_season, exp_bank, lifetime_xp, prestige_tier, prestige_icon_url")
     .eq("id", user.id)
@@ -55,7 +57,7 @@ export async function getCurrentAgent(): Promise<CurrentAgent | null> {
     // Otherwise default to "agent"
     const userRole = (user.user_metadata?.role as string) || "agent"
 
-    const { data: newAgent, error: insertError } = await supabase
+    const { data: newAgent, error: insertError } = await db
       .from("agents")
       .insert({
         id: user.id,
@@ -73,10 +75,8 @@ export async function getCurrentAgent(): Promise<CurrentAgent | null> {
       .single()
 
     if (insertError) {
-      // Handle race condition: if duplicate key error (23505), the agent was created by another request
-      // Re-fetch the agent that was just created
       if (insertError.code === "23505") {
-        const { data: existingAgent } = await supabase
+        const { data: existingAgent } = await db
           .from("agents")
           .select("*, exp_season, exp_bank, lifetime_xp, prestige_tier, prestige_icon_url")
           .eq("id", user.id)

@@ -21,7 +21,7 @@ export function AgentEarningsDashboard({ agentId }: { agentId: string }) {
   const { data, isLoading, error } = useSWR(
     `/api/agent/earnings?agentId=${agentId}`,
     fetcher,
-    { refreshInterval: 30000, revalidateOnFocus: true }
+    { revalidateOnFocus: true }
   )
 
   if (isLoading) {
