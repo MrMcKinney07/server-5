@@ -23,8 +23,9 @@ const formatCurrency = (amount: number) =>
 
 export function BrokerRevenueDashboard() {
   const { data, isLoading } = useSWR("/api/broker/financials", fetcher, {
-    refreshInterval: 15000,
+    refreshInterval: 8000,
     revalidateOnFocus: true,
+    revalidateOnReconnect: true,
   })
 
   if (isLoading || !data) {
@@ -193,7 +194,7 @@ export function BrokerRevenueDashboard() {
                   {commissionPlans.map((plan: any) => (
                     <TableRow key={plan.id}>
                       <TableCell className="font-medium">
-                        {plan.split_percentage}% / {100 - Number(plan.split_percentage)}%
+                        {Math.round(Number(plan.split_percentage) * 100)}% / {Math.round((1 - Number(plan.split_percentage)) * 100)}%
                       </TableCell>
                       <TableCell className="text-right">
                         {plan.cap_amount ? formatCurrency(Number(plan.cap_amount)) : "No cap"}

@@ -190,6 +190,10 @@ function CheckSentButton({ contractId, onSuccess }: { contractId: string; onSucc
       if (res.ok) {
         setDone(true)
         onSuccess()
+        // Revalidate all dashboards that depend on closed deal data
+        mutate("/api/broker/contracts")
+        mutate("/api/broker/financials")
+        mutate("/api/agent/earnings")
       }
     } finally {
       setLoading(false)
