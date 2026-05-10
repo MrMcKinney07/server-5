@@ -1,12 +1,13 @@
 import { createClient } from "@/lib/supabase/server"
-import { requireAuth } from "@/lib/auth"
+import { getCurrentAgent } from "@/lib/auth"
 import { notFound } from "next/navigation"
 import { ContractDetailClient } from "@/components/contracts/contract-detail-client"
 
 export default async function ContractDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
-  const agent = await requireAuth()
+  const agent = await getCurrentAgent()
+  if (!agent) notFound()
 
   const { data: contract, error } = await supabase
     .from("executed_contracts")

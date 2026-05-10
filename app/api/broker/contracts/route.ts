@@ -1,11 +1,11 @@
 import { createClient } from "@/lib/supabase/server"
-import { requireAdmin } from "@/lib/auth"
+import { getCurrentAgent } from "@/lib/auth"
 import { NextResponse } from "next/server"
 
 // Broker-only: fetch all contracts across all agents, with docs
 export async function GET() {
   const supabase = await createClient()
-  const broker = await requireAdmin()
+  const broker = await getCurrentAgent()
   if (!broker) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { data: contracts, error } = await supabase

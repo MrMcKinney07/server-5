@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import useSWR from "swr"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -87,8 +88,17 @@ function getProgressBarColor(percent: number) {
 export function ContractDetailClient({ contract, documents, dealDocs, isAdmin }: ContractDetailClientProps) {
   const [progress, setProgress] = useState(contract.progress_percent)
   const [showComplete, setShowComplete] = useState(false)
-  const [paymentStatus, setPaymentStatus] = useState<"pending" | "sent" | null>(contract.payment_status)
   const [requestingPay, setRequestingPay] = useState(false)
+
+  // Poll for live payment_status + status updates (e.g. broker marks check sent)
+  const { data: liveContract } = useSWR(
+    `/api/contracts/${contract.id}`,
+    (url) => fetch(url).then((r) => r.json()),
+    { refreshInterval: 8000, revalidateOnFocus: true }
+  )
+
+  const paymentStatus: "pending" | "sent" | null = liveContract?.payment_status ?? contract.payment_status
+  const contractStatus: string = liveContract?.status ?? contract.status
 
   const risk = RISK_CONFIG[contract.risk_status] ?? RISK_CONFIG.green
   const progressLabel = getProgressLabel(progress)
@@ -139,8 +149,12 @@ export function ContractDetailClient({ contract, documents, dealDocs, isAdmin }:
               <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full border capitalize", TYPE_COLORS[contract.transaction_type])}>
                 {contract.transaction_type}
               </span>
-              <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full border capitalize", contract.status === "active" ? "text-cyan-400 bg-cyan-400/10 border-cyan-400/20" : "text-slate-400 bg-slate-400/10 border-slate-400/20")}>
-                {contract.status}
+              <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full border capitalize",
+                contractStatus === "active" ? "text-cyan-400 bg-cyan-400/10 border-cyan-400/20" :
+                contractStatus === "closed" ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" :
+                "text-slate-400 bg-slate-400/10 border-slate-400/20"
+              )}>
+                {contractStatus}
               </span>
               {contract.has_hoa && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20">HOA</span>
