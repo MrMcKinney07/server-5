@@ -1,62 +1,51 @@
 "use client"
 
-import useSWR from "swr"
+import { useRouter } from "next/navigation"
+import { useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
 import { DollarSign, TrendingUp, Target, Award, Megaphone } from "lucide-react"
-
-const fetcher = async (url: string) => {
-  const res = await fetch(url, { credentials: "include" })
-  if (!res.ok) return null
-  const ct = res.headers.get("content-type") ?? ""
-  if (!ct.includes("application/json")) return null
-  return res.json()
-}
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n)
 
-export function AgentEarningsDashboard() {
-  const { data, isLoading } = useSWR("/api/agent/earnings", fetcher, {
-    refreshInterval: 30000,
-    revalidateOnFocus: true,
-  })
-
-  if (isLoading || !data) {
-    return (
-      <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Card key={i}><CardContent className="pt-6"><Skeleton className="h-16 w-full" /></CardContent></Card>
-          ))}
-        </div>
-        <Card><CardContent className="pt-6"><Skeleton className="h-32 w-full" /></CardContent></Card>
-      </div>
-    )
+interface EarningsData {
+  ytdStats: {
+    totalGCI: number
+    totalVolume: number
+    totalDeals: number
+    agentEarnings: number
+    brokerShare: number
+    marketingBudget: number
   }
+  splitPercent: number
+  brokerPercent: number
+  transactionFee: number
+  planName: string
+  capAmount: number | null
+  marketingThreshold: number
+  hasReachedThreshold: boolean
+  recentDeals: any[]
+  currentYear: number
+}
 
-  const {
-    ytdStats,
-    splitPercent,
-    brokerPercent,
-    transactionFee,
-    planName,
-    capAmount,
-    marketingThreshold,
-    hasReachedThreshold,
-    recentDeals,
-    currentYear,
-  } = data
+export function AgentEarningsDashboard({ data }: { data: EarningsData }) {
+  const router = useRouter()
 
+  // Refresh server data every 30s so new closings appear
+  useEffect(() => {
+    const interval = setInterval(() => router.refresh(), 30000)
+    return () => clearInterval(interval)
+  }, [router])
+
+  const { ytdStats, splitPercent, brokerPercent, transactionFee, planName, capAmount, marketingThreshold, hasReachedThreshold, recentDeals, currentYear } = data
   const thresholdProgress = Math.min(ytdStats.brokerShare, marketingThreshold)
   const thresholdPct = marketingThreshold > 0 ? (thresholdProgress / marketingThreshold) * 100 : 0
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="border-l-4 border-l-emerald-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -88,9 +77,7 @@ export function AgentEarningsDashboard() {
           <CardContent>
             <div className="text-2xl font-bold text-pink-600">{fmt(ytdStats.marketingBudget)}</div>
             <p className="text-xs text-muted-foreground">
-              {hasReachedThreshold
-                ? "10% of broker dollars above cap"
-                : `Unlocks at ${fmt(marketingThreshold)} broker dollars`}
+              {hasReachedThreshold ? "10% of broker dollars above cap" : `Unlocks at ${fmt(marketingThreshold)} broker $`}
             </p>
           </CardContent>
         </Card>
@@ -107,7 +94,6 @@ export function AgentEarningsDashboard() {
         </Card>
       </div>
 
-      {/* Marketing Threshold */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -135,7 +121,7 @@ export function AgentEarningsDashboard() {
           {hasReachedThreshold && (
             <div className="mt-4 p-4 bg-pink-50 dark:bg-pink-950/20 rounded-lg border border-pink-200 dark:border-pink-800">
               <p className="text-sm text-pink-700 dark:text-pink-300 font-medium">
-                You&apos;ve unlocked your marketing budget — 10% of all broker dollars above {fmt(marketingThreshold)}.
+                You&apos;ve unlocked your marketing budget — 10% of broker dollars above {fmt(marketingThreshold)}.
               </p>
               <p className="text-xs text-pink-600 dark:text-pink-400 mt-1">
                 Current marketing budget: {fmt(ytdStats.marketingBudget)}
@@ -150,7 +136,6 @@ export function AgentEarningsDashboard() {
         </CardContent>
       </Card>
 
-      {/* Commission Plan */}
       <Card>
         <CardHeader>
           <CardTitle>Your Commission Plan</CardTitle>
@@ -174,7 +159,6 @@ export function AgentEarningsDashboard() {
         </CardContent>
       </Card>
 
-      {/* Recent Closings */}
       <Card>
         <CardHeader>
           <CardTitle>Recent Closings</CardTitle>
@@ -185,45 +169,45 @@ export function AgentEarningsDashboard() {
             <div className="text-center py-12">
               <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">No closings yet this year</p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground mt-1">
                 Closed transactions appear here after your broker marks a check as sent
               </p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Property</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead className="text-right">Sale Price</TableHead>
-                  <TableHead className="text-right">GCI</TableHead>
-                  <TableHead className="text-right">Broker Paid</TableHead>
-                  <TableHead className="text-right">Your Net</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentDeals.map((deal: any) => (
-                  <TableRow key={deal.id}>
-                    <TableCell>
-                      {deal.closing_date ? new Date(deal.closing_date).toLocaleDateString() : "-"}
-                    </TableCell>
-                    <TableCell className="max-w-[180px] truncate font-medium">
-                      {deal.property_address || "N/A"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="capitalize">
-                        {deal.transaction_type || "buyer"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">{fmt(Number(deal.sale_price) || 0)}</TableCell>
-                    <TableCell className="text-right">{fmt(Number(deal.gross_commission) || 0)}</TableCell>
-                    <TableCell className="text-right text-rose-500">{fmt(Number(deal.broker_commission) || 0)}</TableCell>
-                    <TableCell className="text-right font-medium text-emerald-600">{fmt(Number(deal.agent_commission) || 0)}</TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Property</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead className="text-right">Sale Price</TableHead>
+                    <TableHead className="text-right">GCI</TableHead>
+                    <TableHead className="text-right">Broker Paid</TableHead>
+                    <TableHead className="text-right">Your Net</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {recentDeals.map((deal: any) => (
+                    <TableRow key={deal.id}>
+                      <TableCell className="whitespace-nowrap">
+                        {deal.closing_date ? new Date(deal.closing_date).toLocaleDateString() : "-"}
+                      </TableCell>
+                      <TableCell className="max-w-[160px] truncate font-medium">
+                        {deal.property_address || "N/A"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="capitalize">{deal.transaction_type || "buy"}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right whitespace-nowrap">{fmt(Number(deal.sale_price) || 0)}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">{fmt(Number(deal.gross_commission) || 0)}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap text-rose-500">{fmt(Number(deal.broker_commission) || 0)}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap font-medium text-emerald-600">{fmt(Number(deal.agent_commission) || 0)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import useSWR, { mutate } from "swr"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -182,6 +183,7 @@ function DocApprovalRow({ doc, contractId }: { doc: ContractDoc; contractId: str
 function CheckSentButton({ contractId, onSuccess }: { contractId: string; onSuccess: () => void }) {
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
+  const router = useRouter()
 
   async function handleCheckSent() {
     setLoading(true)
@@ -190,10 +192,9 @@ function CheckSentButton({ contractId, onSuccess }: { contractId: string; onSucc
       if (res.ok) {
         setDone(true)
         onSuccess()
-        // Revalidate all dashboards that depend on closed deal data
+        // Revalidate broker contracts SWR + server page data
         mutate("/api/broker/contracts")
-        mutate("/api/broker/financials")
-        mutate("/api/agent/earnings")
+        router.refresh()
       }
     } finally {
       setLoading(false)
