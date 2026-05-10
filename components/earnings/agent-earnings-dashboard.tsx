@@ -1,51 +1,71 @@
 "use client"
 
-import { useRouter } from "next/navigation"
-import { useEffect } from "react"
+import useSWR from "swr"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { DollarSign, TrendingUp, Target, Award, Megaphone } from "lucide-react"
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n)
 
-interface EarningsData {
-  ytdStats: {
-    totalGCI: number
-    totalVolume: number
-    totalDeals: number
-    agentEarnings: number
-    brokerShare: number
-    marketingBudget: number
-  }
-  splitPercent: number
-  brokerPercent: number
-  transactionFee: number
-  planName: string
-  capAmount: number | null
-  marketingThreshold: number
-  hasReachedThreshold: boolean
-  recentDeals: any[]
-  currentYear: number
+const fetcher = async (url: string) => {
+  const res = await fetch(url)
+  if (!res.ok) throw new Error("Failed to fetch earnings")
+  return res.json()
 }
 
-export function AgentEarningsDashboard({ data }: { data: EarningsData }) {
-  const router = useRouter()
+export function AgentEarningsDashboard({ agentId }: { agentId: string }) {
+  const { data, isLoading, error } = useSWR(
+    `/api/agent/earnings?agentId=${agentId}`,
+    fetcher,
+    { refreshInterval: 30000, revalidateOnFocus: true }
+  )
 
-  // Refresh server data every 30s so new closings appear
-  useEffect(() => {
-    const interval = setInterval(() => router.refresh(), 30000)
-    return () => clearInterval(interval)
-  }, [router])
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}><CardContent className="pt-6"><Skeleton className="h-8 w-32 mb-2" /><Skeleton className="h-4 w-20" /></CardContent></Card>
+          ))}
+        </div>
+        <Card><CardContent className="pt-6"><Skeleton className="h-40 w-full" /></CardContent></Card>
+      </div>
+    )
+  }
 
-  const { ytdStats, splitPercent, brokerPercent, transactionFee, planName, capAmount, marketingThreshold, hasReachedThreshold, recentDeals, currentYear } = data
+  if (error || !data) {
+    return (
+      <Card>
+        <CardContent className="pt-6 text-center py-12">
+          <p className="text-muted-foreground">Unable to load earnings data. Please refresh the page.</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const {
+    ytdStats,
+    splitPercent,
+    brokerPercent,
+    transactionFee,
+    planName,
+    capAmount,
+    marketingThreshold,
+    hasReachedThreshold,
+    recentDeals,
+    currentYear,
+  } = data
+
   const thresholdProgress = Math.min(ytdStats.brokerShare, marketingThreshold)
   const thresholdPct = marketingThreshold > 0 ? (thresholdProgress / marketingThreshold) * 100 : 0
 
   return (
     <div className="space-y-6">
+      {/* Stat Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="border-l-4 border-l-emerald-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -54,7 +74,7 @@ export function AgentEarningsDashboard({ data }: { data: EarningsData }) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-emerald-600">{fmt(ytdStats.totalGCI)}</div>
-            <p className="text-xs text-muted-foreground">{ytdStats.totalDeals} deals closed</p>
+            <p className="text-xs text-muted-foreground">{ytdStats.totalDeals} deal{ytdStats.totalDeals !== 1 ? "s" : ""} closed</p>
           </CardContent>
         </Card>
 
@@ -94,6 +114,7 @@ export function AgentEarningsDashboard({ data }: { data: EarningsData }) {
         </Card>
       </div>
 
+      {/* Marketing Budget Threshold */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -102,7 +123,7 @@ export function AgentEarningsDashboard({ data }: { data: EarningsData }) {
           </CardTitle>
           <CardDescription>
             {hasReachedThreshold ? (
-              <Badge className="bg-pink-600">Threshold Reached! Earning 10% Marketing Budget</Badge>
+              <Badge className="bg-pink-600">Threshold Reached — Earning 10% Marketing Budget</Badge>
             ) : (
               `${fmt(marketingThreshold - thresholdProgress)} in broker dollars remaining to unlock`
             )}
@@ -114,10 +135,6 @@ export function AgentEarningsDashboard({ data }: { data: EarningsData }) {
             <span>{fmt(thresholdProgress)} broker dollars paid</span>
             <span>{fmt(marketingThreshold)} threshold</span>
           </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Calculated from broker-received funds only ({brokerPercent}% of each deal&apos;s GCI).
-            {capAmount ? ` Your cap is ${fmt(capAmount)}.` : ""}
-          </p>
           {hasReachedThreshold && (
             <div className="mt-4 p-4 bg-pink-50 dark:bg-pink-950/20 rounded-lg border border-pink-200 dark:border-pink-800">
               <p className="text-sm text-pink-700 dark:text-pink-300 font-medium">
@@ -128,14 +145,10 @@ export function AgentEarningsDashboard({ data }: { data: EarningsData }) {
               </p>
             </div>
           )}
-          <div className="mt-3 p-3 bg-muted/50 rounded-lg">
-            <p className="text-xs text-muted-foreground">
-              <span className="font-medium">Note:</span> Threshold resets annually on January 1st. Progress shown is for {currentYear}.
-            </p>
-          </div>
         </CardContent>
       </Card>
 
+      {/* Commission Plan */}
       <Card>
         <CardHeader>
           <CardTitle>Your Commission Plan</CardTitle>
@@ -159,10 +172,11 @@ export function AgentEarningsDashboard({ data }: { data: EarningsData }) {
         </CardContent>
       </Card>
 
+      {/* Recent Closings */}
       <Card>
         <CardHeader>
           <CardTitle>Recent Closings</CardTitle>
-          <CardDescription>Your most recent transactions</CardDescription>
+          <CardDescription>Your closed transactions for {currentYear}</CardDescription>
         </CardHeader>
         <CardContent>
           {recentDeals.length === 0 ? (
@@ -170,7 +184,7 @@ export function AgentEarningsDashboard({ data }: { data: EarningsData }) {
               <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">No closings yet this year</p>
               <p className="text-sm text-muted-foreground mt-1">
-                Closed transactions appear here after your broker marks a check as sent
+                Transactions appear here after your broker marks a check as sent
               </p>
             </div>
           ) : (

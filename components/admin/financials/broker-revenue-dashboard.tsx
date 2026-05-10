@@ -1,7 +1,5 @@
 "use client"
 
-import { useRouter } from "next/navigation"
-import { useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -21,14 +19,6 @@ interface FinancialsData {
 }
 
 export function BrokerRevenueDashboard({ data }: { data: FinancialsData }) {
-  const router = useRouter()
-
-  // Refresh server data every 30s
-  useEffect(() => {
-    const interval = setInterval(() => router.refresh(), 30000)
-    return () => clearInterval(interval)
-  }, [router])
-
   const { agentSummaries, monthlyRevenue, commissionPlans, currentYear } = data
 
   const totalBrokerShare = agentSummaries.reduce((sum, s) => sum + (s.total_broker_share || 0), 0)

@@ -2,31 +2,15 @@ import { createServiceClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
 export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url)
+  const agentId = searchParams.get("agentId")
+  if (!agentId) return NextResponse.json({ error: "Missing agentId" }, { status: 400 })
+
+  const userId = agentId
   const supabase = createServiceClient()
   const currentYear = new Date().getFullYear()
   const startOfYear = `${currentYear}-01-01`
   const endOfYear = `${currentYear}-12-31`
-
-  // Resolve user — try Authorization header first, then cookie session
-  let userId: string | null = null
-
-  const authHeader = req.headers.get("authorization")
-  if (authHeader?.startsWith("Bearer ")) {
-    const token = authHeader.slice(7)
-    const { data: { user } } = await supabase.auth.getUser(token)
-    userId = user?.id ?? null
-  }
-
-  if (!userId) {
-    const { createClient } = require("@/lib/supabase/server")
-    const cookieClient = await createClient()
-    const { data: { user } } = await cookieClient.auth.getUser()
-    userId = user?.id ?? null
-  }
-
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
 
   // Fetch agent's commission plan
   const { data: agentPlan } = await supabase
