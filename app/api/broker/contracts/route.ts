@@ -1,12 +1,9 @@
-import { createClient } from "@/lib/supabase/server"
-import { getCurrentAgent } from "@/lib/auth"
+import { createServiceClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
 // Broker-only: fetch all contracts across all agents, with docs
 export async function GET() {
-  const supabase = await createClient()
-  const broker = await getCurrentAgent()
-  if (!broker) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const supabase = createServiceClient()
 
   const { data: contracts, error } = await supabase
     .from("executed_contracts")

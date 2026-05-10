@@ -93,12 +93,19 @@ export function ContractDetailClient({ contract, documents, dealDocs, isAdmin }:
   // Poll for live payment_status + status updates (e.g. broker marks check sent)
   const { data: liveContract } = useSWR(
     `/api/contracts/${contract.id}`,
-    (url) => fetch(url, { credentials: "include" }).then((r) => r.json()),
+    async (url) => {
+      const res = await fetch(url, { credentials: "include" })
+      if (!res.ok) return null
+      const ct = res.headers.get("content-type") ?? ""
+      if (!ct.includes("application/json")) return null
+      return res.json()
+    },
     { refreshInterval: 8000, revalidateOnFocus: true }
   )
 
-  const paymentStatus: "pending" | "sent" | null = liveContract?.payment_status ?? contract.payment_status
-  const contractStatus: string = liveContract?.status ?? contract.status
+  const live = liveContract?.contract ?? null
+  const paymentStatus: "pending" | "sent" | null = live?.payment_status ?? contract.payment_status
+  const contractStatus: string = live?.status ?? contract.status
 
   const risk = RISK_CONFIG[contract.risk_status] ?? RISK_CONFIG.green
   const progressLabel = getProgressLabel(progress)

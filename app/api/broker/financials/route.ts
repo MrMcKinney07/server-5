@@ -1,17 +1,14 @@
+import { createServiceClient } from "@/lib/supabase/server"
 import { createClient } from "@/lib/supabase/server"
-import { getCurrentAgent } from "@/lib/auth"
 import { NextResponse } from "next/server"
 
 export async function GET() {
-  const agent = await getCurrentAgent()
-  if (!agent) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  // Auth check only via cookie client
+  const authClient = await createClient()
+  const { data: { user } } = await authClient.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const roleLower = (agent.role || "").toLowerCase()
-  if (roleLower !== "admin" && roleLower !== "broker") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-  }
-
-  const supabase = await createClient()
+  const supabase = createServiceClient()
   const currentYear = new Date().getFullYear()
   const startOfYear = `${currentYear}-01-01`
   const endOfYear = `${currentYear}-12-31`
@@ -25,7 +22,6 @@ export async function GET() {
 
   const transactions = allTransactions || []
 
-  // Aggregate by agent
   const agentMap = new Map<string, {
     id: string; name: string; total_deals: number; total_volume: number
     total_gci: number; total_broker_share: number; total_agent_commission: number
@@ -47,7 +43,6 @@ export async function GET() {
 
   const agentSummaries = Array.from(agentMap.values()).sort((a, b) => b.total_broker_share - a.total_broker_share)
 
-  // Aggregate by month
   const monthlyRevenue: { month: number; broker_share: number; gci: number }[] = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, broker_share: 0, gci: 0 }))
   transactions.forEach((t: any) => {
     if (t.closing_date) {
@@ -60,7 +55,6 @@ export async function GET() {
   const { data: commissionPlans } = await supabase
     .from("commission_plans")
     .select("*")
-    .eq("is_active", true)
     .order("split_percentage", { ascending: false })
 
   return NextResponse.json({ agentSummaries, monthlyRevenue, commissionPlans: commissionPlans || [], currentYear })

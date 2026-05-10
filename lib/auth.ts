@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
 import type { Agent } from "@/lib/types/database"
 
 export interface CurrentAgent extends Agent {
@@ -150,7 +151,6 @@ export async function requireAuth(): Promise<CurrentAgent> {
   const agent = await getCurrentAgent()
 
   if (!agent) {
-    const { redirect } = await import("next/navigation")
     redirect("/auth/login")
   }
 
@@ -164,7 +164,6 @@ export async function requireAdmin(): Promise<CurrentAgent> {
   const agent = await requireAuth()
 
   if (agent.role !== "admin" && agent.role !== "broker") {
-    const { redirect } = await import("next/navigation")
     redirect("/dashboard")
   }
 

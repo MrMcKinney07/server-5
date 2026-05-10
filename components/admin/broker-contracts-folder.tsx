@@ -22,7 +22,13 @@ import {
   Mail,
 } from "lucide-react"
 
-const fetcher = (url: string) => fetch(url, { credentials: "include" }).then((r) => r.json())
+const fetcher = async (url: string) => {
+  const res = await fetch(url, { credentials: "include" })
+  if (!res.ok) return null
+  const ct = res.headers.get("content-type") ?? ""
+  if (!ct.includes("application/json")) return null
+  return res.json()
+}
 
 type DocStatus = "not_uploaded" | "uploaded" | "approved"
 
