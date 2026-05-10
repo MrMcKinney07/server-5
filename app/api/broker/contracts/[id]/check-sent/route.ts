@@ -89,10 +89,20 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     ? Number(contract.commission_value) / 100   // 3 → 0.0300
     : null
 
+  // Map executed_contract transaction_type → transactions check constraint ('buy','sell','dual','lease')
+  const txTypeMap: Record<string, string> = {
+    buyer: "buy", buy: "buy",
+    seller: "sell", sell: "sell",
+    dual: "dual",
+    lease: "lease", rental: "lease",
+  }
+  const rawType = (contract.transaction_type ?? "").toLowerCase()
+  const transactionType = txTypeMap[rawType] ?? "buy"
+
   // 2. Write transaction record
   const { error: txError } = await serviceClient.from("transactions").insert({
     agent_id: contract.agent_id,
-    transaction_type: contract.transaction_type ?? "residential",
+    transaction_type: transactionType,
     property_address: contract.property_address,
     sale_price: contract.sale_price ? Number(contract.sale_price) : null,
     commission_rate: commissionRateDecimal,
