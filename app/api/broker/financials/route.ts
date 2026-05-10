@@ -1,13 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server"
-import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
 export async function GET() {
-  // Auth check only via cookie client
-  const authClient = await createClient()
-  const { data: { user } } = await authClient.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
   const supabase = createServiceClient()
   const currentYear = new Date().getFullYear()
   const startOfYear = `${currentYear}-01-01`

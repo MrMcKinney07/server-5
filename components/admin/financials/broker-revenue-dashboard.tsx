@@ -23,9 +23,8 @@ const formatCurrency = (amount: number) =>
 
 export function BrokerRevenueDashboard() {
   const { data, isLoading } = useSWR("/api/broker/financials", fetcher, {
-    refreshInterval: 8000,
+    refreshInterval: 30000,
     revalidateOnFocus: true,
-    revalidateOnReconnect: true,
   })
 
   if (isLoading || !data) {

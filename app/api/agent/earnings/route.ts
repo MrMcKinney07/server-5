@@ -7,7 +7,7 @@ export async function GET(req: Request) {
   const startOfYear = `${currentYear}-01-01`
   const endOfYear = `${currentYear}-12-31`
 
-  // Resolve user from Authorization header (Bearer token) or cookie session
+  // Resolve user — try Authorization header first, then cookie session
   let userId: string | null = null
 
   const authHeader = req.headers.get("authorization")
@@ -17,9 +17,8 @@ export async function GET(req: Request) {
     userId = user?.id ?? null
   }
 
-  // Fallback: try cookie-based session via a fresh client
   if (!userId) {
-    const { createClient } = await import("@/lib/supabase/server")
+    const { createClient } = require("@/lib/supabase/server")
     const cookieClient = await createClient()
     const { data: { user } } = await cookieClient.auth.getUser()
     userId = user?.id ?? null
@@ -29,7 +28,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  // Fetch agent's active commission plan
+  // Fetch agent's commission plan
   const { data: agentPlan } = await supabase
     .from("agent_commission_plans")
     .select("id, cap_progress, ytd_gci, plan:commission_plans(id, name, split_percentage, cap_amount, transaction_fee)")
@@ -77,11 +76,11 @@ export async function GET(req: Request) {
     .order("closing_date", { ascending: false })
 
   const transactions = closedTransactions || []
-  const totalGCI = transactions.reduce((sum, t) => sum + (Number(t.gross_commission) || 0), 0)
-  const totalVolume = transactions.reduce((sum, t) => sum + (Number(t.sale_price) || 0), 0)
+  const totalGCI = transactions.reduce((sum: number, t: any) => sum + (Number(t.gross_commission) || 0), 0)
+  const totalVolume = transactions.reduce((sum: number, t: any) => sum + (Number(t.sale_price) || 0), 0)
   const totalDeals = transactions.length
-  const totalBrokerPaid = transactions.reduce((sum, t) => sum + (Number(t.broker_commission) || 0), 0)
-  const totalAgentEarnings = transactions.reduce((sum, t) => sum + (Number(t.agent_commission) || 0), 0)
+  const totalBrokerPaid = transactions.reduce((sum: number, t: any) => sum + (Number(t.broker_commission) || 0), 0)
+  const totalAgentEarnings = transactions.reduce((sum: number, t: any) => sum + (Number(t.agent_commission) || 0), 0)
   const hasReachedThreshold = totalBrokerPaid >= marketingThreshold
   const marketingBudget = hasReachedThreshold ? (totalBrokerPaid - marketingThreshold) * 0.1 : 0
 

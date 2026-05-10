@@ -419,7 +419,7 @@ function AgentFolder({ group }: { group: AgentGroup }) {
 }
 
 export function BrokerContractsFolder() {
-  const { data, isLoading } = useSWR("/api/broker/contracts", fetcher, { refreshInterval: 15000 })
+  const { data, isLoading } = useSWR("/api/broker/contracts", fetcher, { refreshInterval: 30000, revalidateOnFocus: true })
 
   const groups: AgentGroup[] = data?.grouped ?? []
   const total = data?.total ?? 0

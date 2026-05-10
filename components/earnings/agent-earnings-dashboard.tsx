@@ -21,9 +21,8 @@ const fmt = (n: number) =>
 
 export function AgentEarningsDashboard() {
   const { data, isLoading } = useSWR("/api/agent/earnings", fetcher, {
-    refreshInterval: 8000,
+    refreshInterval: 30000,
     revalidateOnFocus: true,
-    revalidateOnReconnect: true,
   })
 
   if (isLoading || !data) {
