@@ -22,7 +22,7 @@ import {
   Mail,
 } from "lucide-react"
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json())
+const fetcher = (url: string) => fetch(url, { credentials: "include" }).then((r) => r.json())
 
 type DocStatus = "not_uploaded" | "uploaded" | "approved"
 
@@ -98,6 +98,7 @@ function DocApprovalRow({ doc, contractId }: { doc: ContractDoc; contractId: str
       await fetch(`/api/broker/contracts/${contractId}/approve`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ document_key: doc.document_key, action }),
       })
       // Revalidate broker contracts
@@ -179,7 +180,7 @@ function CheckSentButton({ contractId, onSuccess }: { contractId: string; onSucc
   async function handleCheckSent() {
     setLoading(true)
     try {
-      const res = await fetch(`/api/broker/contracts/${contractId}/check-sent`, { method: "POST" })
+      const res = await fetch(`/api/broker/contracts/${contractId}/check-sent`, { method: "POST", credentials: "include" })
       if (res.ok) {
         setDone(true)
         onSuccess()

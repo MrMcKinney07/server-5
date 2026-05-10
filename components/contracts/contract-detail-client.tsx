@@ -93,7 +93,7 @@ export function ContractDetailClient({ contract, documents, dealDocs, isAdmin }:
   // Poll for live payment_status + status updates (e.g. broker marks check sent)
   const { data: liveContract } = useSWR(
     `/api/contracts/${contract.id}`,
-    (url) => fetch(url).then((r) => r.json()),
+    (url) => fetch(url, { credentials: "include" }).then((r) => r.json()),
     { refreshInterval: 8000, revalidateOnFocus: true }
   )
 
@@ -116,9 +116,8 @@ export function ContractDetailClient({ contract, documents, dealDocs, isAdmin }:
   async function handleRequestPay() {
     setRequestingPay(true)
     try {
-      const res = await fetch(`/api/contracts/${contract.id}/request-pay`, { method: "POST" })
+      const res = await fetch(`/api/contracts/${contract.id}/request-pay`, { method: "POST", credentials: "include" })
       if (res.ok) {
-        setPaymentStatus("pending")
         setShowComplete(true)
       }
     } finally {

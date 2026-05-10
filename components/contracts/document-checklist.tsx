@@ -75,6 +75,7 @@ function DocRow({
       const res = await fetch(`/api/contracts/${contractId}/documents`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           document_key: doc.document_key,
           status: "uploaded",
@@ -236,6 +237,7 @@ export function DocumentChecklist({
       const res = await fetch(`/api/contracts/${contractId}/documents`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ document_name: newDocName.trim() }),
       })
       const data = await res.json()
