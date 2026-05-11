@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { createServiceClient } from "@/lib/supabase/server"
 import { sendEmail } from "@/lib/email/send-email"
 import { sendSms } from "@/lib/sms/send-sms"
 
 // Use service role for cron job
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+const supabase = createServiceClient()
 
 /**
  * Cron job to execute due drip campaign steps from the drip_enrollments table.
