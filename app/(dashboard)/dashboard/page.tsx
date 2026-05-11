@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server"
+import { createClient, createServiceClient } from "@/lib/supabase/server"
+import { TopCloserLeaderboard } from "@/components/dashboard/top-closer-leaderboard"
 import { requireAuth } from "@/lib/auth"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -250,6 +251,50 @@ export default async function DashboardPage() {
   const myRank = myMonthlyStats?.rank || 0
   const myPoints = myMonthlyStats?.total_xp_earned || 0
 
+  // Quarterly closer leaderboard — bypass RLS with service client
+  const serviceClient = createServiceClient()
+  const quarterStartMonth = Math.floor((now.getMonth()) / 3) * 3 // 0, 3, 6, or 9
+  const startOfQuarter = new Date(now.getFullYear(), quarterStartMonth, 1).toISOString().split("T")[0]
+  const endOfQuarter = new Date(now.getFullYear(), quarterStartMonth + 3, 0).toISOString().split("T")[0]
+  const currentQuarter = Math.floor(now.getMonth() / 3) + 1
+
+  const [{ data: closedContracts }, { data: closedTransactions }] = await Promise.all([
+    serviceClient
+      .from("executed_contracts")
+      .select("agent_id, sale_price, agents(Name, profile_picture_url)")
+      .eq("status", "closed")
+      .gte("contract_date", startOfQuarter)
+      .lte("contract_date", endOfQuarter),
+    serviceClient
+      .from("transactions")
+      .select("agent_id, sale_price, agents(Name, profile_picture_url)")
+      .eq("status", "closed")
+      .gte("contract_date", startOfQuarter)
+      .lte("contract_date", endOfQuarter),
+  ])
+
+  const closerMap = new Map<string, { name: string; profilePicture: string | null; closedCount: number; closedVolume: number }>()
+  const processClosing = (row: any) => {
+    const id = row.agent_id
+    if (!id) return
+    const agentName = (row.agents as any)?.Name || "Unknown"
+    const pic = (row.agents as any)?.profile_picture_url || null
+    const price = Number(row.sale_price) || 0
+    if (!closerMap.has(id)) {
+      closerMap.set(id, { name: agentName, profilePicture: pic, closedCount: 0, closedVolume: 0 })
+    }
+    const entry = closerMap.get(id)!
+    entry.closedCount += 1
+    entry.closedVolume += price
+    if (!entry.profilePicture && pic) entry.profilePicture = pic
+  }
+  closedContracts?.forEach(processClosing)
+  closedTransactions?.forEach(processClosing)
+  const sortedClosers = Array.from(closerMap.entries())
+    .map(([agentId, data]) => ({ agentId, ...data, isCurrentUser: agentId === agent.id }))
+    .sort((a, b) => b.closedCount !== a.closedCount ? b.closedCount - a.closedCount : b.closedVolume - a.closedVolume)
+    .slice(0, 10)
+
   const myPrestige = getPrestigeLevel(myPoints)
   const PrestigeIcon = myPrestige.icon
   const prestigeTierInfo = getPrestigeTierInfo(agent.lifetime_xp || 0)
@@ -299,6 +344,13 @@ export default async function DashboardPage() {
         currentUserId={agent.id}
         currentUserRank={myRank}
         currentUserPoints={myPoints}
+      />
+
+      <TopCloserLeaderboard
+        closers={sortedClosers}
+        currentUserId={agent.id}
+        quarter={currentQuarter}
+        year={now.getFullYear()}
       />
 
       <Link href="/dashboard/missions" className="block">
