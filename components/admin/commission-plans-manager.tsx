@@ -20,7 +20,6 @@ import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Pencil, Users } from "lucide-react"
-import { createBrowserClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
@@ -62,7 +61,6 @@ interface CommissionPlansManagerProps {
 
 export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: CommissionPlansManagerProps) {
   const router = useRouter()
-  const supabase = createBrowserClient()
   const [isCreating, setIsCreating] = useState(false)
   const [editingPlan, setEditingPlan] = useState<CommissionPlan | null>(null)
   const [isAssigning, setIsAssigning] = useState(false)
@@ -93,10 +91,24 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
     }).format(amount)
   }
 
+  const callCommissionAPI = async (payload: Record<string, unknown>) => {
+    const res = await fetch("/api/admin/commission", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+      const { error } = await res.json()
+      throw new Error(error || "Request failed")
+    }
+    return res.json()
+  }
+
   const handleCreatePlan = async () => {
     setIsCreating(true)
     try {
-      const { error } = await supabase.from("commission_plans").insert({
+      await callCommissionAPI({
+        action: "create_plan",
         name: planForm.name,
         description: planForm.description || null,
         split_percentage: Number.parseFloat(planForm.split_percentage),
@@ -106,8 +118,6 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
         is_default: planForm.is_default,
         is_active: planForm.is_active,
       })
-
-      if (error) throw error
 
       toast.success("Commission plan created successfully")
       setPlanForm({
@@ -121,9 +131,9 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
         is_active: true,
       })
       router.refresh()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating plan:", error)
-      toast.error("Failed to create commission plan")
+      toast.error(error.message || "Failed to create commission plan")
     } finally {
       setIsCreating(false)
     }
@@ -133,27 +143,25 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
     if (!editingPlan) return
     setIsCreating(true)
     try {
-      const { error } = await supabase
-        .from("commission_plans")
-        .update({
-          name: planForm.name,
-          description: planForm.description || null,
-          split_percentage: Number.parseFloat(planForm.split_percentage),
-          marketing_fund_threshold: Number.parseFloat(planForm.marketing_fund_threshold),
-          monthly_fee: Number.parseFloat(planForm.monthly_fee),
-          transaction_fee: Number.parseFloat(planForm.transaction_fee),
-          is_active: planForm.is_active,
-        })
-        .eq("id", editingPlan.id)
-
-      if (error) throw error
+      await callCommissionAPI({
+        action: "update_plan",
+        plan_id: editingPlan.id,
+        name: planForm.name,
+        description: planForm.description || null,
+        split_percentage: Number.parseFloat(planForm.split_percentage),
+        marketing_fund_threshold: Number.parseFloat(planForm.marketing_fund_threshold),
+        monthly_fee: Number.parseFloat(planForm.monthly_fee),
+        transaction_fee: Number.parseFloat(planForm.transaction_fee),
+        is_default: planForm.is_default,
+        is_active: planForm.is_active,
+      })
 
       toast.success("Commission plan updated successfully")
       setEditingPlan(null)
       router.refresh()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating plan:", error)
-      toast.error("Failed to update commission plan")
+      toast.error(error.message || "Failed to update commission plan")
     } finally {
       setIsCreating(false)
     }
@@ -162,15 +170,12 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
   const handleAssignPlan = async () => {
     setIsAssigning(true)
     try {
-      const { error } = await supabase.from("agent_commission_plans").insert({
+      await callCommissionAPI({
+        action: "assign_plan",
         agent_id: assignForm.agent_id,
         plan_id: assignForm.plan_id,
         effective_date: assignForm.effective_date,
-        cap_progress: 0,
-        ytd_gci: 0,
       })
-
-      if (error) throw error
 
       toast.success("Plan assigned to agent successfully")
       setAssignForm({
@@ -179,9 +184,9 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
         effective_date: new Date().toISOString().split("T")[0],
       })
       router.refresh()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error assigning plan:", error)
-      toast.error("Failed to assign plan")
+      toast.error(error.message || "Failed to assign plan")
     } finally {
       setIsAssigning(false)
     }
@@ -348,7 +353,9 @@ export function CommissionPlansManager({ commissionPlans, agents, agentPlans }: 
                 {commissionPlans.map((plan) => (
                   <TableRow key={plan.id}>
                     <TableCell className="font-medium">
-                      {plan.split_percentage.toFixed(0)}%
+                      {plan.split_percentage <= 1
+                        ? Math.round(plan.split_percentage * 100)
+                        : Math.round(plan.split_percentage)}%
                       {plan.is_default && (
                         <Badge variant="secondary" className="ml-2">
                           Default

@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server"
+import { createClient, createServiceClient } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
 import type { Agent } from "@/lib/types/database"
 
 export interface CurrentAgent extends Agent {
@@ -13,9 +14,9 @@ export interface CurrentAgent extends Agent {
 }
 
 export async function isDatabaseSetup(): Promise<boolean> {
-  const supabase = await createClient()
+  // Use service client — no GoTrueClient created
+  const supabase = createServiceClient()
   const { error } = await supabase.from("agents").select("id").limit(1)
-  // PGRST205 means table doesn't exist
   return !error || error.code !== "PGRST205"
 }
 
@@ -24,18 +25,20 @@ export async function isDatabaseSetup(): Promise<boolean> {
  * Returns null if not authenticated or agent not found
  */
 export async function getCurrentAgent(): Promise<CurrentAgent | null> {
-  const supabase = await createClient()
+  // One GoTrueClient for auth only, then switch to service client for all DB queries
+  const authClient = await createClient()
+  const db = createServiceClient()
 
   const {
     data: { user },
     error: authError,
-  } = await supabase.auth.getUser()
+  } = await authClient.auth.getUser()
 
   if (authError || !user) {
     return null
   }
 
-  const { data: agent, error: agentError } = await supabase
+  const { data: agent, error: agentError } = await db
     .from("agents")
     .select("*, exp_season, exp_bank, lifetime_xp, prestige_tier, prestige_icon_url")
     .eq("id", user.id)
@@ -50,14 +53,18 @@ export async function getCurrentAgent(): Promise<CurrentAgent | null> {
   }
 
   if (!agent) {
-    const { data: newAgent, error: insertError } = await supabase
+    // Use role from user metadata if available (set during signup for admins/brokers)
+    // Otherwise default to "agent"
+    const userRole = (user.user_metadata?.role as string) || "agent"
+
+    const { data: newAgent, error: insertError } = await db
       .from("agents")
       .insert({
         id: user.id,
         Email: user.email || "",
         Name: user.user_metadata?.full_name || user.email?.split("@")[0] || "",
         Phone: "",
-        Role: "agent",
+        Role: userRole,
         exp_season: 0,
         exp_bank: 0,
         lifetime_xp: 0,
@@ -67,7 +74,37 @@ export async function getCurrentAgent(): Promise<CurrentAgent | null> {
       .select()
       .single()
 
-    if (insertError || !newAgent) {
+    if (insertError) {
+      if (insertError.code === "23505") {
+        const { data: existingAgent } = await db
+          .from("agents")
+          .select("*, exp_season, exp_bank, lifetime_xp, prestige_tier, prestige_icon_url")
+          .eq("id", user.id)
+          .single()
+
+        if (existingAgent) {
+          return {
+            id: existingAgent.id,
+            created_at: existingAgent.created_at,
+            email: existingAgent.Email,
+            full_name: existingAgent.Name,
+            phone: existingAgent.Phone,
+            role: existingAgent.Role,
+            Role: existingAgent.Role,
+            user_id: user.id,
+            team_id: existingAgent.team_id || null,
+            exp_season: existingAgent.exp_season || 0,
+            exp_bank: existingAgent.exp_bank || 0,
+            lifetime_xp: existingAgent.lifetime_xp || 0,
+            prestige_tier: existingAgent.prestige_tier || 1,
+            prestige_icon_url: existingAgent.prestige_icon_url || null,
+          } as CurrentAgent
+        }
+      }
+      return null
+    }
+
+    if (!newAgent) {
       return null
     }
 
@@ -114,7 +151,6 @@ export async function requireAuth(): Promise<CurrentAgent> {
   const agent = await getCurrentAgent()
 
   if (!agent) {
-    const { redirect } = await import("next/navigation")
     redirect("/auth/login")
   }
 
@@ -128,7 +164,6 @@ export async function requireAdmin(): Promise<CurrentAgent> {
   const agent = await requireAuth()
 
   if (agent.role !== "admin" && agent.role !== "broker") {
-    const { redirect } = await import("next/navigation")
     redirect("/dashboard")
   }
 

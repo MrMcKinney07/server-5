@@ -13,9 +13,7 @@ export default async function KnowledgeBasePage() {
 
   const { data: articles } = await supabase
     .from("knowledge_articles")
-    .select(
-      "*, created_by_agent:agents!created_by(*), related_mission_template:mission_templates!related_mission_template_id(*)",
-    )
+    .select("id, title, content, category, is_published, created_at, updated_at, file_url, file_name, file_type, related_mission_template_id")
     .eq("is_published", true)
     .order("category")
     .order("title")

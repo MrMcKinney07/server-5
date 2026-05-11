@@ -74,6 +74,17 @@ export default async function CampaignsPage() {
       </div>
     )
   } catch (error) {
+    // Re-throw redirect errors - they're not actual errors
+    if (error instanceof Error && error.message === "NEXT_REDIRECT") {
+      throw error
+    }
+    // Also check for the digest property that Next.js uses
+    if (typeof error === "object" && error !== null && "digest" in error) {
+      const digest = (error as { digest?: string }).digest
+      if (digest?.startsWith("NEXT_REDIRECT")) {
+        throw error
+      }
+    }
     console.error("[v0] Campaigns page error:", error)
     return (
       <div className="space-y-6">

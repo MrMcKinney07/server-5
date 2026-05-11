@@ -21,8 +21,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Pencil, Eye, EyeOff } from "lucide-react"
-import { createBrowserClient } from "@/lib/supabase/client"
+import { Plus, Pencil, Eye, EyeOff, Upload, FileText, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import type { KnowledgeArticleWithRelations, MissionTemplate } from "@/lib/types/database"
 
@@ -32,41 +31,93 @@ interface AdminKnowledgeManagerProps {
 }
 
 const categories = [
-  { id: "lead_handling", label: "Lead Handling" },
-  { id: "listings", label: "Listings" },
-  { id: "transactions", label: "Transactions" },
-  { id: "open_house", label: "Open Houses" },
-  { id: "training", label: "Training" },
-  { id: "general", label: "General" },
+  { id: "lead_handling", label: "Lead Mastery" },
+  { id: "listings", label: "Listing Excellence" },
+  { id: "transactions", label: "Deal Management" },
+  { id: "open_house", label: "Open House Strategies" },
+  { id: "training", label: "Agent Development" },
+  { id: "general", label: "Quick Reference" },
 ]
 
 export function AdminKnowledgeManager({ articles, missionTemplates }: AdminKnowledgeManagerProps) {
   const router = useRouter()
-  const supabase = createBrowserClient()
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [editingArticle, setEditingArticle] = useState<KnowledgeArticleWithRelations | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const [fileUrl, setFileUrl] = useState<string | null>(null)
+  const [fileName, setFileName] = useState<string | null>(null)
+  const [fileType, setFileType] = useState<string | null>(null)
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, articleId?: string) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingFile(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("articleId", articleId || "new")
+
+      const res = await fetch("/api/admin/knowledge/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!res.ok) throw new Error("Upload failed")
+
+      const data = await res.json()
+      setFileUrl(data.url)
+      setFileName(data.filename)
+      setFileType(data.contentType)
+    } catch (error) {
+      console.error("File upload error:", error)
+    } finally {
+      setUploadingFile(false)
+    }
+  }
+
+  const handleRemoveFile = () => {
+    setFileUrl(null)
+    setFileName(null)
+    setFileType(null)
+  }
 
   const handleAddArticle = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsLoading(true)
 
     const formData = new FormData(e.currentTarget)
-    const title = formData.get("title") as string
 
-    const { error } = await supabase.from("knowledge_articles").insert({
-      title,
-      content: formData.get("content") as string,
-      category: formData.get("category") as string,
-      related_mission_template_id: (formData.get("related_mission_template_id") as string) || null,
-      related_transaction_stage: (formData.get("related_transaction_stage") as string) || null,
-      is_published: formData.get("is_published") === "on",
-    })
+    try {
+      const res = await fetch("/api/admin/knowledge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create",
+          title: formData.get("title"),
+          content: formData.get("content"),
+          category: formData.get("category"),
+          related_mission_template_id: formData.get("related_mission_template_id") || null,
+          is_published: formData.get("is_published") === "on",
+          file_url: fileUrl,
+          file_name: fileName,
+          file_type: fileType,
+        }),
+      })
 
-    setIsLoading(false)
-    if (!error) {
+      if (!res.ok) {
+        const { error } = await res.json()
+        throw new Error(error || "Failed to create article")
+      }
+
       setIsAddOpen(false)
+      handleRemoveFile()
       router.refresh()
+    } catch (error: any) {
+      console.error("Error creating article:", error)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -77,31 +128,51 @@ export function AdminKnowledgeManager({ articles, missionTemplates }: AdminKnowl
 
     const formData = new FormData(e.currentTarget)
 
-    const { error } = await supabase
-      .from("knowledge_articles")
-      .update({
-        title: formData.get("title") as string,
-        content: formData.get("content") as string,
-        category: formData.get("category") as string,
-        related_mission_template_id: (formData.get("related_mission_template_id") as string) || null,
-        related_transaction_stage: (formData.get("related_transaction_stage") as string) || null,
+    try {
+      const payload: Record<string, unknown> = {
+        action: "update",
+        id: editingArticle.id,
+        title: formData.get("title"),
+        content: formData.get("content"),
+        category: formData.get("category"),
+        related_mission_template_id: formData.get("related_mission_template_id") || null,
         is_published: formData.get("is_published") === "on",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", editingArticle.id)
+      }
 
-    setIsLoading(false)
-    if (!error) {
+      // Only send file fields if a new file was uploaded
+      if (fileUrl) {
+        payload.file_url = fileUrl
+        payload.file_name = fileName
+        payload.file_type = fileType
+      }
+
+      const res = await fetch("/api/admin/knowledge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        const { error } = await res.json()
+        throw new Error(error || "Failed to update article")
+      }
+
       setEditingArticle(null)
+      handleRemoveFile()
       router.refresh()
+    } catch (error: any) {
+      console.error("Error updating article:", error)
+    } finally {
+      setIsLoading(false)
     }
   }
 
   const togglePublished = async (articleId: string, currentState: boolean) => {
-    await supabase
-      .from("knowledge_articles")
-      .update({ is_published: !currentState, updated_at: new Date().toISOString() })
-      .eq("id", articleId)
+    await fetch("/api/admin/knowledge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "toggle_published", id: articleId, is_published: !currentState }),
+    })
     router.refresh()
   }
 
@@ -162,13 +233,35 @@ export function AdminKnowledgeManager({ articles, missionTemplates }: AdminKnowl
                   <Label htmlFor="content">Content *</Label>
                   <Textarea id="content" name="content" required rows={10} />
                 </div>
+                <div className="grid gap-2">
+                  <Label>Attachment (optional)</Label>
+                  {fileUrl ? (
+                    <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
+                      <FileText className="h-4 w-4" />
+                      <span className="text-sm flex-1 truncate">{fileName}</span>
+                      <Button type="button" variant="ghost" size="icon" onClick={handleRemoveFile}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="file"
+                        onChange={(e) => handleFileUpload(e)}
+                        disabled={uploadingFile}
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md"
+                      />
+                      {uploadingFile && <span className="text-sm text-muted-foreground">Uploading...</span>}
+                    </div>
+                  )}
+                </div>
                 <div className="flex items-center gap-2">
                   <Switch id="is_published" name="is_published" />
                   <Label htmlFor="is_published">Publish immediately</Label>
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit" disabled={isLoading}>
+                <Button type="submit" disabled={isLoading || uploadingFile}>
                   {isLoading ? "Creating..." : "Create Article"}
                 </Button>
               </DialogFooter>
@@ -282,13 +375,35 @@ export function AdminKnowledgeManager({ articles, missionTemplates }: AdminKnowl
                   <Label htmlFor="edit-content">Content *</Label>
                   <Textarea id="edit-content" name="content" defaultValue={editingArticle.content} required rows={10} />
                 </div>
+                <div className="grid gap-2">
+                  <Label>Attachment</Label>
+                  {(fileUrl || editingArticle.file_url) ? (
+                    <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
+                      <FileText className="h-4 w-4" />
+                      <span className="text-sm flex-1 truncate">{fileName || editingArticle.file_name}</span>
+                      <Button type="button" variant="ghost" size="icon" onClick={handleRemoveFile}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="file"
+                        onChange={(e) => handleFileUpload(e, editingArticle.id)}
+                        disabled={uploadingFile}
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md"
+                      />
+                      {uploadingFile && <span className="text-sm text-muted-foreground">Uploading...</span>}
+                    </div>
+                  )}
+                </div>
                 <div className="flex items-center gap-2">
                   <Switch id="edit-is_published" name="is_published" defaultChecked={editingArticle.is_published} />
                   <Label htmlFor="edit-is_published">Published</Label>
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit" disabled={isLoading}>
+                <Button type="submit" disabled={isLoading || uploadingFile}>
                   {isLoading ? "Saving..." : "Save Changes"}
                 </Button>
               </DialogFooter>

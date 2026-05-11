@@ -1,9 +1,9 @@
-import { Button } from "@/components/ui/button"
-import { Bell, Zap, Coins } from "lucide-react"
+import { Zap, Coins } from "lucide-react"
 import { UserMenu } from "@/components/dashboard/user-menu"
 import type { CurrentAgent } from "@/lib/auth"
 import { Badge } from "@/components/ui/badge"
 import { UserBadgeName } from "@/components/prestige/user-badge-name"
+import { NotificationsDropdown } from "@/components/notifications/notifications-dropdown"
 import Link from "next/link"
 
 interface DashboardTopbarProps {
@@ -50,10 +50,7 @@ export function DashboardTopbar({ agent }: DashboardTopbarProps) {
           {agent.role}
         </Badge>
 
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-4 w-4" />
-          <span className="sr-only">Notifications</span>
-        </Button>
+        <NotificationsDropdown isBroker={agent.role === "admin" || agent.role === "broker"} />
         <UserMenu agent={agent} />
       </div>
     </header>

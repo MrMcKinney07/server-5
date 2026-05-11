@@ -14,9 +14,9 @@ export default async function AdminAgentsPage() {
   } = await supabase.auth.getUser()
   if (!user) redirect("/auth/login")
 
-  const { data: agent } = await supabase.from("agents").select("Role").eq("id", user.id).single()
+  const { data: agent } = await supabase.from("agents").select("role").eq("id", user.id).single()
 
-  if (!agent || (agent.Role !== "admin" && agent.Role !== "broker")) {
+  if (!agent || agent.role !== "broker") {
     redirect("/dashboard")
   }
 

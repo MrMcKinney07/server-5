@@ -3,11 +3,12 @@ import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Shield, Users, Target, TrendingUp, DollarSign } from "lucide-react"
+import { Shield, Users, Target, TrendingUp, DollarSign, FileSignature } from "lucide-react"
 import { AllLeadsTable } from "@/components/admin/all-leads-table"
 import { BrokerAnalytics } from "@/components/admin/broker-analytics"
 import { ExportTools } from "@/components/admin/export-tools"
 import { ImportLeadsTool } from "@/components/admin/import-leads-tool"
+import { BrokerContractsFolder } from "@/components/admin/broker-contracts-folder"
 
 export default async function BrokerToolsPage() {
   const agent = await requireAdmin()
@@ -129,8 +130,12 @@ export default async function BrokerToolsPage() {
 
       {/* Tabs */}
       <Tabs defaultValue="leads" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4 lg:w-[500px]">
+        <TabsList className="grid w-full grid-cols-5 lg:w-[620px]">
           <TabsTrigger value="leads">All Leads</TabsTrigger>
+          <TabsTrigger value="contracts" className="flex items-center gap-1.5">
+            <FileSignature className="h-3.5 w-3.5" />
+            Contracts
+          </TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="export">Export</TabsTrigger>
           <TabsTrigger value="import">Import</TabsTrigger>
@@ -144,6 +149,23 @@ export default async function BrokerToolsPage() {
             </CardHeader>
             <CardContent>
               <AllLeadsTable leads={allLeads || []} agents={allAgents || []} adminId={agent.id} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="contracts">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileSignature className="h-5 w-5 text-cyan-500" />
+                Agent Contracts
+              </CardTitle>
+              <CardDescription>
+                Review and approve submitted documents. Each agent has a folder containing their individual transaction folders.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <BrokerContractsFolder />
             </CardContent>
           </Card>
         </TabsContent>
