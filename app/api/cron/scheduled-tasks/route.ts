@@ -5,8 +5,8 @@ import { Resend } from "resend"
 import twilio from "twilio"
 import { generateText } from "ai"
 
-const resend = new Resend(process.env.RESEND_API_KEY)
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+const getResend = () => new Resend(process.env.RESEND_API_KEY)
 
 export async function GET(request: Request) {
   // Verify cron secret
@@ -279,7 +279,7 @@ async function assignDailyMissionsAndEmail() {
               </div>
             `
 
-            await resend.emails.send({
+            await getResend().emails.send({
               from: "McKinney Realty Missions <missions@mckinneyrealtyco.com>",
               to: agent.Email,
               subject: `🌟 Your Daily Missions Are Here! - ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })}`,
@@ -403,7 +403,7 @@ Rewrite the message to be personalized and engaging. Keep the same tone and inte
 
       // Send based on step type
       if (step.type === "email" && lead.email) {
-        await resend.emails.send({
+        await getResend().emails.send({
           from: "McKinney Realty <campaigns@mckinneyrealtyco.com>",
           to: lead.email,
           subject: step.subject || "Message from McKinney Realty",
@@ -429,7 +429,7 @@ Lead Preferences:
 Format as a brief, friendly email with 3 fictional but realistic property suggestions that match their criteria.`,
         })
 
-        await resend.emails.send({
+        await getResend().emails.send({
           from: "McKinney Realty <recommendations@mckinneyrealtyco.com>",
           to: lead.email,
           subject: "Properties You Might Love",
