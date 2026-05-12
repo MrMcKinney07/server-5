@@ -125,6 +125,7 @@ export default async function DashboardPage() {
   const now = new Date()
   const year = now.getFullYear()
   const month = now.getMonth() + 1
+  const monthYear = `${year}-${String(month).padStart(2, "0")}`
   const today = new Date().toISOString().split("T")[0]
 
   const [
@@ -155,13 +156,12 @@ export default async function DashboardPage() {
       .from("monthly_agent_stats")
       .select(`
         agent_id,
-        total_points,
+        total_xp_earned,
         missions_completed,
         rank,
         agents(Name, lifetime_xp, profile_picture_url)
       `)
-      .eq("year", year)
-      .eq("month", month)
+      .eq("month_year", monthYear)
       .order("rank", { ascending: true })
       .limit(10),
     supabase
@@ -181,12 +181,13 @@ export default async function DashboardPage() {
 
   let leaderboardData = monthlyRankings || []
   if (!leaderboardData || leaderboardData.length === 0) {
-    const startOfMonth = new Date(year, month - 1, 1).toISOString().split("T")[0]
-    const endOfMonth = new Date(year, month, 0).toISOString().split("T")[0]
+    const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0]
+    const endOfMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split("T")[0]
 
     const { data: missionStats } = await supabase
       .from("daily_mission_items")
       .select(`
+        mission_templates(xp_reward),
         daily_mission_sets!inner(
           user_id,
           mission_date,
@@ -200,6 +201,7 @@ export default async function DashboardPage() {
     const agentStats = new Map()
     missionStats?.forEach((item: any) => {
       const userId = item.daily_mission_sets.user_id
+      const xp = item.mission_templates?.xp_reward || 0
       const name = item.daily_mission_sets.agents?.Name || "Unknown"
       const lifetimeXp = item.daily_mission_sets.agents?.lifetime_xp || 0
       const profilePicture = item.daily_mission_sets.agents?.profile_picture_url || null
@@ -207,7 +209,7 @@ export default async function DashboardPage() {
       if (!agentStats.has(userId)) {
         agentStats.set(userId, {
           agent_id: userId,
-          total_points: 0,
+          total_xp_earned: 0,
           missions_completed: 0,
           name,
           lifetimeXp,
@@ -215,40 +217,39 @@ export default async function DashboardPage() {
         })
       }
       const stats = agentStats.get(userId)
-      stats.total_points += 1
+      stats.total_xp_earned += xp
       stats.missions_completed += 1
     })
 
     leaderboardData = Array.from(agentStats.values())
-      .sort((a: any, b: any) => b.total_points - a.total_points)
+      .sort((a, b) => b.total_xp_earned - a.total_xp_earned)
       .slice(0, 10)
-      .map((stat: any, index: number) => ({
+      .map((stat, index) => ({
         agent_id: stat.agent_id,
-        total_points: stat.total_points,
+        total_xp_earned: stat.total_xp_earned,
         missions_completed: stat.missions_completed,
         rank: index + 1,
         agents: { Name: stat.name, lifetime_xp: stat.lifetimeXp, profile_picture_url: stat.profilePicture },
       }))
   }
 
-  const sortedLeaderboard = leaderboardData.map((entry: any) => ({
+  const sortedLeaderboard = leaderboardData.map((entry) => ({
     id: entry.agent_id,
     name: entry.agents?.Name || `Agent ${entry.agent_id?.slice(0, 6) || "Unknown"}`,
-    points: entry.total_points || 0,
+    points: entry.total_xp_earned || 0,
     level: getPrestigeTier(entry.agents?.lifetime_xp || 1).level,
     profilePicture: entry.agents?.profile_picture_url || null,
   }))
 
   const { data: myMonthlyStats } = await supabase
     .from("monthly_agent_stats")
-    .select("rank, total_points")
+    .select("rank, total_xp_earned")
     .eq("agent_id", agent.id)
-    .eq("year", year)
-    .eq("month", month)
+    .eq("month_year", monthYear)
     .maybeSingle()
 
   const myRank = myMonthlyStats?.rank || 0
-  const myPoints = myMonthlyStats?.total_points || 0
+  const myPoints = myMonthlyStats?.total_xp_earned || 0
 
   // Quarterly closer leaderboard — bypass RLS with service client
   const serviceClient = createServiceClient()
