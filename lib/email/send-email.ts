@@ -8,13 +8,13 @@ export interface EmailOptions {
   from?: string
 }
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   if (!process.env.RESEND_API_KEY) {
     console.error("[Email Service] RESEND_API_KEY not configured")
     return false
   }
+
+  const resend = new Resend(process.env.RESEND_API_KEY)
 
   try {
     const { data, error } = await resend.emails.send({

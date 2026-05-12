@@ -1,5 +1,4 @@
-import { createClient } from "@supabase/supabase-js"
-import { createServerClient } from "@/lib/supabase/server"
+import { createServerClient, createServiceClient } from "@/lib/supabase/server"
 import { type NextRequest, NextResponse } from "next/server"
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
@@ -30,16 +29,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     }
 
     // Create service client for auth operations
-    const serviceSupabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      },
-    )
+    const serviceSupabase = createServiceClient()
 
     // Delete from agents table first
     const { error: deleteAgentError } = await serviceSupabase.from("agents").delete().eq("id", params.id)

@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js"
+import { createServiceClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { sendEmail } from "@/lib/email/send-email"
 
@@ -7,16 +7,7 @@ export async function POST(request: Request) {
     const { agentId, newPassword } = await request.json()
 
     // Create service client with admin privileges
-    const serviceSupabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      },
-    )
+    const serviceSupabase = createServiceClient()
 
     // Get the agent details
     const { data: agent, error: agentError } = await serviceSupabase

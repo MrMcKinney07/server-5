@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/auth"
-import { createClient as createSupabaseClient } from "@supabase/supabase-js"
-import { createClient } from "@/lib/supabase/server"
+import { createClient, createServiceClient } from "@/lib/supabase/server"
 import { sendEmail } from "@/lib/email/send-email"
 
 export async function POST(request: Request) {
@@ -36,10 +35,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const serviceSupabase = createSupabaseClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    )
+    const serviceSupabase = createServiceClient()
 
     const { data: existingAgent } = await serviceSupabase
       .from("agents")
