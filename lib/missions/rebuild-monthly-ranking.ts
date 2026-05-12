@@ -90,7 +90,6 @@ export async function rebuildMonthlyRanking(): Promise<RankingResult[]> {
         year,
         month,
         total_points: ranking.total_points,
-        missions_completed: ranking.missions_completed,
         rank: ranking.rank,
         updated_at: new Date().toISOString(),
       },
