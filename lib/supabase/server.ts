@@ -2,12 +2,20 @@ import { createServerClient } from "@supabase/ssr"
 import { createClient as createSupabaseClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 
+function getSupabaseUrl() {
+  return process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? ""
+}
+
+function getSupabaseAnonKey() {
+  return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY ?? ""
+}
+
 export async function createClient() {
   const cookieStore = await cookies()
 
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://uycumplltmplglqzmdno.supabase.co",
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5Y3VtcGxsdG1wbGdscXptZG5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5NDg2NjEsImV4cCI6MjA4MDUyNDY2MX0.hCjBk6JiHaggrLtXP_sXiPZQLD-1OaP80KZT--tkWUs",
+    getSupabaseUrl(),
+    getSupabaseAnonKey(),
     {
       cookies: {
         getAll() {
@@ -33,9 +41,8 @@ export { createClient as createServerClient }
 // Service role client — bypasses RLS for server-side operations that write on behalf of other users.
 // Never expose this to the client.
 export function createServiceClient() {
-  return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://uycumplltmplglqzmdno.supabase.co",
-    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
-    { auth: { persistSession: false, autoRefreshToken: false } },
-  )
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? getSupabaseAnonKey()
+  return createSupabaseClient(getSupabaseUrl(), serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
 }
