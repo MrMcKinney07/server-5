@@ -30,9 +30,14 @@ export async function isDatabaseSetup(): Promise<boolean> {
  */
 export async function getCurrentAgent(): Promise<CurrentAgent | null> {
   if (!hasSupabaseCredentials()) return null
-  // One GoTrueClient for auth only, then switch to service client for all DB queries
-  const authClient = await createClient()
-  const db = createServiceClient()
+  let authClient: Awaited<ReturnType<typeof createClient>>
+  let db: ReturnType<typeof createServiceClient>
+  try {
+    authClient = await createClient()
+    db = createServiceClient()
+  } catch {
+    return null
+  }
 
   const {
     data: { user },

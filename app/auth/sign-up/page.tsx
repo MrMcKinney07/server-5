@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { createClient } from "@/lib/supabase/client"
+import { createClient, hasSupabaseCredentials } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,10 +22,16 @@ export default function SignUpPage() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
-    const supabase = createClient()
     setIsLoading(true)
     setError(null)
 
+    if (!hasSupabaseCredentials()) {
+      setError("Database not configured. Please add your Supabase environment variables in project settings.")
+      setIsLoading(false)
+      return
+    }
+
+    const supabase = createClient()
     if (password !== confirmPassword) {
       setError("Passwords do not match")
       setIsLoading(false)

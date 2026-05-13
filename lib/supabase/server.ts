@@ -15,11 +15,20 @@ export function hasSupabaseCredentials() {
 }
 
 export async function createClient() {
+  const url = getSupabaseUrl()
+  const key = getSupabaseAnonKey()
+
+  if (!url || !key) {
+    throw new Error(
+      "Supabase credentials are not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your environment variables."
+    )
+  }
+
   const cookieStore = await cookies()
 
   return createServerClient(
-    getSupabaseUrl(),
-    getSupabaseAnonKey(),
+    url,
+    key,
     {
       cookies: {
         getAll() {

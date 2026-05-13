@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/auth"
-import { CampaignsTable } from "@/components/campaigns/campaigns-table"
+import { CampaignCards } from "@/components/campaigns/campaign-cards"
 import { CreateCampaignDialog } from "@/components/campaigns/create-campaign-dialog"
+import { Megaphone, Users, Send, TrendingUp } from "lucide-react"
 import Link from "next/link"
 
 export default async function CampaignsPage() {
@@ -9,113 +10,171 @@ export default async function CampaignsPage() {
     const agent = await requireAuth()
     const supabase = await createClient()
 
-    const { data: campaigns, error } = await supabase
+    const { data: campaigns } = await supabase
       .from("campaigns")
       .select("*")
       .order("created_at", { ascending: false })
 
-    if (error) {
-      console.error("[v0] Campaigns fetch error:", error)
-      throw error
-    }
-
     const filteredCampaigns =
-      agent.Role === "broker" ? campaigns || [] : (campaigns || []).filter((c) => c.owner_id === agent.id)
+      agent.Role === "broker"
+        ? campaigns || []
+        : (campaigns || []).filter((c) => c.owner_id === agent.id)
 
-    const campaignsWithCounts = await Promise.all(
+    // Enrich each campaign with step count, enrollment count, and run stats
+    const enriched = await Promise.all(
       filteredCampaigns.map(async (campaign) => {
-        const [stepsResult, enrollmentsResult] = await Promise.all([
-          supabase.from("campaign_steps").select("id", { count: "exact", head: true }).eq("campaign_id", campaign.id),
+        const [stepsRes, enrollRes, runsRes, logsRes] = await Promise.all([
+          supabase
+            .from("campaign_steps")
+            .select("id", { count: "exact", head: true })
+            .eq("campaign_id", campaign.id),
           supabase
             .from("lead_campaign_enrollments")
+            .select("id, status", { count: "exact" })
+            .eq("campaign_id", campaign.id),
+          supabase
+            .from("campaign_runs")
+            .select("sent, delivered, failed, clicks, replies")
+            .eq("campaign_id", campaign.id),
+          supabase
+            .from("campaign_logs")
             .select("id", { count: "exact", head: true })
             .eq("campaign_id", campaign.id),
         ])
 
+        const enrollments = enrollRes.data || []
+        const runs = runsRes.data || []
+        const totalSent = runs.reduce((s, r) => s + (r.sent || 0), 0)
+        const totalDelivered = runs.reduce((s, r) => s + (r.delivered || 0), 0)
+        const totalClicks = runs.reduce((s, r) => s + (r.clicks || 0), 0)
+        const totalReplies = runs.reduce((s, r) => s + (r.replies || 0), 0)
+        const totalFailed = runs.reduce((s, r) => s + (r.failed || 0), 0)
+
         return {
           ...campaign,
-          stepsCount: stepsResult.count || 0,
-          enrollmentsCount: enrollmentsResult.count || 0,
+          stepsCount: stepsRes.count || 0,
+          enrollmentsCount: enrollRes.count || 0,
+          activeCount: enrollments.filter((e) => e.status === "active").length,
+          completedCount: enrollments.filter((e) => e.status === "completed").length,
+          totalSent,
+          totalDelivered,
+          totalClicks,
+          totalReplies,
+          totalFailed,
+          deliveryRate: totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : null,
+          replyRate: totalSent > 0 ? Math.round((totalReplies / totalSent) * 100) : null,
+          activityCount: logsRes.count || 0,
         }
       }),
     )
 
+    // Aggregate totals for top stats
+    const totalEnrolled = enriched.reduce((s, c) => s + c.enrollmentsCount, 0)
+    const totalSentAll = enriched.reduce((s, c) => s + c.totalSent, 0)
+    const totalRepliesAll = enriched.reduce((s, c) => s + c.totalReplies, 0)
+    const activeCampaigns = enriched.filter((c) => c.is_active).length
+
+    const stats = [
+      {
+        label: "Active Campaigns",
+        value: activeCampaigns,
+        sub: `of ${enriched.length} total`,
+        icon: Megaphone,
+        color: "text-cyan-400",
+        bg: "bg-cyan-500/10",
+      },
+      {
+        label: "Total Enrolled",
+        value: totalEnrolled,
+        sub: "leads across all campaigns",
+        icon: Users,
+        color: "text-violet-400",
+        bg: "bg-violet-500/10",
+      },
+      {
+        label: "Messages Sent",
+        value: totalSentAll,
+        sub: "emails & texts",
+        icon: Send,
+        color: "text-emerald-400",
+        bg: "bg-emerald-500/10",
+      },
+      {
+        label: "Total Replies",
+        value: totalRepliesAll,
+        sub: totalSentAll > 0 ? `${Math.round((totalRepliesAll / totalSentAll) * 100)}% reply rate` : "no sends yet",
+        icon: TrendingUp,
+        color: "text-amber-400",
+        bg: "bg-amber-500/10",
+      },
+    ]
+
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="space-y-8">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold">Drip Campaigns</h1>
-            <p className="text-sm text-muted-foreground">Automated email, SMS, and property recommendation sequences</p>
+            <h1 className="text-2xl font-semibold tracking-tight">Drip Campaigns</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Automated email and SMS sequences for lead nurturing
+            </p>
           </div>
           <CreateCampaignDialog />
         </div>
 
-        {campaignsWithCounts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="rounded-full bg-muted p-4 mb-4">
-              <svg className="h-8 w-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                />
-              </svg>
+        {/* Top stats */}
+        {enriched.length > 0 && (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {stats.map((stat) => (
+              <div
+                key={stat.label}
+                className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 flex items-start gap-3"
+              >
+                <div className={`rounded-lg p-2 ${stat.bg} shrink-0`}>
+                  <stat.icon className={`h-4 w-4 ${stat.color}`} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xl font-semibold tabular-nums">{stat.value.toLocaleString()}</p>
+                  <p className="text-xs font-medium text-foreground">{stat.label}</p>
+                  <p className="text-xs text-muted-foreground truncate">{stat.sub}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Campaign list */}
+        {enriched.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-white/[0.08] p-16 text-center">
+            <div className="mx-auto w-12 h-12 rounded-full bg-white/[0.04] flex items-center justify-center mb-4">
+              <Megaphone className="h-5 w-5 text-muted-foreground" />
             </div>
-            <h3 className="text-lg font-medium mb-1">No campaigns yet</h3>
-            <p className="text-sm text-muted-foreground mb-4 max-w-md">
+            <h3 className="font-medium mb-1">No campaigns yet</h3>
+            <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
               Create your first drip campaign to automatically nurture leads with personalized emails and texts.
             </p>
             <CreateCampaignDialog />
           </div>
         ) : (
-          <CampaignsTable campaigns={campaignsWithCounts} />
+          <CampaignCards campaigns={enriched} />
         )}
       </div>
     )
   } catch (error) {
-    // Re-throw redirect errors - they're not actual errors
-    if (error instanceof Error && error.message === "NEXT_REDIRECT") {
-      throw error
-    }
-    // Also check for the digest property that Next.js uses
+    if (error instanceof Error && error.message === "NEXT_REDIRECT") throw error
     if (typeof error === "object" && error !== null && "digest" in error) {
-      const digest = (error as { digest?: string }).digest
-      if (digest?.startsWith("NEXT_REDIRECT")) {
-        throw error
-      }
+      const d = (error as { digest?: string }).digest
+      if (d?.startsWith("NEXT_REDIRECT")) throw error
     }
-    console.error("[v0] Campaigns page error:", error)
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold">Drip Campaigns</h1>
-            <p className="text-sm text-muted-foreground">Automated email, SMS, and property recommendation sequences</p>
-          </div>
+          <h1 className="text-2xl font-semibold">Drip Campaigns</h1>
         </div>
-
-        <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed rounded-lg">
-          <div className="rounded-full bg-red-100 p-4 mb-4">
-            <svg className="h-8 w-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-              />
-            </svg>
-          </div>
-          <h3 className="text-lg font-medium mb-1 text-red-600">Unable to load campaigns</h3>
-          <p className="text-sm text-muted-foreground mb-4 max-w-md">
-            There was an error connecting to the database. Please refresh the page or contact support if the issue
-            persists.
-          </p>
-          <Link
-            href="/dashboard/campaigns"
-            className="px-4 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 transition-colors"
-          >
-            Refresh Page
+        <div className="rounded-xl border border-dashed border-destructive/30 p-12 text-center">
+          <p className="text-sm text-muted-foreground mb-4">Unable to load campaigns. Please refresh.</p>
+          <Link href="/dashboard/campaigns" className="text-sm underline underline-offset-4">
+            Refresh
           </Link>
         </div>
       </div>
