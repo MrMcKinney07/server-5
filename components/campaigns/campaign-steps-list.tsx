@@ -2,26 +2,12 @@
 
 import type React from "react"
 import { useRouter } from "next/navigation"
-import { createBrowserClient } from "@/lib/supabase/client"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { createClient, hasSupabaseCredentials } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import {
-  Mail,
-  MessageSquare,
-  Home,
-  Trash2,
-  ArrowUp,
-  ArrowDown,
-  Sparkles,
-  Clock,
-  Zap,
-  Calendar,
-  CalendarDays,
-  Paperclip,
-  Link2,
-  ImageIcon,
+  Mail, MessageSquare, Home, Trash2, ArrowUp, ArrowDown,
+  Sparkles, Clock, Zap, Calendar, CalendarDays, Paperclip, Link2, ImageIcon,
 } from "lucide-react"
 import { AddStepDialog } from "./add-step-dialog"
 
@@ -48,309 +34,247 @@ interface CampaignStepsListProps {
   campaignId: string
 }
 
-const typeIcons: Record<string, React.ElementType> = {
-  email: Mail,
-  sms: MessageSquare,
-  property_recommendation: Home,
-}
-
-const typeColors: Record<string, string> = {
-  email: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800",
-  sms: "bg-green-100 text-green-700 border-green-200 dark:bg-green-950/50 dark:text-green-300 dark:border-green-800",
-  property_recommendation:
-    "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-800",
-}
-
-const typeLabels: Record<string, string> = {
-  email: "Email",
-  sms: "SMS",
-  property_recommendation: "Property Rec",
+const typeConfig = {
+  email: { icon: Mail, label: "Email", color: "text-cyan-400", bg: "bg-cyan-500/10 border-cyan-500/20", line: "bg-cyan-500/30" },
+  sms: { icon: MessageSquare, label: "SMS", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20", line: "bg-emerald-500/30" },
+  property_recommendation: { icon: Home, label: "Properties", color: "text-violet-400", bg: "bg-violet-500/10 border-violet-500/20", line: "bg-violet-500/30" },
 }
 
 const DAYS_OF_WEEK = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
 function formatDelay(hours: number): string {
   if (hours === 0) return "Immediately"
-  if (hours < 24) return `${hours} hour${hours > 1 ? "s" : ""}`
+  if (hours < 24) return `${hours}h`
   const days = Math.floor(hours / 24)
-  const remainingHours = hours % 24
-  if (remainingHours === 0) return `${days} day${days > 1 ? "s" : ""}`
-  return `${days}d ${remainingHours}h`
+  const rem = hours % 24
+  return rem === 0 ? `${days}d` : `${days}d ${rem}h`
 }
 
-function formatSchedule(step: CampaignStep): { icon: React.ElementType; text: string; subtext?: string } {
-  const scheduleType = step.schedule_type || "delay"
-
-  if (scheduleType === "weekly" && step.schedule_day_of_week !== null && step.schedule_day_of_week !== undefined) {
-    const dayName = DAYS_OF_WEEK[step.schedule_day_of_week]
-    const time = step.schedule_time || "10:00"
-    return {
-      icon: Calendar,
-      text: `Every ${dayName}`,
-      subtext: `at ${time}`,
-    }
+function getSchedule(step: CampaignStep): { icon: React.ElementType; text: string; sub?: string } {
+  const t = step.schedule_type || "delay"
+  if (t === "weekly" && step.schedule_day_of_week != null) {
+    return { icon: Calendar, text: `Every ${DAYS_OF_WEEK[step.schedule_day_of_week]}`, sub: `at ${step.schedule_time || "10:00"}` }
   }
-
-  if (scheduleType === "monthly" && step.schedule_day_of_month) {
-    const day = step.schedule_day_of_month
-    const suffix = day === 1 ? "st" : day === 2 ? "nd" : day === 3 ? "rd" : "th"
-    const time = step.schedule_time || "10:00"
-    return {
-      icon: CalendarDays,
-      text: `${day}${suffix} of month`,
-      subtext: `at ${time}`,
-    }
+  if (t === "monthly" && step.schedule_day_of_month) {
+    const d = step.schedule_day_of_month
+    const s = d === 1 ? "st" : d === 2 ? "nd" : d === 3 ? "rd" : "th"
+    return { icon: CalendarDays, text: `${d}${s} of month`, sub: `at ${step.schedule_time || "10:00"}` }
   }
-
-  // Default: delay
-  return {
-    icon: Clock,
-    text: step.delay_hours === 0 ? "Immediately" : `After ${formatDelay(step.delay_hours)}`,
-  }
+  return { icon: Clock, text: step.delay_hours === 0 ? "Immediately" : `After ${formatDelay(step.delay_hours)}` }
 }
 
-function getCumulativeDelay(steps: CampaignStep[], currentIndex: number): number {
+function getCumulativeDelay(steps: CampaignStep[], idx: number): number {
   let total = 0
-  for (let i = 0; i <= currentIndex; i++) {
-    if (steps[i].schedule_type === "delay" || !steps[i].schedule_type) {
-      total += steps[i].delay_hours
-    }
+  for (let i = 0; i <= idx; i++) {
+    if (!steps[i].schedule_type || steps[i].schedule_type === "delay") total += steps[i].delay_hours
   }
   return total
 }
 
 export function CampaignStepsList({ steps, campaignId }: CampaignStepsListProps) {
   const router = useRouter()
-  const supabase = createBrowserClient()
 
   async function deleteStep(stepId: string) {
-    if (!confirm("Are you sure you want to delete this step?")) return
+    if (!confirm("Delete this step?")) return
+    if (!hasSupabaseCredentials()) return
+    const supabase = createClient()
     await supabase.from("campaign_steps").delete().eq("id", stepId)
     router.refresh()
   }
 
-  async function toggleAiPersonalize(stepId: string, currentValue: boolean) {
-    await supabase.from("campaign_steps").update({ ai_personalize: !currentValue }).eq("id", stepId)
+  async function toggleAi(stepId: string, current: boolean) {
+    if (!hasSupabaseCredentials()) return
+    const supabase = createClient()
+    await supabase.from("campaign_steps").update({ ai_personalize: !current }).eq("id", stepId)
     router.refresh()
   }
 
   async function moveStep(stepId: string, direction: "up" | "down") {
-    const currentStep = steps.find((s) => s.id === stepId)
-    if (!currentStep) return
-
-    const targetNumber = direction === "up" ? currentStep.step_number - 1 : currentStep.step_number + 1
-    const targetStep = steps.find((s) => s.step_number === targetNumber)
-
-    if (!targetStep) return
-
-    await supabase.from("campaign_steps").update({ step_number: targetNumber }).eq("id", stepId)
-    await supabase.from("campaign_steps").update({ step_number: currentStep.step_number }).eq("id", targetStep.id)
+    if (!hasSupabaseCredentials()) return
+    const current = steps.find((s) => s.id === stepId)
+    if (!current) return
+    const targetNum = direction === "up" ? current.step_number - 1 : current.step_number + 1
+    const target = steps.find((s) => s.step_number === targetNum)
+    if (!target) return
+    const supabase = createClient()
+    await supabase.from("campaign_steps").update({ step_number: targetNum }).eq("id", stepId)
+    await supabase.from("campaign_steps").update({ step_number: current.step_number }).eq("id", target.id)
     router.refresh()
   }
 
   if (steps.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base font-medium">Campaign Steps</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="border-2 border-dashed border-primary/30 rounded-xl p-8 text-center bg-primary/5">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <Zap className="h-8 w-8 text-primary" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">Build Your Drip Sequence</h3>
-            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              Add steps to create an automated sequence. Each step can send an email, SMS, or property recommendations
-              at your chosen intervals.
-            </p>
-            <AddStepDialog campaignId={campaignId} nextStepNumber={1} />
-
-            <div className="mt-6 pt-6 border-t">
-              <p className="text-xs text-muted-foreground mb-3">Quick Start Ideas:</p>
-              <div className="flex flex-wrap gap-2 justify-center">
-                <Badge variant="outline" className="text-xs">
-                  <Mail className="h-3 w-3 mr-1" />
-                  Welcome Email → Day 1
-                </Badge>
-                <Badge variant="outline" className="text-xs">
-                  <MessageSquare className="h-3 w-3 mr-1" />
-                  Follow-up SMS → Day 3
-                </Badge>
-                <Badge variant="outline" className="text-xs">
-                  <Home className="h-3 w-3 mr-1" />
-                  Property Match → Day 7
-                </Badge>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="rounded-xl border border-dashed border-white/[0.08] p-16 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center mx-auto mb-4">
+          <Zap className="h-6 w-6 text-muted-foreground" />
+        </div>
+        <h3 className="font-semibold mb-1.5">Build your sequence</h3>
+        <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto">
+          Add steps to create an automated drip — emails, texts, or property recommendations.
+        </p>
+        <AddStepDialog campaignId={campaignId} nextStepNumber={1} />
+        <div className="mt-6 pt-6 border-t border-white/[0.06] flex flex-wrap gap-2 justify-center">
+          {[
+            { icon: Mail, text: "Welcome Email → Day 1", color: "text-cyan-400 border-cyan-500/20 bg-cyan-500/5" },
+            { icon: MessageSquare, text: "Follow-up SMS → Day 3", color: "text-emerald-400 border-emerald-500/20 bg-emerald-500/5" },
+            { icon: Home, text: "Property Match → Day 7", color: "text-violet-400 border-violet-500/20 bg-violet-500/5" },
+          ].map(({ icon: Icon, text, color }) => (
+            <span key={text} className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border ${color}`}>
+              <Icon className="h-3 w-3" />
+              {text}
+            </span>
+          ))}
+        </div>
+      </div>
     )
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <div>
-          <CardTitle className="text-base font-medium">Campaign Steps ({steps.length})</CardTitle>
-          <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-            <span className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded bg-blue-100 border border-blue-200 dark:bg-blue-950 dark:border-blue-800" />
-              Email
-            </span>
-            <span className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded bg-green-100 border border-green-200 dark:bg-green-950 dark:border-green-800" />
-              SMS
-            </span>
-            <span className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded bg-purple-100 border border-purple-200 dark:bg-purple-950 dark:border-purple-800" />
-              Properties
-            </span>
+    <div className="space-y-0">
+      {/* Legend */}
+      <div className="flex items-center gap-3 mb-4">
+        {Object.entries(typeConfig).map(([type, cfg]) => (
+          <div key={type} className={`flex items-center gap-1.5 text-xs px-2 py-0.5 rounded border ${cfg.bg} ${cfg.color}`}>
+            <cfg.icon className="h-3 w-3" />
+            {cfg.label}
           </div>
+        ))}
+        <div className="ml-auto">
+          <AddStepDialog campaignId={campaignId} nextStepNumber={steps.length + 1} />
         </div>
-        <AddStepDialog campaignId={campaignId} nextStepNumber={steps.length + 1} />
-      </CardHeader>
-      <CardContent className="space-y-3">
+      </div>
+
+      {/* Steps */}
+      <div className="space-y-0 relative">
         {steps.map((step, index) => {
-          const Icon = typeIcons[step.type] || Mail
-          const cumulativeDelay = getCumulativeDelay(steps, index)
-          const schedule = formatSchedule(step)
+          const cfg = typeConfig[step.type] || typeConfig.email
+          const Icon = cfg.icon
+          const schedule = getSchedule(step)
           const ScheduleIcon = schedule.icon
+          const cumulative = getCumulativeDelay(steps, index)
           const attachments = step.attachments || []
           const links = step.links || []
+          const isLast = index === steps.length - 1
 
           return (
-            <div key={step.id} className="relative">
-              {index < steps.length - 1 && (
-                <div className="absolute left-[26px] top-[60px] bottom-[-12px] w-0.5 bg-border" />
-              )}
-
-              <div
-                className={`flex items-start gap-3 p-4 border-2 rounded-lg transition-colors ${
-                  step.type === "email"
-                    ? "border-blue-200 bg-blue-50/30 dark:border-blue-800 dark:bg-blue-950/20"
-                    : step.type === "sms"
-                      ? "border-green-200 bg-green-50/30 dark:border-green-800 dark:bg-green-950/20"
-                      : "border-purple-200 bg-purple-50/30 dark:border-purple-800 dark:bg-purple-950/20"
-                }`}
-              >
-                <div className="flex flex-col items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    disabled={index === 0}
-                    onClick={() => moveStep(step.id, "up")}
-                  >
-                    <ArrowUp className="h-3 w-3" />
-                  </Button>
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${typeColors[step.type]}`}
-                  >
-                    {step.step_number}
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    disabled={index === steps.length - 1}
-                    onClick={() => moveStep(step.id, "down")}
-                  >
-                    <ArrowDown className="h-3 w-3" />
-                  </Button>
+            <div key={step.id} className="relative flex gap-4">
+              {/* Timeline column */}
+              <div className="flex flex-col items-center shrink-0 w-10">
+                {/* Step number badge */}
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center border text-sm font-bold shrink-0 z-10 ${cfg.bg} ${cfg.color}`}>
+                  {step.step_number}
                 </div>
+                {/* Connector line */}
+                {!isLast && (
+                  <div className={`w-0.5 flex-1 min-h-[16px] my-1 ${cfg.line}`} />
+                )}
+              </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <Badge variant="secondary" className={typeColors[step.type]}>
-                      <Icon className="h-3 w-3 mr-1" />
-                      {typeLabels[step.type]}
-                    </Badge>
-
-                    <div className="flex items-center gap-1 text-xs bg-muted px-2 py-1 rounded-full">
-                      <ScheduleIcon className="h-3 w-3" />
-                      <span className="font-medium">{schedule.text}</span>
-                      {schedule.subtext && <span className="text-muted-foreground">{schedule.subtext}</span>}
+              {/* Card */}
+              <div className={`flex-1 mb-3 rounded-xl border bg-white/[0.02] hover:bg-white/[0.035] transition-colors ${cfg.bg.replace("bg-", "border-").replace("/10", "/20")}`}>
+                <div className="p-4">
+                  {/* Header row */}
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-md border ${cfg.bg} ${cfg.color}`}>
+                        <Icon className="h-3 w-3" />
+                        {cfg.label}
+                      </span>
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground bg-white/[0.04] border border-white/[0.06] px-2 py-0.5 rounded-md">
+                        <ScheduleIcon className="h-3 w-3" />
+                        {schedule.text}
+                        {schedule.sub && <span className="text-muted-foreground/60">{schedule.sub}</span>}
+                      </span>
+                      {(!step.schedule_type || step.schedule_type === "delay") && index > 0 && cumulative > 0 && (
+                        <span className="text-[11px] text-muted-foreground/60">
+                          ({formatDelay(cumulative)} from start)
+                        </span>
+                      )}
+                      {step.ai_personalize && (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-md">
+                          <Sparkles className="h-3 w-3" />
+                          AI
+                        </span>
+                      )}
                     </div>
 
-                    {/* Show cumulative delay only for delay-based steps */}
-                    {(step.schedule_type === "delay" || !step.schedule_type) && index > 0 && cumulativeDelay > 0 && (
-                      <span className="text-xs text-muted-foreground">({formatDelay(cumulativeDelay)} from start)</span>
-                    )}
-
-                    {step.ai_personalize && (
-                      <Badge
-                        variant="outline"
-                        className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800"
-                      >
-                        <Sparkles className="h-3 w-3 mr-1" />
-                        AI
-                      </Badge>
-                    )}
+                    {/* Step controls */}
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-white" disabled={index === 0} onClick={() => moveStep(step.id, "up")}>
+                        <ArrowUp className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-white" disabled={isLast} onClick={() => moveStep(step.id, "down")}>
+                        <ArrowDown className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-red-400" onClick={() => deleteStep(step.id)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
 
+                  {/* Content */}
                   {step.subject && (
-                    <p className="font-medium text-sm mb-1">
-                      <span className="text-muted-foreground">Subject:</span> {step.subject}
+                    <p className="text-sm font-medium mb-1 text-foreground/90">
+                      <span className="text-muted-foreground text-xs mr-1">Subject:</span>
+                      {step.subject}
                     </p>
                   )}
                   <p className="text-sm text-muted-foreground line-clamp-2">
                     {step.body || "Property recommendations based on lead preferences"}
                   </p>
 
+                  {/* Attachments / links */}
                   {(attachments.length > 0 || links.length > 0) && (
-                    <div className="flex items-center gap-3 mt-2">
-                      {attachments.length > 0 && (
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          {attachments.some((a) => a.type?.startsWith("image/")) && (
-                            <span className="flex items-center gap-1 bg-blue-100 dark:bg-blue-950 px-2 py-0.5 rounded">
-                              <ImageIcon className="h-3 w-3" />
-                              {attachments.filter((a) => a.type?.startsWith("image/")).length}
-                            </span>
-                          )}
-                          {attachments.some((a) => !a.type?.startsWith("image/")) && (
-                            <span className="flex items-center gap-1 bg-orange-100 dark:bg-orange-950 px-2 py-0.5 rounded">
-                              <Paperclip className="h-3 w-3" />
-                              {attachments.filter((a) => !a.type?.startsWith("image/")).length}
-                            </span>
-                          )}
-                        </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      {attachments.some((a) => a.type?.startsWith("image/")) && (
+                        <span className="flex items-center gap-1 text-[11px] bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded">
+                          <ImageIcon className="h-3 w-3" />
+                          {attachments.filter((a) => a.type?.startsWith("image/")).length}
+                        </span>
+                      )}
+                      {attachments.some((a) => !a.type?.startsWith("image/")) && (
+                        <span className="flex items-center gap-1 text-[11px] bg-amber-500/10 border border-amber-500/20 text-amber-400 px-2 py-0.5 rounded">
+                          <Paperclip className="h-3 w-3" />
+                          {attachments.filter((a) => !a.type?.startsWith("image/")).length}
+                        </span>
                       )}
                       {links.length > 0 && (
-                        <span className="flex items-center gap-1 text-xs bg-cyan-100 dark:bg-cyan-950 px-2 py-0.5 rounded text-cyan-700 dark:text-cyan-300">
+                        <span className="flex items-center gap-1 text-[11px] bg-violet-500/10 border border-violet-500/20 text-violet-400 px-2 py-0.5 rounded">
                           <Link2 className="h-3 w-3" />
-                          {links.length} link{links.length > 1 ? "s" : ""}
+                          {links.length} link{links.length !== 1 ? "s" : ""}
                         </span>
                       )}
                     </div>
                   )}
 
-                  <div className="flex items-center gap-4 mt-3 pt-2 border-t border-dashed">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">AI Personalize:</span>
-                      <Switch
-                        checked={step.ai_personalize}
-                        onCheckedChange={() => toggleAiPersonalize(step.id, step.ai_personalize)}
-                        className="scale-75"
-                      />
-                    </div>
+                  {/* Footer row */}
+                  <div className="flex items-center gap-3 mt-3 pt-3 border-t border-white/[0.06]">
+                    <span className="text-xs text-muted-foreground">AI Personalize</span>
+                    <Switch
+                      checked={step.ai_personalize}
+                      onCheckedChange={() => toggleAi(step.id, step.ai_personalize)}
+                      className="scale-75 origin-left"
+                    />
                   </div>
                 </div>
-
-                <Button variant="ghost" size="icon" className="shrink-0" onClick={() => deleteStep(step.id)}>
-                  <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                </Button>
               </div>
             </div>
           )
         })}
 
-        <div className="border-2 border-dashed rounded-lg p-4 text-center hover:border-primary/50 hover:bg-primary/5 transition-colors">
-          <AddStepDialog campaignId={campaignId} nextStepNumber={steps.length + 1} />
-          <p className="text-xs text-muted-foreground mt-2">Add step #{steps.length + 1} to continue the sequence</p>
+        {/* Add step CTA */}
+        <div className="flex gap-4">
+          <div className="w-10 flex justify-center">
+            <div className="w-0.5 h-4 bg-white/[0.06]" />
+          </div>
+          <div className="flex-1 mb-2">
+            <div className="rounded-xl border border-dashed border-white/[0.08] p-4 text-center hover:border-white/[0.16] hover:bg-white/[0.02] transition-colors">
+              <AddStepDialog campaignId={campaignId} nextStepNumber={steps.length + 1} />
+              <p className="text-xs text-muted-foreground mt-1.5">Add step #{steps.length + 1} to continue the sequence</p>
+            </div>
+          </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }

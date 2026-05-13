@@ -12,7 +12,6 @@ import {
   CheckCircle2,
   TrendingUp,
   AlertCircle,
-  MousePointerClick,
 } from "lucide-react"
 import { CampaignDetailTabs } from "@/components/campaigns/campaign-detail-tabs"
 
@@ -211,7 +210,7 @@ export default async function CampaignPage({ params }: CampaignPageProps) {
       )}
 
       {/* Tabbed content */}
-      <CampaignDetailTabs campaign={campaign} steps={steps} enrollments={enrollments} />
+      <CampaignDetailTabs campaign={campaign} steps={steps} enrollments={enrollments} runs={runs} />
     </div>
   )
 }
