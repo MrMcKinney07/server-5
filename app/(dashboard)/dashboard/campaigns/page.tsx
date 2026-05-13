@@ -2,8 +2,9 @@ import { createClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/auth"
 import { CampaignCards } from "@/components/campaigns/campaign-cards"
 import { CreateCampaignDialog } from "@/components/campaigns/create-campaign-dialog"
-import { Megaphone, Users, Send, TrendingUp } from "lucide-react"
+import { Megaphone, Users, Send, TrendingUp, Plus, BarChart2 } from "lucide-react"
 import Link from "next/link"
+import { Button } from "@/components/ui/button"
 
 export default async function CampaignsPage() {
   try {
@@ -20,7 +21,6 @@ export default async function CampaignsPage() {
         ? campaigns || []
         : (campaigns || []).filter((c) => c.owner_id === agent.id)
 
-    // Enrich each campaign with step count, enrollment count, and run stats
     const enriched = await Promise.all(
       filteredCampaigns.map(async (campaign) => {
         const [stepsRes, enrollRes, runsRes, logsRes] = await Promise.all([
@@ -68,88 +68,104 @@ export default async function CampaignsPage() {
       }),
     )
 
-    // Aggregate totals for top stats
     const totalEnrolled = enriched.reduce((s, c) => s + c.enrollmentsCount, 0)
     const totalSentAll = enriched.reduce((s, c) => s + c.totalSent, 0)
     const totalRepliesAll = enriched.reduce((s, c) => s + c.totalReplies, 0)
+    const totalDeliveredAll = enriched.reduce((s, c) => s + c.totalDelivered, 0)
     const activeCampaigns = enriched.filter((c) => c.is_active).length
+    const overallDeliveryRate = totalSentAll > 0 ? Math.round((totalDeliveredAll / totalSentAll) * 100) : null
+    const overallReplyRate = totalSentAll > 0 ? Math.round((totalRepliesAll / totalSentAll) * 100) : null
 
     const stats = [
       {
         label: "Active Campaigns",
         value: activeCampaigns,
-        sub: `of ${enriched.length} total`,
+        sub: `${enriched.length - activeCampaigns} paused`,
         icon: Megaphone,
         color: "text-cyan-400",
-        bg: "bg-cyan-500/10",
+        bg: "bg-cyan-500/10 border-cyan-500/20",
+        valueColor: "text-cyan-400",
       },
       {
         label: "Total Enrolled",
-        value: totalEnrolled,
+        value: totalEnrolled.toLocaleString(),
         sub: "leads across all campaigns",
         icon: Users,
         color: "text-violet-400",
-        bg: "bg-violet-500/10",
+        bg: "bg-violet-500/10 border-violet-500/20",
+        valueColor: "text-violet-400",
       },
       {
         label: "Messages Sent",
-        value: totalSentAll,
-        sub: "emails & texts",
+        value: totalSentAll.toLocaleString(),
+        sub: overallDeliveryRate !== null ? `${overallDeliveryRate}% delivery rate` : "no sends yet",
         icon: Send,
         color: "text-emerald-400",
-        bg: "bg-emerald-500/10",
+        bg: "bg-emerald-500/10 border-emerald-500/20",
+        valueColor: "text-emerald-400",
       },
       {
-        label: "Total Replies",
-        value: totalRepliesAll,
-        sub: totalSentAll > 0 ? `${Math.round((totalRepliesAll / totalSentAll) * 100)}% reply rate` : "no sends yet",
+        label: "Reply Rate",
+        value: overallReplyRate !== null ? `${overallReplyRate}%` : "—",
+        sub: `${totalRepliesAll.toLocaleString()} total replies`,
         icon: TrendingUp,
         color: "text-amber-400",
-        bg: "bg-amber-500/10",
+        bg: "bg-amber-500/10 border-amber-500/20",
+        valueColor: overallReplyRate !== null ? (overallReplyRate > 5 ? "text-emerald-400" : "text-amber-400") : "text-muted-foreground",
       },
     ]
 
     return (
-      <div className="space-y-8">
+      <div className="space-y-6">
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Drip Campaigns</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Campaigns</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Automated email and SMS sequences for lead nurturing
+              Automated drip sequences for lead nurturing
             </p>
           </div>
           <CreateCampaignDialog />
         </div>
 
-        {/* Top stats */}
+        {/* Stats bar */}
         {enriched.length > 0 && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {stats.map((stat) => (
               <div
                 key={stat.label}
-                className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 flex items-start gap-3"
+                className={`rounded-xl border p-4 flex items-start gap-3 ${stat.bg}`}
               >
-                <div className={`rounded-lg p-2 ${stat.bg} shrink-0`}>
+                <div className={`rounded-lg p-2 bg-white/[0.04] shrink-0`}>
                   <stat.icon className={`h-4 w-4 ${stat.color}`} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xl font-semibold tabular-nums">{stat.value.toLocaleString()}</p>
-                  <p className="text-xs font-medium text-foreground">{stat.label}</p>
-                  <p className="text-xs text-muted-foreground truncate">{stat.sub}</p>
+                  <p className={`text-xl font-bold tabular-nums ${stat.valueColor}`}>{stat.value}</p>
+                  <p className="text-xs font-medium text-foreground/80">{stat.label}</p>
+                  <p className="text-[11px] text-muted-foreground truncate">{stat.sub}</p>
                 </div>
               </div>
             ))}
           </div>
         )}
 
+        {/* Filter/sort bar */}
+        {enriched.length > 0 && (
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">
+              {enriched.length} campaign{enriched.length !== 1 ? "s" : ""}
+              {activeCampaigns > 0 && ` · ${activeCampaigns} active`}
+            </p>
+          </div>
+        )}
+
         {/* Campaign list */}
         {enriched.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-white/[0.08] p-16 text-center">
-            <div className="mx-auto w-12 h-12 rounded-full bg-white/[0.04] flex items-center justify-center mb-4">
-              <Megaphone className="h-5 w-5 text-muted-foreground" />
+          <div className="rounded-xl border border-dashed border-white/[0.08] p-20 text-center">
+            <div className="mx-auto w-14 h-14 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mb-4">
+              <Megaphone className="h-6 w-6 text-muted-foreground" />
             </div>
-            <h3 className="font-medium mb-1">No campaigns yet</h3>
+            <h3 className="font-semibold mb-1">No campaigns yet</h3>
             <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
               Create your first drip campaign to automatically nurture leads with personalized emails and texts.
             </p>
@@ -169,7 +185,7 @@ export default async function CampaignsPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold">Drip Campaigns</h1>
+          <h1 className="text-2xl font-semibold">Campaigns</h1>
         </div>
         <div className="rounded-xl border border-dashed border-destructive/30 p-12 text-center">
           <p className="text-sm text-muted-foreground mb-4">Unable to load campaigns. Please refresh.</p>

@@ -21,10 +21,11 @@ import {
   MoreHorizontal,
   Trash2,
   ArrowRight,
-  CheckCircle2,
   Clock,
   TrendingUp,
-  Zap,
+  CheckCircle2,
+  AlertCircle,
+  ChevronRight,
 } from "lucide-react"
 
 interface Campaign {
@@ -53,36 +54,21 @@ interface CampaignCardsProps {
   campaigns: Campaign[]
 }
 
-function ChannelIcon({ channel }: { channel?: string }) {
-  if (channel === "SMS") return <MessageSquare className="h-3.5 w-3.5" />
-  if (channel === "BOTH") return (
-    <div className="flex gap-0.5">
-      <Mail className="h-3.5 w-3.5" />
-      <MessageSquare className="h-3.5 w-3.5" />
-    </div>
-  )
-  return <Mail className="h-3.5 w-3.5" />
-}
-
 function channelLabel(channel?: string) {
   if (channel === "SMS") return "SMS"
   if (channel === "BOTH") return "Email + SMS"
   return "Email"
 }
 
-function channelColor(channel?: string) {
-  if (channel === "SMS") return "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
-  if (channel === "BOTH") return "text-violet-400 bg-violet-500/10 border-violet-500/20"
-  return "text-cyan-400 bg-cyan-500/10 border-cyan-500/20"
+function channelStyle(channel?: string) {
+  if (channel === "SMS") return { dot: "bg-emerald-400", badge: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" }
+  if (channel === "BOTH") return { dot: "bg-violet-400", badge: "text-violet-400 bg-violet-500/10 border-violet-500/20" }
+  return { dot: "bg-cyan-400", badge: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20" }
 }
 
-function StatPill({ label, value, color = "text-foreground" }: { label: string; value: string | number; color?: string }) {
-  return (
-    <div className="flex flex-col items-center px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.05]">
-      <span className={`text-sm font-semibold tabular-nums ${color}`}>{value}</span>
-      <span className="text-[10px] text-muted-foreground mt-0.5">{label}</span>
-    </div>
-  )
+function ChannelIcon({ channel }: { channel?: string }) {
+  if (channel === "SMS") return <MessageSquare className="h-3.5 w-3.5" />
+  return <Mail className="h-3.5 w-3.5" />
 }
 
 export function CampaignCards({ campaigns }: CampaignCardsProps) {
@@ -103,189 +89,190 @@ export function CampaignCards({ campaigns }: CampaignCardsProps) {
     router.refresh()
   }
 
-  // Sort: active first, then by enrollment count
   const sorted = [...campaigns].sort((a, b) => {
     if (a.is_active !== b.is_active) return a.is_active ? -1 : 1
     return b.enrollmentsCount - a.enrollmentsCount
   })
 
   return (
-    <div className="space-y-3">
-      {sorted.map((campaign) => (
-        <div
-          key={campaign.id}
-          className={`rounded-xl border transition-colors ${
-            campaign.is_active
-              ? "border-white/[0.08] bg-white/[0.02]"
-              : "border-white/[0.04] bg-transparent opacity-70"
-          }`}
-        >
-          <div className="p-5">
-            <div className="flex items-start gap-4">
-              {/* Left: icon + status dot */}
-              <div className="relative shrink-0 mt-0.5">
-                <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${channelColor(campaign.channel)} border`}>
-                  <ChannelIcon channel={campaign.channel} />
-                </div>
-                {campaign.is_active && (
-                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-background" />
-                )}
-              </div>
+    <div className="space-y-2">
+      {sorted.map((campaign) => {
+        const style = channelStyle(campaign.channel)
+        const completionPct = campaign.enrollmentsCount > 0
+          ? Math.round((campaign.completedCount / campaign.enrollmentsCount) * 100)
+          : 0
 
-              {/* Center: name, meta, stats */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap mb-1">
-                  <Link
-                    href={`/dashboard/campaigns/${campaign.id}`}
-                    className="font-semibold text-sm hover:text-cyan-400 transition-colors"
-                  >
-                    {campaign.name}
-                  </Link>
-                  <Badge
-                    variant="outline"
-                    className={`text-[10px] px-1.5 py-0 h-4 border ${channelColor(campaign.channel)}`}
-                  >
-                    {channelLabel(campaign.channel)}
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] px-1.5 py-0 h-4 border border-white/[0.08] text-muted-foreground"
-                  >
-                    {campaign.type === "BROADCAST" ? "Broadcast" : "Sequence"}
-                  </Badge>
+        return (
+          <div
+            key={campaign.id}
+            className={`group rounded-xl border transition-all ${
+              campaign.is_active
+                ? "border-white/[0.08] bg-white/[0.025] hover:border-white/[0.14] hover:bg-white/[0.04]"
+                : "border-white/[0.04] bg-white/[0.01] opacity-60 hover:opacity-80"
+            }`}
+          >
+            <div className="p-5">
+              <div className="flex items-start gap-4">
+                {/* Status indicator + icon */}
+                <div className="shrink-0 mt-0.5">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${style.badge}`}>
+                    <ChannelIcon channel={campaign.channel} />
+                  </div>
                 </div>
 
-                {campaign.description && (
-                  <p className="text-xs text-muted-foreground mb-3 line-clamp-1">{campaign.description}</p>
-                )}
+                {/* Main content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <Link
+                          href={`/dashboard/campaigns/${campaign.id}`}
+                          className="font-semibold text-sm hover:text-white transition-colors"
+                        >
+                          {campaign.name}
+                        </Link>
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-md border ${style.badge}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${style.dot} ${campaign.is_active ? "animate-pulse" : ""}`} />
+                          {campaign.is_active ? "Active" : "Paused"}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground bg-white/[0.04] border border-white/[0.06] px-1.5 py-0.5 rounded-md">
+                          {channelLabel(campaign.channel)}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground bg-white/[0.04] border border-white/[0.06] px-1.5 py-0.5 rounded-md">
+                          {campaign.type === "BROADCAST" ? "Broadcast" : "Sequence"}
+                        </span>
+                      </div>
+                      {campaign.description && (
+                        <p className="text-xs text-muted-foreground line-clamp-1 mb-2">{campaign.description}</p>
+                      )}
+                    </div>
 
-                {/* Stats row */}
-                <div className="flex items-center gap-2 flex-wrap mt-2">
-                  <StatPill label="Steps" value={campaign.stepsCount} />
-                  <StatPill
-                    label="Enrolled"
-                    value={campaign.enrollmentsCount}
-                    color={campaign.enrollmentsCount > 0 ? "text-violet-400" : "text-foreground"}
-                  />
-                  <StatPill
-                    label="Active"
-                    value={campaign.activeCount}
-                    color={campaign.activeCount > 0 ? "text-emerald-400" : "text-foreground"}
-                  />
-                  <StatPill
-                    label="Completed"
-                    value={campaign.completedCount}
-                    color={campaign.completedCount > 0 ? "text-cyan-400" : "text-foreground"}
-                  />
-                  {campaign.totalSent > 0 && (
-                    <>
-                      <StatPill label="Sent" value={campaign.totalSent.toLocaleString()} />
-                      {campaign.deliveryRate !== null && (
-                        <StatPill
-                          label="Delivered"
-                          value={`${campaign.deliveryRate}%`}
-                          color={campaign.deliveryRate >= 90 ? "text-emerald-400" : campaign.deliveryRate >= 70 ? "text-amber-400" : "text-red-400"}
+                    {/* Controls */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Switch
+                        checked={campaign.is_active}
+                        onCheckedChange={() => toggleActive(campaign.id, campaign.is_active)}
+                        className="scale-90"
+                      />
+                      <Link href={`/dashboard/campaigns/${campaign.id}`}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-white">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                          <DropdownMenuItem asChild>
+                            <Link href={`/dashboard/campaigns/${campaign.id}`} className="flex items-center gap-2">
+                              <ArrowRight className="h-3.5 w-3.5" />
+                              View Campaign
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => deleteCampaign(campaign.id)}
+                            className="text-destructive focus:text-destructive flex items-center gap-2"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+
+                  {/* Metrics row */}
+                  <div className="flex items-center gap-3 flex-wrap mt-1">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <div className="w-3.5 h-3.5 rounded-sm bg-white/[0.06] flex items-center justify-center">
+                        <span className="text-[9px] font-bold">{campaign.stepsCount}</span>
+                      </div>
+                      <span>{campaign.stepsCount === 1 ? "step" : "steps"}</span>
+                    </div>
+                    <div className="w-px h-3 bg-white/[0.08]" />
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Users className="h-3 w-3" />
+                      <span>{campaign.enrollmentsCount.toLocaleString()} enrolled</span>
+                    </div>
+                    {campaign.activeCount > 0 && (
+                      <>
+                        <div className="w-px h-3 bg-white/[0.08]" />
+                        <div className="flex items-center gap-1 text-xs text-emerald-400">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          {campaign.activeCount} active
+                        </div>
+                      </>
+                    )}
+                    {campaign.totalSent > 0 && (
+                      <>
+                        <div className="w-px h-3 bg-white/[0.08]" />
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Send className="h-3 w-3" />
+                          <span>{campaign.totalSent.toLocaleString()} sent</span>
+                        </div>
+                        {campaign.deliveryRate !== null && (
+                          <>
+                            <div className="w-px h-3 bg-white/[0.08]" />
+                            <div className={`flex items-center gap-1 text-xs ${
+                              campaign.deliveryRate >= 90 ? "text-emerald-400" :
+                              campaign.deliveryRate >= 70 ? "text-amber-400" : "text-red-400"
+                            }`}>
+                              <CheckCircle2 className="h-3 w-3" />
+                              {campaign.deliveryRate}% delivered
+                            </div>
+                          </>
+                        )}
+                        {campaign.replyRate !== null && campaign.replyRate > 0 && (
+                          <>
+                            <div className="w-px h-3 bg-white/[0.08]" />
+                            <div className="flex items-center gap-1 text-xs text-amber-400">
+                              <TrendingUp className="h-3 w-3" />
+                              {campaign.replyRate}% replied
+                            </div>
+                          </>
+                        )}
+                        {campaign.totalFailed > 0 && (
+                          <>
+                            <div className="w-px h-3 bg-white/[0.08]" />
+                            <div className="flex items-center gap-1 text-xs text-red-400">
+                              <AlertCircle className="h-3 w-3" />
+                              {campaign.totalFailed} failed
+                            </div>
+                          </>
+                        )}
+                      </>
+                    )}
+                    <div className="w-px h-3 bg-white/[0.08]" />
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      {new Date(campaign.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    </div>
+                  </div>
+
+                  {/* Completion progress */}
+                  {campaign.enrollmentsCount > 0 && (
+                    <div className="mt-3 flex items-center gap-2">
+                      <div className="flex-1 h-1 rounded-full bg-white/[0.05] overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-violet-500 transition-all"
+                          style={{ width: `${completionPct}%` }}
                         />
-                      )}
-                      {campaign.replyRate !== null && (
-                        <StatPill
-                          label="Reply Rate"
-                          value={`${campaign.replyRate}%`}
-                          color={campaign.replyRate > 0 ? "text-amber-400" : "text-foreground"}
-                        />
-                      )}
-                      {campaign.totalClicks > 0 && (
-                        <StatPill label="Clicks" value={campaign.totalClicks} color="text-cyan-400" />
-                      )}
-                    </>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground whitespace-nowrap tabular-nums">
+                        {completionPct}% complete
+                      </span>
+                    </div>
                   )}
                 </div>
-
-                {/* Progress bar for active enrollments */}
-                {campaign.enrollmentsCount > 0 && (
-                  <div className="mt-3 flex items-center gap-2">
-                    <div className="flex-1 h-1 rounded-full bg-white/[0.05] overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-violet-500"
-                        style={{
-                          width: `${Math.round((campaign.completedCount / campaign.enrollmentsCount) * 100)}%`,
-                        }}
-                      />
-                    </div>
-                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                      {Math.round((campaign.completedCount / campaign.enrollmentsCount) * 100)}% completed
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Right: controls */}
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] text-muted-foreground hidden sm:block">
-                    {campaign.is_active ? "Active" : "Paused"}
-                  </span>
-                  <Switch
-                    checked={campaign.is_active}
-                    onCheckedChange={() => toggleActive(campaign.id, campaign.is_active)}
-                    className="scale-90"
-                  />
-                </div>
-                <Link href={`/dashboard/campaigns/${campaign.id}`}>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </Link>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-44">
-                    <DropdownMenuItem asChild>
-                      <Link href={`/dashboard/campaigns/${campaign.id}`} className="flex items-center gap-2">
-                        <ArrowRight className="h-3.5 w-3.5" />
-                        View Campaign
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => deleteCampaign(campaign.id)}
-                      className="text-destructive focus:text-destructive flex items-center gap-2"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
               </div>
             </div>
           </div>
-
-          {/* Footer bar */}
-          <div className="px-5 py-2 border-t border-white/[0.04] flex items-center gap-4 text-[11px] text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Clock className="h-3 w-3" />
-              Created {new Date(campaign.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-            </span>
-            {campaign.activityCount > 0 && (
-              <span className="flex items-center gap-1">
-                <Zap className="h-3 w-3 text-amber-400" />
-                {campaign.activityCount} activity events
-              </span>
-            )}
-            {campaign.totalFailed > 0 && (
-              <span className="flex items-center gap-1 text-red-400">
-                {campaign.totalFailed} failed sends
-              </span>
-            )}
-            {campaign.totalSent === 0 && campaign.stepsCount > 0 && (
-              <span className="flex items-center gap-1 text-muted-foreground/60">No sends yet</span>
-            )}
-          </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
