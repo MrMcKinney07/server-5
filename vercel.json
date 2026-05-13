@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/scheduled-tasks",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/campaigns",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/run-drips",
+      "schedule": "*/15 * * * *"
+    }
+  ]
+}

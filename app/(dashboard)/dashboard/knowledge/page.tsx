@@ -1,0 +1,40 @@
+import { createServerClient } from "@/lib/supabase/server"
+import { requireAuth } from "@/lib/auth"
+import { redirect } from "next/navigation"
+import { KnowledgeBaseList } from "@/components/knowledge/knowledge-base-list"
+
+export default async function KnowledgeBasePage() {
+  const supabase = await createServerClient()
+  const agent = await requireAuth()
+
+  if (!agent) {
+    redirect("/auth/login")
+  }
+
+  const { data: articles } = await supabase
+    .from("knowledge_articles")
+    .select("id, title, content, category, is_published, created_at, updated_at, file_url, file_name, file_type, related_mission_template_id")
+    .eq("is_published", true)
+    .order("category")
+    .order("title")
+
+  const categories = [
+    { id: "lead_handling", label: "Lead Mastery" },
+    { id: "listings", label: "Listing Excellence" },
+    { id: "transactions", label: "Deal Management" },
+    { id: "open_house", label: "Open House Strategies" },
+    { id: "training", label: "Agent Development" },
+    { id: "general", label: "Quick Reference" },
+  ]
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold text-foreground">Knowledge Base</h1>
+        <p className="text-muted-foreground">SOPs, guides, and best practices</p>
+      </div>
+
+      <KnowledgeBaseList articles={articles || []} categories={categories} />
+    </div>
+  )
+}

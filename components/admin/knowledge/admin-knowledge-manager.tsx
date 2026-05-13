@@ -1,0 +1,416 @@
+"use client"
+
+import type React from "react"
+
+import { useState } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Plus, Pencil, Eye, EyeOff, Upload, FileText, Trash2 } from "lucide-react"
+import { useRouter } from "next/navigation"
+import type { KnowledgeArticleWithRelations, MissionTemplate } from "@/lib/types/database"
+
+interface AdminKnowledgeManagerProps {
+  articles: KnowledgeArticleWithRelations[]
+  missionTemplates: MissionTemplate[]
+}
+
+const categories = [
+  { id: "lead_handling", label: "Lead Mastery" },
+  { id: "listings", label: "Listing Excellence" },
+  { id: "transactions", label: "Deal Management" },
+  { id: "open_house", label: "Open House Strategies" },
+  { id: "training", label: "Agent Development" },
+  { id: "general", label: "Quick Reference" },
+]
+
+export function AdminKnowledgeManager({ articles, missionTemplates }: AdminKnowledgeManagerProps) {
+  const router = useRouter()
+  const [isAddOpen, setIsAddOpen] = useState(false)
+  const [editingArticle, setEditingArticle] = useState<KnowledgeArticleWithRelations | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const [fileUrl, setFileUrl] = useState<string | null>(null)
+  const [fileName, setFileName] = useState<string | null>(null)
+  const [fileType, setFileType] = useState<string | null>(null)
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, articleId?: string) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingFile(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("articleId", articleId || "new")
+
+      const res = await fetch("/api/admin/knowledge/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!res.ok) throw new Error("Upload failed")
+
+      const data = await res.json()
+      setFileUrl(data.url)
+      setFileName(data.filename)
+      setFileType(data.contentType)
+    } catch (error) {
+      console.error("File upload error:", error)
+    } finally {
+      setUploadingFile(false)
+    }
+  }
+
+  const handleRemoveFile = () => {
+    setFileUrl(null)
+    setFileName(null)
+    setFileType(null)
+  }
+
+  const handleAddArticle = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setIsLoading(true)
+
+    const formData = new FormData(e.currentTarget)
+
+    try {
+      const res = await fetch("/api/admin/knowledge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create",
+          title: formData.get("title"),
+          content: formData.get("content"),
+          category: formData.get("category"),
+          related_mission_template_id: formData.get("related_mission_template_id") || null,
+          is_published: formData.get("is_published") === "on",
+          file_url: fileUrl,
+          file_name: fileName,
+          file_type: fileType,
+        }),
+      })
+
+      if (!res.ok) {
+        const { error } = await res.json()
+        throw new Error(error || "Failed to create article")
+      }
+
+      setIsAddOpen(false)
+      handleRemoveFile()
+      router.refresh()
+    } catch (error: any) {
+      console.error("Error creating article:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleUpdateArticle = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!editingArticle) return
+    setIsLoading(true)
+
+    const formData = new FormData(e.currentTarget)
+
+    try {
+      const payload: Record<string, unknown> = {
+        action: "update",
+        id: editingArticle.id,
+        title: formData.get("title"),
+        content: formData.get("content"),
+        category: formData.get("category"),
+        related_mission_template_id: formData.get("related_mission_template_id") || null,
+        is_published: formData.get("is_published") === "on",
+      }
+
+      // Only send file fields if a new file was uploaded
+      if (fileUrl) {
+        payload.file_url = fileUrl
+        payload.file_name = fileName
+        payload.file_type = fileType
+      }
+
+      const res = await fetch("/api/admin/knowledge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        const { error } = await res.json()
+        throw new Error(error || "Failed to update article")
+      }
+
+      setEditingArticle(null)
+      handleRemoveFile()
+      router.refresh()
+    } catch (error: any) {
+      console.error("Error updating article:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const togglePublished = async (articleId: string, currentState: boolean) => {
+    await fetch("/api/admin/knowledge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "toggle_published", id: articleId, is_published: !currentState }),
+    })
+    router.refresh()
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-end">
+        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              New Article
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Create New Article</DialogTitle>
+              <DialogDescription>Add a new knowledge base article or SOP</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleAddArticle}>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="title">Title *</Label>
+                  <Input id="title" name="title" required />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="category">Category *</Label>
+                    <Select name="category" required defaultValue="general">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.id}>
+                            {cat.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="related_mission_template_id">Related Mission</Label>
+                    <Select name="related_mission_template_id">
+                      <SelectTrigger>
+                        <SelectValue placeholder="None" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {missionTemplates.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>
+                            {m.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="content">Content *</Label>
+                  <Textarea id="content" name="content" required rows={10} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Attachment (optional)</Label>
+                  {fileUrl ? (
+                    <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
+                      <FileText className="h-4 w-4" />
+                      <span className="text-sm flex-1 truncate">{fileName}</span>
+                      <Button type="button" variant="ghost" size="icon" onClick={handleRemoveFile}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="file"
+                        onChange={(e) => handleFileUpload(e)}
+                        disabled={uploadingFile}
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md"
+                      />
+                      {uploadingFile && <span className="text-sm text-muted-foreground">Uploading...</span>}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch id="is_published" name="is_published" />
+                  <Label htmlFor="is_published">Publish immediately</Label>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="submit" disabled={isLoading || uploadingFile}>
+                  {isLoading ? "Creating..." : "Create Article"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>All Articles</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Title</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Updated</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {articles.map((article) => (
+                <TableRow key={article.id}>
+                  <TableCell className="font-medium">{article.title}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">
+                      {categories.find((c) => c.id === article.category)?.label || article.category}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {article.is_published ? (
+                      <Badge className="bg-green-600">Published</Badge>
+                    ) : (
+                      <Badge variant="secondary">Draft</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>{new Date(article.updated_at).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => togglePublished(article.id, article.is_published)}
+                      >
+                        {article.is_published ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => setEditingArticle(article)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editingArticle} onOpenChange={(open) => !open && setEditingArticle(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Article</DialogTitle>
+          </DialogHeader>
+          {editingArticle && (
+            <form onSubmit={handleUpdateArticle}>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-title">Title *</Label>
+                  <Input id="edit-title" name="title" defaultValue={editingArticle.title} required />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-category">Category *</Label>
+                    <Select name="category" defaultValue={editingArticle.category}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.id}>
+                            {cat.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-mission">Related Mission</Label>
+                    <Select
+                      name="related_mission_template_id"
+                      defaultValue={editingArticle.related_mission_template_id || undefined}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="None" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {missionTemplates.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>
+                            {m.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-content">Content *</Label>
+                  <Textarea id="edit-content" name="content" defaultValue={editingArticle.content} required rows={10} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Attachment</Label>
+                  {(fileUrl || editingArticle.file_url) ? (
+                    <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
+                      <FileText className="h-4 w-4" />
+                      <span className="text-sm flex-1 truncate">{fileName || editingArticle.file_name}</span>
+                      <Button type="button" variant="ghost" size="icon" onClick={handleRemoveFile}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="file"
+                        onChange={(e) => handleFileUpload(e, editingArticle.id)}
+                        disabled={uploadingFile}
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md"
+                      />
+                      {uploadingFile && <span className="text-sm text-muted-foreground">Uploading...</span>}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch id="edit-is_published" name="is_published" defaultChecked={editingArticle.is_published} />
+                  <Label htmlFor="edit-is_published">Published</Label>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="submit" disabled={isLoading || uploadingFile}>
+                  {isLoading ? "Saving..." : "Save Changes"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
