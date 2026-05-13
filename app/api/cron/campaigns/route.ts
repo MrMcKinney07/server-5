@@ -4,9 +4,6 @@ import { NextResponse } from "next/server"
 import { sendEmail } from "@/lib/email/send-email"
 import { sendSms } from "@/lib/sms/send-sms"
 
-// Use service role for cron job
-const supabase = createServiceClient()
-
 export async function GET(request: Request) {
   // Verify cron secret
   const authHeader = request.headers.get("authorization")
@@ -14,6 +11,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
+  const supabase = createServiceClient()
   const now = new Date()
   const results = { processed: 0, emails: 0, sms: 0, tasks: 0, errors: [] as string[] }
 
