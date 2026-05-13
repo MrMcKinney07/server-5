@@ -7,6 +7,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 interface HustleStreakBadgeProps {
   initialStreak?: number
+  initialLongestStreak?: number
   className?: string
 }
 
@@ -28,15 +29,13 @@ function getFireSize(streak: number) {
 }
 
 function getBonusXP(streak: number) {
-  if (streak >= 6) return 20
-  if (streak >= 5) return 15
-  if (streak >= 4) return 10
-  if (streak >= 3) return 5
+  if (streak >= 1) return 5
   return 0
 }
 
-export function HustleStreakBadge({ initialStreak = 0, className }: HustleStreakBadgeProps) {
+export function HustleStreakBadge({ initialStreak = 0, initialLongestStreak = 0, className }: HustleStreakBadgeProps) {
   const [streak, setStreak] = useState(initialStreak)
+  const [longestStreak, setLongestStreak] = useState(initialLongestStreak)
   const [bonusAwarded, setBonusAwarded] = useState(false)
   const [isTracking, setIsTracking] = useState(false)
 
@@ -49,7 +48,10 @@ export function HustleStreakBadge({ initialStreak = 0, className }: HustleStreak
         if (res.ok) {
           const data = await res.json()
           setStreak(data.streak)
-          if (data.bonusXP > 0 && data.streakContinued && !data.alreadyTracked) {
+          if (data.longestStreak !== undefined) {
+            setLongestStreak(data.longestStreak)
+          }
+          if (data.bonusXP > 0 && !data.alreadyTracked) {
             setBonusAwarded(true)
           }
         }
@@ -99,6 +101,9 @@ export function HustleStreakBadge({ initialStreak = 0, className }: HustleStreak
             <div className="flex flex-col leading-none">
               <span className="text-xs font-bold text-white">{streak}</span>
               <span className="text-[10px] text-white/70">day{streak !== 1 ? "s" : ""}</span>
+              {streak > 0 && streak >= longestStreak && longestStreak > 0 && (
+                <span className="text-[9px] font-bold text-amber-400 leading-none mt-0.5">RECORD</span>
+              )}
             </div>
 
             {/* Bonus XP indicator */}
@@ -117,9 +122,11 @@ export function HustleStreakBadge({ initialStreak = 0, className }: HustleStreak
             ) : (
               <p className="text-xs text-slate-400">Log in 3 days in a row for bonus XP</p>
             )}
-            <div className="mt-2 text-xs text-slate-400">
-              <p>3 days: +5 XP | 4 days: +10 XP</p>
-              <p>5 days: +15 XP | 6+ days: +20 XP</p>
+            <div className="mt-2 pt-2 border-t border-slate-700 text-xs text-slate-400">
+              <p>+5 XP awarded each day you log in</p>
+              <p className="mt-1 text-amber-400 font-semibold">
+                All-time best: {Math.max(streak, longestStreak)} days
+              </p>
             </div>
           </div>
         </TooltipContent>

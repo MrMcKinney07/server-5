@@ -2,12 +2,9 @@ import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { addXP } from "@/lib/xp-service"
 
-// Bonus XP based on streak length
+// Bonus XP for maintaining a streak
 function getStreakBonusXP(streak: number): number {
-  if (streak >= 6) return 20
-  if (streak >= 5) return 15
-  if (streak >= 4) return 10
-  if (streak >= 3) return 5
+  if (streak >= 1) return 5
   return 0
 }
 
@@ -82,9 +79,9 @@ export async function POST() {
     return NextResponse.json({ error: "Failed to update streak" }, { status: 500 })
   }
 
-  // Award bonus XP if streak is 3+ days
+  // Award bonus XP for each day logged in
   const bonusXP = getStreakBonusXP(newStreak)
-  if (bonusXP > 0 && streakContinued) {
+  if (bonusXP > 0) {
     await addXP(user.id, bonusXP, "hustle_streak", `Daily login streak bonus (${newStreak} days)`)
   }
 
