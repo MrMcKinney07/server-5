@@ -30,14 +30,23 @@ export interface MortgageResult {
 
 interface Props {
   onResultChange?: (result: MortgageResult | null) => void
+  liveRates?: Array<{ label: string; rate: number }>
 }
 
-export function MortgageCalculator({ onResultChange }: Props) {
+export function MortgageCalculator({ onResultChange, liveRates }: Props) {
   const [homePrice, setHomePrice] = useState("400000")
   const [downPayment, setDownPayment] = useState("20")
   const [interestRate, setInterestRate] = useState("7.25")
   const [termYears, setTermYears] = useState("30")
   const [result, setResult] = useState<MortgageResult | null>(null)
+  const [liveRateLabel, setLiveRateLabel] = useState<string | null>(null)
+
+  const applyLiveRate = (label: string, rate: number) => {
+    setInterestRate(rate.toFixed(2))
+    setLiveRateLabel(label)
+    setResult(null)
+    onResultChange?.(null)
+  }
 
   const calculate = useCallback(() => {
     const price = parseCurrency(homePrice)
@@ -92,6 +101,30 @@ export function MortgageCalculator({ onResultChange }: Props) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
+        {liveRates && liveRates.length > 0 && (
+          <div className="space-y-1.5">
+            <Label className="text-slate-300 text-xs">Apply Live Rate (MND)</Label>
+            <div className="flex flex-wrap gap-2">
+              {liveRates.map((r) => (
+                <button
+                  key={r.label}
+                  onClick={() => applyLiveRate(r.label, r.rate)}
+                  className={`text-xs px-2.5 py-1 rounded-lg border transition-colors ${
+                    liveRateLabel === r.label
+                      ? "border-cyan-500 bg-cyan-500/10 text-cyan-400"
+                      : "border-white/[0.08] bg-white/[0.03] text-slate-400 hover:text-white hover:border-white/20"
+                  }`}
+                >
+                  {r.label} · {r.rate.toFixed(2)}%
+                </button>
+              ))}
+            </div>
+            {liveRateLabel && (
+              <p className="text-[11px] text-cyan-500">Using live {liveRateLabel} rate from Mortgage News Daily</p>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <Label className="text-slate-300 text-xs">Home Price</Label>

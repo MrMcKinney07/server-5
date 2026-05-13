@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { MortgageCalculator, getMortgageRows, type MortgageResult } from "@/components/money-math/mortgage-calculator"
-import { InterestRatesViewer } from "@/components/money-math/interest-rates-viewer"
+import { InterestRatesViewer, type LiveRate } from "@/components/money-math/interest-rates-viewer"
 import { NetSheetCalculator, getNetSheetRows, type NetSheetResult } from "@/components/money-math/net-sheet-calculator"
 import { CapRateCalculator, getCapRateRows, type CapRateResult } from "@/components/money-math/cap-rate-calculator"
 import { ClosingCostCalculator, getClosingCostRows, type ClosingCostResult } from "@/components/money-math/closing-cost-calculator"
@@ -23,6 +23,15 @@ type TabId = (typeof TABS)[number]["id"]
 
 export default function MoneyMathPage() {
   const [activeTab, setActiveTab] = useState<TabId>("mortgage")
+  const [liveRates, setLiveRates] = useState<LiveRate[]>([])
+
+  // Pre-fetch rates on page load so Mortgage tab has them immediately
+  useEffect(() => {
+    fetch("/api/money-math/rates")
+      .then((r) => r.json())
+      .then((d) => { if (d?.rates) setLiveRates(d.rates) })
+      .catch(() => {})
+  }, [])
   const [mortgageResult, setMortgageResult] = useState<MortgageResult | null>(null)
   const [netSheetResult, setNetSheetResult] = useState<NetSheetResult | null>(null)
   const [capRateResult, setCapRateResult] = useState<CapRateResult | null>(null)
@@ -85,8 +94,13 @@ export default function MoneyMathPage() {
       {/* Calculator */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          {activeTab === "mortgage" && <MortgageCalculator onResultChange={setMortgageResult} />}
-          {activeTab === "rates" && <InterestRatesViewer />}
+          {activeTab === "mortgage" && (
+            <MortgageCalculator
+              onResultChange={setMortgageResult}
+              liveRates={liveRates.map((r) => ({ label: r.label, rate: r.rate }))}
+            />
+          )}
+          {activeTab === "rates" && <InterestRatesViewer onRatesLoaded={setLiveRates} />}
           {activeTab === "netsheet" && <NetSheetCalculator onResultChange={setNetSheetResult} />}
           {activeTab === "caprate" && <CapRateCalculator onResultChange={setCapRateResult} />}
           {activeTab === "closing" && <ClosingCostCalculator onResultChange={setClosingResult} />}
