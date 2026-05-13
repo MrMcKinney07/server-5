@@ -1,4 +1,4 @@
-import { createClient, createServiceClient } from "@/lib/supabase/server"
+import { createClient, createServiceClient, hasSupabaseCredentials } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import type { Agent } from "@/lib/types/database"
 
@@ -14,10 +14,14 @@ export interface CurrentAgent extends Agent {
 }
 
 export async function isDatabaseSetup(): Promise<boolean> {
-  // Use service client — no GoTrueClient created
-  const supabase = createServiceClient()
-  const { error } = await supabase.from("agents").select("id").limit(1)
-  return !error || error.code !== "PGRST205"
+  if (!hasSupabaseCredentials()) return false
+  try {
+    const supabase = createServiceClient()
+    const { error } = await supabase.from("agents").select("id").limit(1)
+    return !error || error.code !== "PGRST205"
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -25,6 +29,7 @@ export async function isDatabaseSetup(): Promise<boolean> {
  * Returns null if not authenticated or agent not found
  */
 export async function getCurrentAgent(): Promise<CurrentAgent | null> {
+  if (!hasSupabaseCredentials()) return null
   // One GoTrueClient for auth only, then switch to service client for all DB queries
   const authClient = await createClient()
   const db = createServiceClient()

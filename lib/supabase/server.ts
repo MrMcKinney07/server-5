@@ -3,22 +3,15 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 
 function getSupabaseUrl() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? ""
-  if (!url) throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL environment variable")
-  return url
+  return process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? ""
 }
 
 function getSupabaseAnonKey() {
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY ?? ""
-  if (!key) throw new Error("Missing NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable")
-  return key
+  return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY ?? ""
 }
 
 export function hasSupabaseCredentials() {
-  return !!(
-    (process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL) &&
-    (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY)
-  )
+  return !!(getSupabaseUrl() && getSupabaseAnonKey())
 }
 
 export async function createClient() {
@@ -52,8 +45,14 @@ export { createClient as createServerClient }
 // Service role client — bypasses RLS for server-side operations that write on behalf of other users.
 // Never expose this to the client.
 export function createServiceClient() {
+  const url = getSupabaseUrl()
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? getSupabaseAnonKey()
-  return createSupabaseClient(getSupabaseUrl(), serviceKey, {
+  if (!url || !serviceKey) {
+    throw new Error(
+      "Supabase credentials are not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY (and optionally SUPABASE_SERVICE_ROLE_KEY) in your Vercel project environment variables."
+    )
+  }
+  return createSupabaseClient(url, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   })
 }
