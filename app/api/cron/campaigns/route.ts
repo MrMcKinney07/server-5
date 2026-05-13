@@ -86,7 +86,7 @@ export async function GET(request: Request) {
           if (agent?.Name) agentName = agent.Name
         }
 
-        const stepResult = await processStep(enrollment, lead, campaign, agentName, "lead")
+        const stepResult = await processStep(enrollment, lead, campaign, agentName, "lead", supabase)
         results.processed++
         if (stepResult.email) results.emails++
         if (stepResult.sms) results.sms++
@@ -128,7 +128,7 @@ export async function GET(request: Request) {
           if (agent?.Name) agentName = agent.Name
         }
 
-        const stepResult = await processStep(enrollment, contact, campaign, agentName, "contact")
+        const stepResult = await processStep(enrollment, contact, campaign, agentName, "contact", supabase)
         results.processed++
         if (stepResult.email) results.emails++
         if (stepResult.sms) results.sms++
@@ -153,7 +153,8 @@ async function processStep(
   recipient: any,
   campaign: any,
   agentName: string,
-  enrollmentType: "lead" | "contact"
+  enrollmentType: "lead" | "contact",
+  supabase: ReturnType<typeof createServiceClient>
 ): Promise<{ email: boolean; sms: boolean; task: boolean }> {
   const result = { email: false, sms: false, task: false }
   const nextStepNumber = (enrollment.current_step || 0) + 1
