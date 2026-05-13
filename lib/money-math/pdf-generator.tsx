@@ -1,4 +1,6 @@
-export type PDFRow = { label: string; value: string; highlight?: boolean }
+"use client"
+
+export type PDFRow = { label: string; value: string; highlight?: boolean; subtext?: string }
 
 type CalcType = "mortgage" | "rates" | "netsheet" | "caprate" | "closing" | "combined"
 
