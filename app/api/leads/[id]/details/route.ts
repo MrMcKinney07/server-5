@@ -1,8 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/server"
 
-const supabaseAdmin = createServiceClient()
-
 function validateApiKey(request: NextRequest): boolean {
   const apiKey = request.headers.get("x-api-key") || request.nextUrl.searchParams.get("api_key")
   return apiKey === process.env.ZAPIER_API_KEY
@@ -12,6 +10,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (!validateApiKey(request)) {
     return NextResponse.json({ error: "Unauthorized. Provide x-api-key header or api_key query param." }, { status: 401 })
   }
+
+  const supabaseAdmin = createServiceClient()
 
   try {
     const { id } = await params

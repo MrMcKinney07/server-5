@@ -3,9 +3,6 @@ import { createServiceClient } from "@/lib/supabase/server"
 import { sendEmail } from "@/lib/email/send-email"
 import { sendSms } from "@/lib/sms/send-sms"
 
-// Use service role for cron job
-const supabase = createServiceClient()
-
 /**
  * Cron job to execute due drip campaign steps from the drip_enrollments table.
  * This handles the drip_campaigns / drip_steps / drip_enrollments tables.
@@ -17,6 +14,8 @@ export async function GET(request: Request) {
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
+
+  const supabase = createServiceClient()
 
   try {
     const now = new Date()
