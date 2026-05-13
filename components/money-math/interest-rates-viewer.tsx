@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { TrendingUp, RefreshCw, Download, Wifi, WifiOff, ExternalLink } from "lucide-react"
 import { generatePDF } from "@/lib/money-math/pdf-generator"
 import type { LiveRate, RatesResponse } from "@/app/api/money-math/rates/route"
+import { RatesHistoryChart } from "@/components/money-math/rates-history-chart"
 
 export type { LiveRate }
 
@@ -165,6 +166,11 @@ export function InterestRatesViewer({ onRatesLoaded }: Props) {
                 )}
               </div>
             ))}
+
+            {/* Historical chart */}
+            <div className="mt-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+              <RatesHistoryChart />
+            </div>
 
             <Button
               variant="outline"
