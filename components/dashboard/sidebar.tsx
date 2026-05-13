@@ -15,6 +15,7 @@ import {
   BookOpen,
   Megaphone,
   FileSignature,
+  Calculator,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -27,6 +28,7 @@ const navItems = [
   { label: "Marketing", href: "/dashboard/marketing", icon: Megaphone, color: "text-pink-400" },
   { label: "Contracts", href: "/dashboard/contracts", icon: FileSignature, color: "text-cyan-400" },
   { label: "Earnings", href: "/dashboard/earnings", icon: DollarSign, color: "text-emerald-400" },
+  { label: "Money Math", href: "/dashboard/money-math", icon: Calculator, color: "text-cyan-400" },
   { label: "Knowledge Base", href: "/dashboard/knowledge", icon: BookOpen, color: "text-violet-400" },
   { label: "Prestige", href: "/dashboard/prestige", icon: Trophy, color: "text-amber-400" },
   { label: "Settings", href: "/dashboard/settings", icon: Settings, color: "text-slate-400" },
