@@ -107,10 +107,11 @@ export async function GET(request: Request) {
     const isCoords = lat && lon
 
     if (isCoords) {
-      // Map / radius search — POST /properties/coords/search-buy|rent
-      const endpoint = status === "for_rent"
-        ? `${BASE}/properties/coords/search-rent`
-        : `${BASE}/properties/coords/search-buy`
+      // Map / radius search — POST /properties/coords/search-buy|rent|sold
+      const endpoint =
+        status === "for_rent" ? `${BASE}/properties/coords/search-rent` :
+        status === "sold"     ? `${BASE}/properties/coords/search-sold` :
+                                `${BASE}/properties/coords/search-buy`
 
       const body: Record<string, unknown> = {
         latitude:  parseFloat(lat),
