@@ -22,19 +22,12 @@ const TITLES: Record<CalcType, string> = {
   combined: "McKinney Realty Co. — Financial Summary",
 }
 
-// Convert local logo to base64 for embedding in the PDF HTML
+// Use the public blob URL directly — no fetch needed, browsers render cross-origin <img> fine
+const LOGO_URL =
+  "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/copy_F4F34658-230A-450F-BF3C-E7F57722181D.JPEG-wyuELwHxzfNTq2E7QN0yLTQPYkeLD7.jpeg"
+
 async function getLogoBase64(): Promise<string> {
-  try {
-    const res = await fetch("/images/mckinney-logo.jpg")
-    const blob = await res.blob()
-    return await new Promise<string>((resolve) => {
-      const reader = new FileReader()
-      reader.onloadend = () => resolve(reader.result as string)
-      reader.readAsDataURL(blob)
-    })
-  } catch {
-    return ""
-  }
+  return LOGO_URL
 }
 
 function buildHTML(type: CalcType, rows: PDFRow[], title: string, logoSrc: string): string {
@@ -262,22 +255,34 @@ function buildHTML(type: CalcType, rows: PDFRow[], title: string, logoSrc: strin
 </html>`
 }
 
+function printHTML(html: string) {
+  // Inject a hidden iframe — avoids popup blockers entirely
+  const iframe = document.createElement("iframe")
+  iframe.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none;"
+  document.body.appendChild(iframe)
+
+  const doc = iframe.contentDocument || iframe.contentWindow?.document
+  if (!doc) { document.body.removeChild(iframe); return }
+
+  doc.open()
+  doc.write(html)
+  doc.close()
+
+  // Wait for fonts / images to load then print
+  iframe.onload = () => {
+    setTimeout(() => {
+      iframe.contentWindow?.focus()
+      iframe.contentWindow?.print()
+      setTimeout(() => document.body.removeChild(iframe), 1000)
+    }, 600)
+  }
+}
+
 export async function generatePDF(type: CalcType, rows: PDFRow[], customTitle?: string) {
   const title = customTitle ?? TITLES[type]
   const logoSrc = await getLogoBase64()
   const html = buildHTML(type, rows, title, logoSrc)
-
-  const blob = new Blob([html], { type: "text/html" })
-  const url = URL.createObjectURL(blob)
-  const printWindow = window.open(url, "_blank")
-  if (printWindow) {
-    printWindow.onload = () => {
-      setTimeout(() => {
-        printWindow.print()
-        URL.revokeObjectURL(url)
-      }, 800)
-    }
-  }
+  printHTML(html)
 }
 
 export async function generateCombinedPDF(sections: { title: string; rows: PDFRow[] }[]) {
@@ -361,15 +366,5 @@ export async function generateCombinedPDF(sections: { title: string; rows: PDFRo
 </body>
 </html>`
 
-  const blob = new Blob([html], { type: "text/html" })
-  const url = URL.createObjectURL(blob)
-  const printWindow = window.open(url, "_blank")
-  if (printWindow) {
-    printWindow.onload = () => {
-      setTimeout(() => {
-        printWindow.print()
-        URL.revokeObjectURL(url)
-      }, 800)
-    }
-  }
+  printHTML(html)
 }
