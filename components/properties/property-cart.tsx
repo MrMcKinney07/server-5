@@ -5,13 +5,15 @@ import { useRouter } from "next/navigation"
 import { createBrowserClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { ShoppingCart, Plus, Send, Home, X } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ShoppingCart, Send, Home, X } from "lucide-react"
 import { toast } from "sonner"
+import { PropertySearch } from "@/components/properties/property-search"
+import type { RapidAPIProperty } from "@/app/api/properties/search/route"
 
 interface CartProperty {
   id: string
@@ -40,131 +42,81 @@ interface PropertyCartProps {
   agentId: string
 }
 
+function rapidApiToCart(p: RapidAPIProperty): CartProperty {
+  return {
+    id: p.property_id,
+    address: p.address.line || "Unknown address",
+    city: p.address.city,
+    state: p.address.state_code,
+    zip: p.address.postal_code,
+    price: p.price,
+    beds: p.beds,
+    baths: p.baths_full ?? p.baths,
+    mls_number: p.mls_id,
+    idx_url: p.rdc_web_url || `https://www.realtor.com/realestateandhomes-detail/${p.property_id}`,
+    photo_url: p.thumbnail || p.photos?.[0]?.href,
+  }
+}
+
+function formatPrice(price?: number) {
+  if (!price) return null
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(price)
+}
+
 export function PropertyCart({ leads, agentId }: PropertyCartProps) {
   const [cart, setCart] = useState<CartProperty[]>([])
   const [isOpen, setIsOpen] = useState(false)
-  const [isAdding, setIsAdding] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [selectedLeadId, setSelectedLeadId] = useState<string>("")
-
-  // Quick add form
-  const [quickAddData, setQuickAddData] = useState({
-    address: "",
-    city: "",
-    state: "",
-    zip: "",
-    price: "",
-    beds: "",
-    baths: "",
-    mls_number: "",
-    idx_url: "",
-    photo_url: "",
-  })
-
   const router = useRouter()
 
-  const addToCart = () => {
-    if (!quickAddData.address || !quickAddData.idx_url) {
-      toast.error("Address and Property URL are required")
-      return
-    }
+  const cartIds = cart.map((p) => p.id)
 
-    const newProperty: CartProperty = {
-      id: Date.now().toString(),
-      address: quickAddData.address,
-      city: quickAddData.city || undefined,
-      state: quickAddData.state || undefined,
-      zip: quickAddData.zip || undefined,
-      price: quickAddData.price ? Number.parseFloat(quickAddData.price) : undefined,
-      beds: quickAddData.beds ? Number.parseInt(quickAddData.beds) : undefined,
-      baths: quickAddData.baths ? Number.parseFloat(quickAddData.baths) : undefined,
-      mls_number: quickAddData.mls_number || undefined,
-      idx_url: quickAddData.idx_url,
-      photo_url: quickAddData.photo_url || undefined,
-    }
-
-    setCart([...cart, newProperty])
-
-    // Reset form
-    setQuickAddData({
-      address: "",
-      city: "",
-      state: "",
-      zip: "",
-      price: "",
-      beds: "",
-      baths: "",
-      mls_number: "",
-      idx_url: "",
-      photo_url: "",
-    })
-
-    toast.success("Added to cart!")
+  const addToCart = (property: RapidAPIProperty) => {
+    if (cartIds.includes(property.property_id)) return
+    setCart((prev) => [...prev, rapidApiToCart(property)])
+    toast.success("Added to cart")
   }
 
-  const removeFromCart = (id: string) => {
-    setCart(cart.filter((p) => p.id !== id))
-  }
-
-  const clearCart = () => {
-    setCart([])
-  }
+  const removeFromCart = (id: string) => setCart((prev) => prev.filter((p) => p.id !== id))
+  const clearCart = () => setCart([])
 
   const sendToLead = async () => {
-    if (!selectedLeadId) {
-      toast.error("Please select a lead")
-      return
-    }
-
-    if (cart.length === 0) {
-      toast.error("Cart is empty")
-      return
-    }
+    if (!selectedLeadId) { toast.error("Please select a lead"); return }
+    if (cart.length === 0) { toast.error("Cart is empty"); return }
 
     setIsSending(true)
     const supabase = createBrowserClient()
 
     try {
-      // Save all properties to the selected lead
-      const propertiesToSave = cart.map((property) => ({
+      const rows = cart.map((p) => ({
         lead_id: selectedLeadId,
         agent_id: agentId,
-        address: property.address,
-        city: property.city || null,
-        state: property.state || null,
-        zip: property.zip || null,
-        price: property.price || null,
-        beds: property.beds || null,
-        baths: property.baths || null,
-        mls_number: property.mls_number || null,
-        idx_url: property.idx_url,
-        photo_url: property.photo_url || null,
+        address: p.address,
+        city: p.city || null,
+        state: p.state || null,
+        zip: p.zip || null,
+        price: p.price || null,
+        beds: p.beds || null,
+        baths: p.baths || null,
+        mls_number: p.mls_number || null,
+        idx_url: p.idx_url,
+        photo_url: p.photo_url || null,
       }))
 
-      const { error } = await supabase.from("saved_properties").insert(propertiesToSave)
-
+      const { error } = await supabase.from("saved_properties").insert(rows)
       if (error) throw error
 
-      toast.success(`${cart.length} properties sent to lead!`)
+      toast.success(`${cart.length} ${cart.length === 1 ? "property" : "properties"} saved to lead`)
       clearCart()
       setSelectedLeadId("")
       setIsOpen(false)
       router.refresh()
-    } catch (error) {
-      console.error("Failed to send properties:", error)
-      toast.error("Failed to send properties")
+    } catch {
+      toast.error("Failed to save properties")
     } finally {
       setIsSending(false)
     }
-  }
-
-  const formatPrice = (price?: number) => {
-    if (!price) return null
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 0,
-    }).format(price)
   }
 
   return (
@@ -172,269 +124,127 @@ export function PropertyCart({ leads, agentId }: PropertyCartProps) {
       <SheetTrigger asChild>
         <Button
           size="lg"
-          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg bg-blue-600 hover:bg-blue-700 z-50"
+          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50"
         >
           <ShoppingCart className="h-6 w-6" />
           {cart.length > 0 && (
             <Badge
               variant="destructive"
-              className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0 flex items-center justify-center"
+              className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0 flex items-center justify-center text-xs"
             >
               {cart.length}
             </Badge>
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
-        <SheetHeader>
+
+      <SheetContent side="right" className="w-full sm:max-w-3xl flex flex-col overflow-hidden p-0">
+        <SheetHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <ShoppingCart className="h-5 w-5" />
-            Property Cart ({cart.length})
+            Property Cart
+            {cart.length > 0 && (
+              <Badge variant="secondary" className="ml-1">{cart.length}</Badge>
+            )}
           </SheetTitle>
-          <SheetDescription>Add properties and send them to a lead</SheetDescription>
+          <SheetDescription>Search listings and add them to send to a lead</SheetDescription>
         </SheetHeader>
 
-        <div className="mt-6 space-y-6">
-          {/* Quick Add Form */}
-          <Card className="p-4">
-            <h3 className="font-medium mb-4 flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Quick Add Property
-            </h3>
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
-                  <Label htmlFor="address" className="text-xs">
-                    Address *
-                  </Label>
-                  <Input
-                    id="address"
-                    value={quickAddData.address}
-                    onChange={(e) => setQuickAddData({ ...quickAddData, address: e.target.value })}
-                    placeholder="123 Main St"
-                    className="h-9"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="city" className="text-xs">
-                    City
-                  </Label>
-                  <Input
-                    id="city"
-                    value={quickAddData.city}
-                    onChange={(e) => setQuickAddData({ ...quickAddData, city: e.target.value })}
-                    placeholder="Austin"
-                    className="h-9"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label htmlFor="state" className="text-xs">
-                      State
-                    </Label>
-                    <Input
-                      id="state"
-                      value={quickAddData.state}
-                      onChange={(e) => setQuickAddData({ ...quickAddData, state: e.target.value })}
-                      placeholder="TX"
-                      className="h-9"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="zip" className="text-xs">
-                      ZIP
-                    </Label>
-                    <Input
-                      id="zip"
-                      value={quickAddData.zip}
-                      onChange={(e) => setQuickAddData({ ...quickAddData, zip: e.target.value })}
-                      placeholder="78701"
-                      className="h-9"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="price" className="text-xs">
-                    Price
-                  </Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    value={quickAddData.price}
-                    onChange={(e) => setQuickAddData({ ...quickAddData, price: e.target.value })}
-                    placeholder="450000"
-                    className="h-9"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label htmlFor="beds" className="text-xs">
-                      Beds
-                    </Label>
-                    <Input
-                      id="beds"
-                      type="number"
-                      value={quickAddData.beds}
-                      onChange={(e) => setQuickAddData({ ...quickAddData, beds: e.target.value })}
-                      placeholder="3"
-                      className="h-9"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="baths" className="text-xs">
-                      Baths
-                    </Label>
-                    <Input
-                      id="baths"
-                      type="number"
-                      step="0.5"
-                      value={quickAddData.baths}
-                      onChange={(e) => setQuickAddData({ ...quickAddData, baths: e.target.value })}
-                      placeholder="2"
-                      className="h-9"
-                    />
-                  </div>
-                </div>
-                <div className="col-span-2">
-                  <Label htmlFor="mls" className="text-xs">
-                    MLS Number
-                  </Label>
-                  <Input
-                    id="mls"
-                    value={quickAddData.mls_number}
-                    onChange={(e) => setQuickAddData({ ...quickAddData, mls_number: e.target.value })}
-                    placeholder="12345678"
-                    className="h-9"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label htmlFor="idx_url" className="text-xs">
-                    Property URL *
-                  </Label>
-                  <Input
-                    id="idx_url"
-                    type="url"
-                    value={quickAddData.idx_url}
-                    onChange={(e) => setQuickAddData({ ...quickAddData, idx_url: e.target.value })}
-                    placeholder="https://mckinneyrealtyco.idxbroker.com/..."
-                    className="h-9"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label htmlFor="photo_url" className="text-xs">
-                    Photo URL
-                  </Label>
-                  <Input
-                    id="photo_url"
-                    type="url"
-                    value={quickAddData.photo_url}
-                    onChange={(e) => setQuickAddData({ ...quickAddData, photo_url: e.target.value })}
-                    placeholder="https://..."
-                    className="h-9"
-                  />
-                </div>
-              </div>
-              <Button onClick={addToCart} className="w-full bg-blue-600 hover:bg-blue-700" size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Add to Cart
-              </Button>
-            </div>
-          </Card>
+        <Tabs defaultValue="search" className="flex flex-col flex-1 overflow-hidden">
+          <TabsList className="mx-6 mt-4 flex-shrink-0 w-auto self-start">
+            <TabsTrigger value="search">Search Listings</TabsTrigger>
+            <TabsTrigger value="cart">
+              Cart
+              {cart.length > 0 && <Badge className="ml-1.5 h-5 px-1.5 text-xs">{cart.length}</Badge>}
+            </TabsTrigger>
+          </TabsList>
 
-          {/* Cart Items */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="font-medium">Properties in Cart</h3>
-              {cart.length > 0 && (
-                <Button variant="ghost" size="sm" onClick={clearCart}>
-                  Clear All
-                </Button>
-              )}
-            </div>
+          {/* ---- SEARCH TAB ---- */}
+          <TabsContent value="search" className="flex-1 overflow-y-auto px-6 pb-6 mt-4">
+            <PropertySearch
+              onAddToCart={addToCart}
+              cartIds={cartIds}
+              compact={true}
+            />
+          </TabsContent>
 
+          {/* ---- CART TAB ---- */}
+          <TabsContent value="cart" className="flex-1 overflow-y-auto px-6 pb-6 mt-4 flex flex-col gap-4">
             {cart.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground border rounded-lg">
-                <ShoppingCart className="h-12 w-12 mx-auto mb-2 opacity-30" />
-                <p>Cart is empty</p>
-                <p className="text-sm">Add properties to send to a lead</p>
+              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground border rounded-lg border-dashed">
+                <ShoppingCart className="h-10 w-10 mb-3 opacity-30" />
+                <p className="font-medium">Your cart is empty</p>
+                <p className="text-sm mt-1">Search for listings and click &quot;Add to Cart&quot;</p>
               </div>
             ) : (
-              <div className="space-y-2">
-                {cart.map((property) => (
-                  <div key={property.id} className="flex items-start gap-3 p-3 rounded-lg border bg-card">
-                    <div className="w-16 h-16 rounded bg-muted flex-shrink-0 flex items-center justify-center">
-                      {property.photo_url ? (
-                        <img
-                          src={property.photo_url || "/placeholder.svg"}
-                          alt={property.address}
-                          className="w-full h-full object-cover rounded"
-                        />
-                      ) : (
-                        <Home className="h-6 w-6 text-muted-foreground" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{property.address}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {[property.city, property.state].filter(Boolean).join(", ")}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1 text-xs">
-                        {property.price && (
-                          <span className="font-medium text-emerald-600">{formatPrice(property.price)}</span>
+              <>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">{cart.length} {cart.length === 1 ? "property" : "properties"} selected</p>
+                  <Button variant="ghost" size="sm" onClick={clearCart}>Clear all</Button>
+                </div>
+
+                <div className="space-y-2">
+                  {cart.map((p) => (
+                    <div key={p.id} className="flex items-start gap-3 p-3 rounded-lg border bg-card">
+                      <div className="w-14 h-14 rounded bg-muted flex-shrink-0 overflow-hidden flex items-center justify-center">
+                        {p.photo_url ? (
+                          <img src={p.photo_url} alt={p.address} className="w-full h-full object-cover" />
+                        ) : (
+                          <Home className="h-5 w-5 text-muted-foreground/40" />
                         )}
-                        {property.beds && <span>{property.beds}bd</span>}
-                        {property.baths && <span>{property.baths}ba</span>}
                       </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{p.address}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {[p.city, p.state, p.zip].filter(Boolean).join(", ")}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                          {p.price && <span className="font-semibold text-foreground">{formatPrice(p.price)}</span>}
+                          {p.beds && <span>{p.beds} bd</span>}
+                          {p.baths && <span>{p.baths} ba</span>}
+                          {p.mls_number && <span>MLS# {p.mls_number}</span>}
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 flex-shrink-0" onClick={() => removeFromCart(p.id)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+
+                <Card className="p-4 mt-auto">
+                  <h3 className="font-medium mb-3 text-sm">Send to Lead</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-xs">Select Lead</Label>
+                      <Select value={selectedLeadId} onValueChange={setSelectedLeadId}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Choose a lead..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {leads.map((lead) => (
+                            <SelectItem key={lead.id} value={lead.id}>
+                              {lead.first_name} {lead.last_name}
+                              {lead.email ? ` — ${lead.email}` : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeFromCart(property.id)}
-                      className="flex-shrink-0"
+                      onClick={sendToLead}
+                      disabled={!selectedLeadId || isSending}
+                      className="w-full"
                     >
-                      <X className="h-4 w-4" />
+                      <Send className="h-4 w-4 mr-2" />
+                      {isSending ? "Saving..." : `Save ${cart.length} ${cart.length === 1 ? "Property" : "Properties"} to Lead`}
                     </Button>
                   </div>
-                ))}
-              </div>
+                </Card>
+              </>
             )}
-          </div>
-
-          {/* Send to Lead */}
-          {cart.length > 0 && (
-            <Card className="p-4 bg-blue-50 dark:bg-blue-950/20">
-              <h3 className="font-medium mb-3">Send to Lead</h3>
-              <div className="space-y-3">
-                <div>
-                  <Label htmlFor="lead-select" className="text-xs">
-                    Select Lead
-                  </Label>
-                  <Select value={selectedLeadId} onValueChange={setSelectedLeadId}>
-                    <SelectTrigger id="lead-select">
-                      <SelectValue placeholder="Choose a lead..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {leads.map((lead) => (
-                        <SelectItem key={lead.id} value={lead.id}>
-                          {lead.first_name} {lead.last_name}
-                          {lead.email && ` (${lead.email})`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button
-                  onClick={sendToLead}
-                  disabled={!selectedLeadId || isSending}
-                  className="w-full bg-blue-600 hover:bg-blue-700"
-                >
-                  <Send className="h-4 w-4 mr-2" />
-                  {isSending ? "Sending..." : `Send ${cart.length} ${cart.length === 1 ? "Property" : "Properties"}`}
-                </Button>
-              </div>
-            </Card>
-          )}
-        </div>
+          </TabsContent>
+        </Tabs>
       </SheetContent>
     </Sheet>
   )
