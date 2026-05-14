@@ -11,6 +11,14 @@ import { useState } from "react"
 import { Rocket } from "lucide-react"
 import Image from "next/image"
 
+const PARTICLES = Array.from({ length: 20 }, (_, i) => ({
+  id: i,
+  left: `${((i * 137.5) % 100).toFixed(1)}%`,
+  top: `${((i * 97.3) % 100).toFixed(1)}%`,
+  delay: `${((i * 0.7) % 5).toFixed(1)}s`,
+  duration: `${(15 + (i * 1.3) % 10).toFixed(1)}s`,
+}))
+
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -96,15 +104,15 @@ export default function LoginPage() {
 
           {/* Floating particles */}
           <div className="absolute inset-0">
-            {[...Array(20)].map((_, i) => (
+            {PARTICLES.map((p) => (
               <div
-                key={i}
+                key={p.id}
                 className="absolute w-1 h-1 bg-amber-400/40 rounded-full animate-float"
                 style={{
-                  left: `${Math.random() * 100}%`,
-                  top: `${Math.random() * 100}%`,
-                  animationDelay: `${Math.random() * 5}s`,
-                  animationDuration: `${15 + Math.random() * 10}s`,
+                  left: p.left,
+                  top: p.top,
+                  animationDelay: p.delay,
+                  animationDuration: p.duration,
                 }}
               />
             ))}
