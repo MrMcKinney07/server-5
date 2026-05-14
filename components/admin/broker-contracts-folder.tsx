@@ -6,6 +6,7 @@ import useSWR, { mutate } from "swr"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
+import { BrokerAddContractDialog } from "@/components/admin/broker-add-contract-dialog"
 import {
   ChevronRight,
   FolderOpen,
@@ -21,6 +22,7 @@ import {
   X,
   DollarSign,
   Mail,
+  Plus,
 } from "lucide-react"
 
 const fetcher = async (url: string) => {
@@ -420,8 +422,13 @@ function AgentFolder({ group }: { group: AgentGroup }) {
   )
 }
 
-export function BrokerContractsFolder() {
+interface BrokerContractsFolderProps {
+  agents?: { id: string; Name: string; Email: string }[]
+}
+
+export function BrokerContractsFolder({ agents = [] }: BrokerContractsFolderProps) {
   const { data, isLoading } = useSWR("/api/broker/contracts", fetcher, { revalidateOnFocus: true })
+  const [addOpen, setAddOpen] = useState(false)
 
   const groups: AgentGroup[] = data?.grouped ?? []
   const total = data?.total ?? 0
@@ -443,19 +450,32 @@ export function BrokerContractsFolder() {
 
   return (
     <div className="space-y-4">
-      {/* Summary bar */}
-      <div className="flex items-center gap-4 px-1">
-        <div className="flex items-center gap-1.5 text-sm text-slate-400">
-          <Home className="h-4 w-4 text-slate-500" />
-          <span className="text-white font-medium">{total}</span> total contracts
+      {/* Summary bar + Add button */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4 px-1">
+          <div className="flex items-center gap-1.5 text-sm text-slate-400">
+            <Home className="h-4 w-4 text-slate-500" />
+            <span className="text-white font-medium">{total}</span> total contracts
+          </div>
+          <div className="flex items-center gap-1.5 text-sm">
+            <Clock className="h-4 w-4 text-amber-400" />
+            <span className={cn("font-medium", totalPending > 0 ? "text-amber-400" : "text-slate-400")}>
+              {totalPending}
+            </span>
+            <span className="text-slate-500">awaiting review</span>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5 text-sm">
-          <Clock className="h-4 w-4 text-amber-400" />
-          <span className={cn("font-medium", totalPending > 0 ? "text-amber-400" : "text-slate-400")}>
-            {totalPending}
-          </span>
-          <span className="text-slate-500">awaiting review</span>
-        </div>
+
+        {agents.length > 0 && (
+          <Button
+            size="sm"
+            onClick={() => setAddOpen(true)}
+            className="gap-1.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 border border-cyan-500/20 shrink-0"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add Contract
+          </Button>
+        )}
       </div>
 
       {groups.length === 0 ? (
@@ -471,6 +491,12 @@ export function BrokerContractsFolder() {
           ))}
         </div>
       )}
+
+      <BrokerAddContractDialog
+        agents={agents}
+        open={addOpen}
+        onOpenChange={setAddOpen}
+      />
     </div>
   )
 }

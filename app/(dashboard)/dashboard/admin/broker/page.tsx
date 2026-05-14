@@ -165,7 +165,7 @@ export default async function BrokerToolsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <BrokerContractsFolder />
+              <BrokerContractsFolder agents={allAgents || []} />
             </CardContent>
           </Card>
         </TabsContent>
