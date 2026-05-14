@@ -194,7 +194,7 @@ export function PropertySearch({ onAddToCart, cartIds = [], compact = false }: P
       if (minBeds && minBeds !== "any")   params.set("minBeds", minBeds)
       if (minBaths && minBaths !== "any") params.set("minBaths", minBaths)
       if (propType && propType !== "any") params.set("propType", propType)
-      if (status && status !== "for_sale")params.set("status", status)
+      if (status)                          params.set("status", status)
       if (sortBy && sortBy !== "relevant")params.set("sortBy", sortBy)
       if (minSqft)                        params.set("minSqft", minSqft)
       if (maxSqft)                        params.set("maxSqft", maxSqft)

@@ -177,7 +177,10 @@ export async function GET(request: Request) {
     }
 
     const data = JSON.parse(rawText) as Record<string, unknown>
+    console.log("[v0] API response keys:", Object.keys(data))
+    console.log("[v0] API data sample:", JSON.stringify(data).slice(0, 500))
     const { raw, total } = extractResults(data)
+    console.log("[v0] Extracted raw count:", raw.length, "total:", total)
 
     const properties: RapidAPIProperty[] = raw.map((p) => normalize(p, status))
 
