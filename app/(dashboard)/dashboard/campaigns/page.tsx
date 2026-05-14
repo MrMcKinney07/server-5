@@ -18,11 +18,15 @@ export default async function CampaignsPage() {
       supabase.from("campaigns").select("*").order("created_at", { ascending: false }),
       serviceClient
         .from("campaign_templates")
-        .select("*, campaign_template_steps(*)")
+        .select("id, name, description, category, channel, type, tags, step_count")
         .eq("is_active", true)
         .order("category")
         .order("name"),
     ])
+
+    console.log("[v0] campaignsRes error:", campaignsRes.error?.message)
+    console.log("[v0] templatesRes error:", templatesRes.error?.message)
+    console.log("[v0] campaigns count:", campaignsRes.data?.length)
 
     const campaigns = campaignsRes.data || []
     const filteredCampaigns =
@@ -77,13 +81,7 @@ export default async function CampaignsPage() {
       }),
     )
 
-    // Sort template steps
-    const templates = (templatesRes.data || []).map((t) => ({
-      ...t,
-      campaign_template_steps: (t.campaign_template_steps || []).sort(
-        (a: { step_number: number }, b: { step_number: number }) => a.step_number - b.step_number,
-      ),
-    }))
+    const templates = templatesRes.data || []
 
     // Aggregate stats
     const totalEnrolled = enriched.reduce((s, c) => s + c.enrollmentsCount, 0)
@@ -233,6 +231,7 @@ export default async function CampaignsPage() {
       const d = (error as { digest?: string }).digest
       if (d?.startsWith("NEXT_REDIRECT")) throw error
     }
+    console.log("[v0] Campaigns page error:", error instanceof Error ? error.message : JSON.stringify(error))
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">

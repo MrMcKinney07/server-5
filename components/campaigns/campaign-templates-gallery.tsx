@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -46,7 +46,7 @@ type Template = {
   type: string
   tags: string[]
   step_count: number
-  campaign_template_steps: TemplateStep[]
+  campaign_template_steps?: TemplateStep[]
 }
 
 const CATEGORY_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string; bg: string; border: string }> = {
@@ -117,7 +117,21 @@ function TemplatePreviewDialog({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [previewStep, setPreviewStep] = useState<TemplateStep | null>(null)
+  const [steps, setSteps] = useState<TemplateStep[]>(template.campaign_template_steps || [])
+  const [stepsLoading, setStepsLoading] = useState(false)
   const cat = CATEGORY_CONFIG[template.category] || CATEGORY_CONFIG.lead_nurture
+
+  // Fetch steps lazily when dialog opens
+  useEffect(() => {
+    if (open && steps.length === 0) {
+      setStepsLoading(true)
+      fetch(`/api/campaigns/templates/${template.id}/steps`)
+        .then((r) => r.json())
+        .then((d) => { if (d.steps) setSteps(d.steps) })
+        .catch(() => {})
+        .finally(() => setStepsLoading(false))
+    }
+  }, [open])
 
   async function handleUseTemplate() {
     setLoading(true)
@@ -161,10 +175,13 @@ function TemplatePreviewDialog({
         {/* Sequence preview */}
         <div className="mt-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-            {template.campaign_template_steps.length}-Step Sequence
+            {template.step_count}-Step Sequence
           </p>
+          {stepsLoading && (
+            <div className="py-8 text-center text-sm text-muted-foreground">Loading steps...</div>
+          )}
           <div className="space-y-2">
-            {template.campaign_template_steps.map((step, i) => (
+            {steps.map((step, i) => (
               <button
                 key={step.id}
                 onClick={() => setPreviewStep(previewStep?.id === step.id ? null : step)}
