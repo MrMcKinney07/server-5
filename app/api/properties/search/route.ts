@@ -4,14 +4,22 @@ import type { RapidAPIProperty } from "@/lib/types/property"
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
 
-  const location = searchParams.get("location") || ""
-  const minPrice = searchParams.get("minPrice")
-  const maxPrice = searchParams.get("maxPrice")
-  const minBeds = searchParams.get("minBeds")
-  const minBaths = searchParams.get("minBaths")
-  const propType = searchParams.get("propType") || ""
-  const page = parseInt(searchParams.get("page") || "1", 10)
-  const pageSize = parseInt(searchParams.get("pageSize") || "12", 10)
+  const location   = searchParams.get("location") || ""
+  const minPrice   = searchParams.get("minPrice")
+  const maxPrice   = searchParams.get("maxPrice")
+  const minBeds    = searchParams.get("minBeds")
+  const minBaths   = searchParams.get("minBaths")
+  const propType   = searchParams.get("propType") || ""
+  const status     = searchParams.get("status") || "for_sale"
+  const sortBy     = searchParams.get("sortBy") || "relevant"
+  const minSqft    = searchParams.get("minSqft")
+  const maxSqft    = searchParams.get("maxSqft")
+  const minYear    = searchParams.get("minYear")
+  const maxYear    = searchParams.get("maxYear")
+  const garage     = searchParams.get("garage")
+  const maxDom     = searchParams.get("maxDom") // days on market
+  const page       = parseInt(searchParams.get("page") || "1", 10)
+  const pageSize   = parseInt(searchParams.get("pageSize") || "12", 10)
 
   const apiKey = process.env.RAPIDAPI_REALTOR_KEY
   if (!apiKey) {
@@ -25,21 +33,25 @@ export async function GET(request: Request) {
   try {
     const params = new URLSearchParams({
       location,
-      status: "for_sale",
+      status,
       limit: String(pageSize),
       offset: String((page - 1) * pageSize),
+      sort: sortBy,
     })
 
-    if (minPrice) params.set("price_min", minPrice)
-    if (maxPrice) params.set("price_max", maxPrice)
-    if (minBeds) params.set("beds_min", minBeds)
-    if (minBaths) params.set("baths_min", minBaths)
-    if (propType && propType !== "any") params.set("property_type", propType)
+    if (minPrice)                        params.set("price_min", minPrice)
+    if (maxPrice)                        params.set("price_max", maxPrice)
+    if (minBeds && minBeds !== "any")    params.set("beds_min", minBeds)
+    if (minBaths && minBaths !== "any")  params.set("baths_min", minBaths)
+    if (propType && propType !== "any")  params.set("property_type", propType)
+    if (minSqft)                         params.set("sqft_min", minSqft)
+    if (maxSqft)                         params.set("sqft_max", maxSqft)
+    if (minYear)                         params.set("year_built_min", minYear)
+    if (maxYear)                         params.set("year_built_max", maxYear)
+    if (garage && garage !== "any")      params.set("has_garage", "true")
+    if (maxDom)                          params.set("age_max", maxDom)
 
-    // The correct endpoint path for this API (ntd119/realtor-search)
-    const url = `https://realtor-search.p.rapidapi.com/properties/for-sale?${params.toString()}`
-
-    console.log("[v0] Fetching:", url)
+    const url = `https://realtor-search.p.rapidapi.com/search/properties?${params.toString()}`
 
     const response = await fetch(url, {
       headers: {
@@ -51,74 +63,71 @@ export async function GET(request: Request) {
     })
 
     const rawText = await response.text()
-    console.log("[v0] RapidAPI status:", response.status, "body:", rawText.slice(0, 400))
 
     if (!response.ok) {
-      console.log("[v0] RapidAPI full error body:", rawText)
       return NextResponse.json(
-        { error: `RapidAPI error ${response.status}: ${rawText.slice(0, 300)}` },
+        { error: `RapidAPI ${response.status}: ${rawText.slice(0, 300)}` },
         { status: 502 },
       )
     }
 
     const data = JSON.parse(rawText)
 
-    // Handle multiple known response shapes from this API
+    // Support multiple known response shapes
     const raw: Record<string, unknown>[] =
+      data?.home_search?.properties ||
       data?.data?.home_search?.results ||
-      data?.data?.results ||
+      data?.data?.home_search?.properties ||
       data?.results ||
       data?.properties ||
       (Array.isArray(data?.data) ? data.data : null) ||
       []
 
     const total: number =
+      data?.home_search?.total ||
       data?.data?.home_search?.total ||
       data?.total ||
-      data?.data?.total ||
       raw.length
 
     const properties: RapidAPIProperty[] = raw.map((p) => {
-      // Support both flat and nested address/location shapes
-      const addrRaw =
+      const locAddr =
         (p.location as Record<string, unknown>)?.address ||
         (p.address as Record<string, unknown>) ||
         {}
-      const addr = addrRaw as Record<string, unknown>
-
-      const desc = (p.description as Record<string, unknown>) || {}
+      const addr = locAddr as Record<string, unknown>
+      const desc = ((p.description as Record<string, unknown>) || {}) as Record<string, unknown>
 
       return {
         property_id: (p.property_id as string) || (p.listing_id as string) || String(Math.random()),
-        listing_id: (p.listing_id as string) || (p.property_id as string),
-        mls_id: (p.mls_id as string) || undefined,
+        listing_id:  (p.listing_id  as string) || (p.property_id as string),
+        mls_id:      (p.mls_id as string) || undefined,
         address: {
-          line: (addr.line as string) || (addr.street as string) || "",
-          city: (addr.city as string) || "",
-          state_code: (addr.state_code as string) || (addr.state as string) || "",
-          postal_code: (addr.postal_code as string) || (addr.zip as string) || "",
+          line:        (addr.line        as string) || (addr.street as string) || "",
+          city:        (addr.city        as string) || "",
+          state_code:  (addr.state_code  as string) || (addr.state as string) || "",
+          postal_code: (addr.postal_code as string) || (addr.zip   as string) || "",
         },
-        price: (p.list_price as number) || (p.price as number) || 0,
-        beds: (desc.beds as number) || (p.beds as number) || 0,
-        baths: (desc.baths_consolidated as number) || (desc.baths as number) || (p.baths as number) || 0,
+        price:      (p.list_price as number) || (p.price as number) || 0,
+        beds:       (desc.beds   as number)  || (p.beds  as number) || 0,
+        baths:      (desc.baths_consolidated as number) || (desc.baths as number) || (p.baths as number) || 0,
         baths_full: (desc.baths_full as number) || (p.baths_full as number) || undefined,
-        sqft: (desc.sqft as number) || (p.sqft as number) || undefined,
+        sqft:       (desc.sqft  as number) || (p.sqft  as number) || undefined,
         year_built: (desc.year_built as number) || (p.year_built as number) || undefined,
-        prop_type: (desc.type as string) || (p.prop_type as string) || "",
-        prop_status: (p.status as string) || (p.prop_status as string) || "for_sale",
+        prop_type:  (desc.type  as string) || (p.prop_type as string) || "",
+        prop_status:(p.status   as string) || (p.prop_status as string) || status,
         thumbnail:
           ((p.primary_photo as Record<string, unknown>)?.href as string) ||
           (p.thumbnail as string) ||
           ((p.photos as Record<string, unknown>[])?.[0]?.href as string) ||
           undefined,
         rdc_web_url: (p.href as string) || (p.rdc_web_url as string) || undefined,
-        list_date: (p.list_date as string) || undefined,
+        list_date:   (p.list_date as string) || undefined,
       }
     })
 
     return NextResponse.json({ properties, total, page, pageSize })
   } catch (err) {
-    console.error("[v0] Property search error:", err)
+    console.error("[properties/search] error:", err)
     return NextResponse.json({ error: "Search failed" }, { status: 500 })
   }
 }

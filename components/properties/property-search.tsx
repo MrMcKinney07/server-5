@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Search, Bed, Bath, Square, Home, Plus, Check, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react"
+import { Search, Bed, Bath, Square, Home, Plus, Check, ExternalLink, ChevronLeft, ChevronRight, SlidersHorizontal, ChevronDown, ChevronUp } from "lucide-react"
 import type { RapidAPIProperty } from "@/lib/types/property"
 import { cn } from "@/lib/utils"
 
@@ -157,8 +157,17 @@ export function PropertySearch({ onAddToCart, cartIds = [], compact = false }: P
   const [minBeds, setMinBeds] = useState("any")
   const [minBaths, setMinBaths] = useState("any")
   const [propType, setPropType] = useState("any")
+  const [status, setStatus] = useState("for_sale")
+  const [sortBy, setSortBy] = useState("relevant")
+  const [minSqft, setMinSqft] = useState("")
+  const [maxSqft, setMaxSqft] = useState("")
+  const [minYear, setMinYear] = useState("")
+  const [maxYear, setMaxYear] = useState("")
+  const [garage, setGarage] = useState("any")
+  const [maxDom, setMaxDom] = useState("")
   const [page, setPage] = useState(1)
 
+  const [showMore, setShowMore] = useState(false)
   const [results, setResults] = useState<RapidAPIProperty[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -174,11 +183,19 @@ export function PropertySearch({ onAddToCart, cartIds = [], compact = false }: P
     setError(null)
     try {
       const params = new URLSearchParams({ location: location.trim(), page: String(overridePage), pageSize: String(pageSize) })
-      if (minPrice) params.set("minPrice", minPrice)
-      if (maxPrice) params.set("maxPrice", maxPrice)
-      if (minBeds && minBeds !== "any") params.set("minBeds", minBeds)
+      if (minPrice)                       params.set("minPrice", minPrice)
+      if (maxPrice)                       params.set("maxPrice", maxPrice)
+      if (minBeds && minBeds !== "any")   params.set("minBeds", minBeds)
       if (minBaths && minBaths !== "any") params.set("minBaths", minBaths)
       if (propType && propType !== "any") params.set("propType", propType)
+      if (status && status !== "for_sale")params.set("status", status)
+      if (sortBy && sortBy !== "relevant")params.set("sortBy", sortBy)
+      if (minSqft)                        params.set("minSqft", minSqft)
+      if (maxSqft)                        params.set("maxSqft", maxSqft)
+      if (minYear)                        params.set("minYear", minYear)
+      if (maxYear)                        params.set("maxYear", maxYear)
+      if (garage && garage !== "any")     params.set("garage", garage)
+      if (maxDom)                         params.set("maxDom", maxDom)
 
       const res = await fetch(`/api/properties/search?${params.toString()}`)
       const data = await res.json()
@@ -192,7 +209,7 @@ export function PropertySearch({ onAddToCart, cartIds = [], compact = false }: P
     } finally {
       setLoading(false)
     }
-  }, [location, minPrice, maxPrice, minBeds, minBaths, propType, pageSize])
+  }, [location, minPrice, maxPrice, minBeds, minBaths, propType, status, sortBy, minSqft, maxSqft, minYear, maxYear, garage, maxDom, pageSize])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -207,97 +224,213 @@ export function PropertySearch({ onAddToCart, cartIds = [], compact = false }: P
   return (
     <div className="flex flex-col gap-4 h-full">
       {/* Search form */}
-      <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3 p-4 border rounded-lg bg-card">
-        <div className="flex-1 min-w-[180px]">
-          <Label htmlFor="ps-location" className="text-xs mb-1 block">Location *</Label>
-          <Input
-            id="ps-location"
-            placeholder="City, ZIP, neighborhood..."
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            className="h-9"
-          />
-        </div>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3 p-4 border rounded-lg bg-card">
+        {/* Row 1 — core filters */}
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-[180px]">
+            <Label htmlFor="ps-location" className="text-xs mb-1 block">Location *</Label>
+            <Input
+              id="ps-location"
+              placeholder="City, ZIP, neighborhood..."
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              className="h-9"
+            />
+          </div>
 
-        <div className="w-28">
-          <Label htmlFor="ps-minprice" className="text-xs mb-1 block">Min Price</Label>
-          <Input
-            id="ps-minprice"
-            type="number"
-            placeholder="$0"
-            value={minPrice}
-            onChange={(e) => setMinPrice(e.target.value)}
-            className="h-9"
-          />
-        </div>
+          <div className="w-28">
+            <Label htmlFor="ps-minprice" className="text-xs mb-1 block">Min Price</Label>
+            <Input
+              id="ps-minprice"
+              type="number"
+              placeholder="$0"
+              value={minPrice}
+              onChange={(e) => setMinPrice(e.target.value)}
+              className="h-9"
+            />
+          </div>
 
-        <div className="w-28">
-          <Label htmlFor="ps-maxprice" className="text-xs mb-1 block">Max Price</Label>
-          <Input
-            id="ps-maxprice"
-            type="number"
-            placeholder="Any"
-            value={maxPrice}
-            onChange={(e) => setMaxPrice(e.target.value)}
-            className="h-9"
-          />
-        </div>
+          <div className="w-28">
+            <Label htmlFor="ps-maxprice" className="text-xs mb-1 block">Max Price</Label>
+            <Input
+              id="ps-maxprice"
+              type="number"
+              placeholder="Any"
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(e.target.value)}
+              className="h-9"
+            />
+          </div>
 
-        <div className="w-24">
-          <Label className="text-xs mb-1 block">Beds</Label>
-          <Select value={minBeds} onValueChange={setMinBeds}>
-            <SelectTrigger className="h-9">
-              <SelectValue placeholder="Any" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="any">Any</SelectItem>
-              <SelectItem value="1">1+</SelectItem>
-              <SelectItem value="2">2+</SelectItem>
-              <SelectItem value="3">3+</SelectItem>
-              <SelectItem value="4">4+</SelectItem>
-              <SelectItem value="5">5+</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="w-24">
-          <Label className="text-xs mb-1 block">Baths</Label>
-          <Select value={minBaths} onValueChange={setMinBaths}>
-            <SelectTrigger className="h-9">
-              <SelectValue placeholder="Any" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="any">Any</SelectItem>
-              <SelectItem value="1">1+</SelectItem>
-              <SelectItem value="2">2+</SelectItem>
-              <SelectItem value="3">3+</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {!compact && (
-          <div className="w-36">
-            <Label className="text-xs mb-1 block">Type</Label>
-            <Select value={propType} onValueChange={setPropType}>
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="Any" />
-              </SelectTrigger>
+          <div className="w-24">
+            <Label className="text-xs mb-1 block">Beds</Label>
+            <Select value={minBeds} onValueChange={setMinBeds}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Any" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="any">Any</SelectItem>
-                <SelectItem value="single_family">Single Family</SelectItem>
-                <SelectItem value="condo">Condo</SelectItem>
-                <SelectItem value="townhome">Townhome</SelectItem>
-                <SelectItem value="multi_family">Multi-Family</SelectItem>
-                <SelectItem value="land">Land</SelectItem>
+                <SelectItem value="1">1+</SelectItem>
+                <SelectItem value="2">2+</SelectItem>
+                <SelectItem value="3">3+</SelectItem>
+                <SelectItem value="4">4+</SelectItem>
+                <SelectItem value="5">5+</SelectItem>
               </SelectContent>
             </Select>
           </div>
-        )}
 
-        <Button type="submit" disabled={!location.trim() || loading} className="h-9">
-          <Search className="h-4 w-4 mr-2" />
-          {loading ? "Searching..." : "Search"}
-        </Button>
+          <div className="w-24">
+            <Label className="text-xs mb-1 block">Baths</Label>
+            <Select value={minBaths} onValueChange={setMinBaths}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Any" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="any">Any</SelectItem>
+                <SelectItem value="1">1+</SelectItem>
+                <SelectItem value="2">2+</SelectItem>
+                <SelectItem value="3">3+</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {!compact && (
+            <div className="w-36">
+              <Label className="text-xs mb-1 block">Type</Label>
+              <Select value={propType} onValueChange={setPropType}>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Any" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Any Type</SelectItem>
+                  <SelectItem value="single_family">Single Family</SelectItem>
+                  <SelectItem value="condo">Condo</SelectItem>
+                  <SelectItem value="townhome">Townhome</SelectItem>
+                  <SelectItem value="multi_family">Multi-Family</SelectItem>
+                  <SelectItem value="land">Land</SelectItem>
+                  <SelectItem value="mobile">Mobile / Manufactured</SelectItem>
+                  <SelectItem value="farm">Farm / Ranch</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <div className="flex items-end gap-2 ml-auto">
+            {!compact && (
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 gap-1.5"
+                onClick={() => setShowMore((v) => !v)}
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                More Filters
+                {showMore ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </Button>
+            )}
+            <Button type="submit" disabled={!location.trim() || loading} className="h-9">
+              <Search className="h-4 w-4 mr-2" />
+              {loading ? "Searching..." : "Search"}
+            </Button>
+          </div>
+        </div>
+
+        {/* Row 2 — advanced filters (collapsible) */}
+        {!compact && showMore && (
+          <div className="flex flex-wrap items-end gap-3 pt-2 border-t">
+            <div className="w-32">
+              <Label className="text-xs mb-1 block">Status</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="for_sale">For Sale</SelectItem>
+                  <SelectItem value="for_rent">For Rent</SelectItem>
+                  <SelectItem value="sold">Recently Sold</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="w-36">
+              <Label className="text-xs mb-1 block">Sort By</Label>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="relevant">Relevant</SelectItem>
+                  <SelectItem value="newest">Newest</SelectItem>
+                  <SelectItem value="price_low">Price (Low–High)</SelectItem>
+                  <SelectItem value="price_high">Price (High–Low)</SelectItem>
+                  <SelectItem value="sqft_high">Sqft (Largest)</SelectItem>
+                  <SelectItem value="open_house_date">Open House</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="w-28">
+              <Label htmlFor="ps-minsqft" className="text-xs mb-1 block">Min Sqft</Label>
+              <Input
+                id="ps-minsqft"
+                type="number"
+                placeholder="e.g. 1000"
+                value={minSqft}
+                onChange={(e) => setMinSqft(e.target.value)}
+                className="h-9"
+              />
+            </div>
+
+            <div className="w-28">
+              <Label htmlFor="ps-maxsqft" className="text-xs mb-1 block">Max Sqft</Label>
+              <Input
+                id="ps-maxsqft"
+                type="number"
+                placeholder="Any"
+                value={maxSqft}
+                onChange={(e) => setMaxSqft(e.target.value)}
+                className="h-9"
+              />
+            </div>
+
+            <div className="w-24">
+              <Label htmlFor="ps-minyear" className="text-xs mb-1 block">Year Built Min</Label>
+              <Input
+                id="ps-minyear"
+                type="number"
+                placeholder="e.g. 2000"
+                value={minYear}
+                onChange={(e) => setMinYear(e.target.value)}
+                className="h-9"
+              />
+            </div>
+
+            <div className="w-24">
+              <Label htmlFor="ps-maxyear" className="text-xs mb-1 block">Year Built Max</Label>
+              <Input
+                id="ps-maxyear"
+                type="number"
+                placeholder="Any"
+                value={maxYear}
+                onChange={(e) => setMaxYear(e.target.value)}
+                className="h-9"
+              />
+            </div>
+
+            <div className="w-28">
+              <Label className="text-xs mb-1 block">Garage</Label>
+              <Select value={garage} onValueChange={setGarage}>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Any" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Any</SelectItem>
+                  <SelectItem value="yes">Has Garage</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="w-32">
+              <Label htmlFor="ps-dom" className="text-xs mb-1 block">Max Days on Market</Label>
+              <Input
+                id="ps-dom"
+                type="number"
+                placeholder="Any"
+                value={maxDom}
+                onChange={(e) => setMaxDom(e.target.value)}
+                className="h-9"
+              />
+            </div>
+          </div>
+        )}
       </form>
 
       {/* Results */}
