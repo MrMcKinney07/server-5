@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button"
 
 interface ContractCompleteAnimationProps {
   onDismiss: () => void
+  xpEarned?: number
 }
 
-export function ContractCompleteAnimation({ onDismiss }: ContractCompleteAnimationProps) {
+export function ContractCompleteAnimation({ onDismiss, xpEarned }: ContractCompleteAnimationProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const router = useRouter()
 
@@ -116,9 +117,16 @@ export function ContractCompleteAnimation({ onDismiss }: ContractCompleteAnimati
         <h2 className="text-2xl font-semibold text-white mb-2">
           Your check is on the way!
         </h2>
-        <p className="text-slate-400 text-sm mb-8">
+        <p className="text-slate-400 text-sm mb-4">
           Payment has been requested. Your broker will process it shortly.
         </p>
+
+        {xpEarned && (
+          <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-full px-4 py-2 mb-6">
+            <span className="text-amber-400 text-lg font-bold">+{xpEarned} XP</span>
+            <span className="text-slate-400 text-sm">leaderboard points earned</span>
+          </div>
+        )}
 
         <Button
           onClick={handleDismiss}

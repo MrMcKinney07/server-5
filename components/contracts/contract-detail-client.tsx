@@ -89,6 +89,7 @@ export function ContractDetailClient({ contract, documents, dealDocs, isAdmin }:
   const [progress, setProgress] = useState(contract.progress_percent)
   const [showComplete, setShowComplete] = useState(false)
   const [requestingPay, setRequestingPay] = useState(false)
+  const [xpEarned, setXpEarned] = useState<number | null>(null)
 
   // Poll for live payment_status + status updates (e.g. broker marks check sent)
   const { data: liveContract } = useSWR(
@@ -125,6 +126,8 @@ export function ContractDetailClient({ contract, documents, dealDocs, isAdmin }:
     try {
       const res = await fetch(`/api/contracts/${contract.id}/request-pay`, { method: "POST", credentials: "include" })
       if (res.ok) {
+        const data = await res.json()
+        if (data.xp?.earned) setXpEarned(data.xp.earned)
         setShowComplete(true)
       }
     } finally {
@@ -134,7 +137,12 @@ export function ContractDetailClient({ contract, documents, dealDocs, isAdmin }:
 
   return (
     <div className="space-y-6">
-      {showComplete && <ContractCompleteAnimation onDismiss={() => setShowComplete(false)} />}
+      {showComplete && (
+        <ContractCompleteAnimation
+          onDismiss={() => { setShowComplete(false); setXpEarned(null) }}
+          xpEarned={xpEarned ?? undefined}
+        />
+      )}
 
       {/* Back link */}
       <div>
