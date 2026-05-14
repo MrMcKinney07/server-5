@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { AlertCircle, Phone, MessageSquare, CheckCircle, Clock, Mail, Calendar, User, RefreshCw } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
+import { createClient, hasSupabaseCredentials } from "@/lib/supabase/client"
 import { format, isToday, isBefore, startOfDay } from "date-fns"
 
 interface Task {
@@ -33,6 +33,10 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
   const supabase = createClient()
 
   const fetchTasks = useCallback(async () => {
+    if (!hasSupabaseCredentials()) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
     const today = new Date().toISOString().split("T")[0]
 

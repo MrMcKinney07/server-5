@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { createBrowserClient } from "@/lib/supabase/client"
+import { createBrowserClient, hasSupabaseCredentials } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -33,6 +33,10 @@ export function NotificationsDropdown({ isBroker = false }: { isBroker?: boolean
   const supabase = createBrowserClient()
 
   const fetchNotifications = useCallback(async () => {
+    if (!hasSupabaseCredentials()) {
+      setLoading(false)
+      return
+    }
     const {
       data: { user },
     } = await supabase.auth.getUser()
