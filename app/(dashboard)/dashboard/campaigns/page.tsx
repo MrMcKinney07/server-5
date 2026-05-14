@@ -1,25 +1,34 @@
-import { createClient } from "@/lib/supabase/server"
+import { createClient, createServiceClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/auth"
 import { CampaignCards } from "@/components/campaigns/campaign-cards"
+import { CampaignTemplatesGallery } from "@/components/campaigns/campaign-templates-gallery"
 import { CreateCampaignDialog } from "@/components/campaigns/create-campaign-dialog"
-import { Megaphone, Users, Send, TrendingUp, Plus, BarChart2 } from "lucide-react"
+import { Megaphone, Users, Send, TrendingUp } from "lucide-react"
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default async function CampaignsPage() {
   try {
     const agent = await requireAuth()
     const supabase = await createClient()
+    const serviceClient = createServiceClient()
 
-    const { data: campaigns } = await supabase
-      .from("campaigns")
-      .select("*")
-      .order("created_at", { ascending: false })
+    // Fetch campaigns + templates in parallel
+    const [campaignsRes, templatesRes] = await Promise.all([
+      supabase.from("campaigns").select("*").order("created_at", { ascending: false }),
+      serviceClient
+        .from("campaign_templates")
+        .select("*, campaign_template_steps(*)")
+        .eq("is_active", true)
+        .order("category")
+        .order("name"),
+    ])
 
+    const campaigns = campaignsRes.data || []
     const filteredCampaigns =
       agent.Role === "broker"
-        ? campaigns || []
-        : (campaigns || []).filter((c) => c.owner_id === agent.id)
+        ? campaigns
+        : campaigns.filter((c) => c.owner_id === agent.id)
 
     const enriched = await Promise.all(
       filteredCampaigns.map(async (campaign) => {
@@ -68,6 +77,15 @@ export default async function CampaignsPage() {
       }),
     )
 
+    // Sort template steps
+    const templates = (templatesRes.data || []).map((t) => ({
+      ...t,
+      campaign_template_steps: (t.campaign_template_steps || []).sort(
+        (a: { step_number: number }, b: { step_number: number }) => a.step_number - b.step_number,
+      ),
+    }))
+
+    // Aggregate stats
     const totalEnrolled = enriched.reduce((s, c) => s + c.enrollmentsCount, 0)
     const totalSentAll = enriched.reduce((s, c) => s + c.totalSent, 0)
     const totalRepliesAll = enriched.reduce((s, c) => s + c.totalReplies, 0)
@@ -111,7 +129,12 @@ export default async function CampaignsPage() {
         icon: TrendingUp,
         color: "text-amber-400",
         bg: "bg-amber-500/10 border-amber-500/20",
-        valueColor: overallReplyRate !== null ? (overallReplyRate > 5 ? "text-emerald-400" : "text-amber-400") : "text-muted-foreground",
+        valueColor:
+          overallReplyRate !== null
+            ? overallReplyRate > 5
+              ? "text-emerald-400"
+              : "text-amber-400"
+            : "text-muted-foreground",
       },
     ]
 
@@ -128,7 +151,7 @@ export default async function CampaignsPage() {
           <CreateCampaignDialog />
         </div>
 
-        {/* Stats bar */}
+        {/* Stats bar — only shown if campaigns exist */}
         {enriched.length > 0 && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {stats.map((stat) => (
@@ -136,7 +159,7 @@ export default async function CampaignsPage() {
                 key={stat.label}
                 className={`rounded-xl border p-4 flex items-start gap-3 ${stat.bg}`}
               >
-                <div className={`rounded-lg p-2 bg-white/[0.04] shrink-0`}>
+                <div className="rounded-lg p-2 bg-white/[0.04] shrink-0">
                   <stat.icon className={`h-4 w-4 ${stat.color}`} />
                 </div>
                 <div className="min-w-0">
@@ -149,31 +172,59 @@ export default async function CampaignsPage() {
           </div>
         )}
 
-        {/* Filter/sort bar */}
-        {enriched.length > 0 && (
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm text-muted-foreground">
-              {enriched.length} campaign{enriched.length !== 1 ? "s" : ""}
-              {activeCampaigns > 0 && ` · ${activeCampaigns} active`}
-            </p>
-          </div>
-        )}
+        {/* Tabs: My Campaigns + Templates */}
+        <Tabs defaultValue="campaigns">
+          <TabsList>
+            <TabsTrigger value="campaigns">
+              My Campaigns
+              {enriched.length > 0 && (
+                <span className="ml-2 text-[11px] text-muted-foreground tabular-nums">
+                  {enriched.length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="templates">
+              Templates
+              {templates.length > 0 && (
+                <span className="ml-2 text-[11px] text-muted-foreground tabular-nums">
+                  {templates.length}
+                </span>
+              )}
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Campaign list */}
-        {enriched.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-white/[0.08] p-20 text-center">
-            <div className="mx-auto w-14 h-14 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mb-4">
-              <Megaphone className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <h3 className="font-semibold mb-1">No campaigns yet</h3>
-            <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
-              Create your first drip campaign to automatically nurture leads with personalized emails and texts.
-            </p>
-            <CreateCampaignDialog />
-          </div>
-        ) : (
-          <CampaignCards campaigns={enriched} />
-        )}
+          {/* MY CAMPAIGNS */}
+          <TabsContent value="campaigns" className="mt-5">
+            {enriched.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-white/[0.08] p-16 text-center">
+                <div className="mx-auto w-14 h-14 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mb-4">
+                  <Megaphone className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <h3 className="font-semibold mb-1">No campaigns yet</h3>
+                <p className="text-sm text-muted-foreground mb-2 max-w-sm mx-auto">
+                  Start from scratch or pick a pre-built template from the Templates tab.
+                </p>
+                <p className="text-xs text-muted-foreground mb-6 max-w-xs mx-auto">
+                  Templates come with professionally written email and SMS sequences — ready to use in minutes.
+                </p>
+                <CreateCampaignDialog />
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {enriched.length} campaign{enriched.length !== 1 ? "s" : ""}
+                  {activeCampaigns > 0 && ` · ${activeCampaigns} active`}
+                </p>
+                <CampaignCards campaigns={enriched} />
+              </>
+            )}
+          </TabsContent>
+
+          {/* TEMPLATES */}
+          <TabsContent value="templates" className="mt-5">
+            <CampaignTemplatesGallery templates={templates} />
+          </TabsContent>
+        </Tabs>
       </div>
     )
   } catch (error) {
