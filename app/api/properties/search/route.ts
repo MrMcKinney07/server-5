@@ -56,12 +56,12 @@ export async function GET(request: Request) {
     if (lat && lon)                      { params.set("lat", lat); params.set("long", lon) }
     if (radius)                          params.set("radius", radius)
 
-    const url = `https://realtor-search.p.rapidapi.com/search/properties?${params.toString()}`
+    const url = `https://realtor-com-open.p.rapidapi.com/search/properties?${params.toString()}`
 
     const response = await fetch(url, {
       headers: {
         "Content-Type": "application/json",
-        "x-rapidapi-host": "realtor-search.p.rapidapi.com",
+        "x-rapidapi-host": "realtor-com-open.p.rapidapi.com",
         "x-rapidapi-key": apiKey,
       },
       next: { revalidate: 300 },
