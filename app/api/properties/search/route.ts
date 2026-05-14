@@ -18,6 +18,9 @@ export async function GET(request: Request) {
   const maxYear    = searchParams.get("maxYear")
   const garage     = searchParams.get("garage")
   const maxDom     = searchParams.get("maxDom") // days on market
+  const lat        = searchParams.get("lat")
+  const lon        = searchParams.get("lon")
+  const radius     = searchParams.get("radius") // miles
   const page       = parseInt(searchParams.get("page") || "1", 10)
   const pageSize   = parseInt(searchParams.get("pageSize") || "12", 10)
 
@@ -50,6 +53,8 @@ export async function GET(request: Request) {
     if (maxYear)                         params.set("year_built_max", maxYear)
     if (garage && garage !== "any")      params.set("has_garage", "true")
     if (maxDom)                          params.set("age_max", maxDom)
+    if (lat && lon)                      { params.set("lat", lat); params.set("long", lon) }
+    if (radius)                          params.set("radius", radius)
 
     const url = `https://realtor-search.p.rapidapi.com/search/properties?${params.toString()}`
 
@@ -122,6 +127,8 @@ export async function GET(request: Request) {
           undefined,
         rdc_web_url: (p.href as string) || (p.rdc_web_url as string) || undefined,
         list_date:   (p.list_date as string) || undefined,
+        lat: (addr.lat as number) || ((p.location as Record<string,unknown>)?.coordinate as Record<string,unknown>)?.lat as number || undefined,
+        lon: (addr.lon as number) || ((p.location as Record<string,unknown>)?.coordinate as Record<string,unknown>)?.lon as number || undefined,
       }
     })
 

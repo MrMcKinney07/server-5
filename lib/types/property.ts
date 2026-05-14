@@ -10,6 +10,8 @@ export interface RapidAPIProperty {
     lat?: number
     lon?: number
   }
+  lat?: number
+  lon?: number
   price?: number
   beds?: number
   baths?: number

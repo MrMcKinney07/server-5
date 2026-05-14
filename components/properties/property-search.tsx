@@ -1,16 +1,18 @@
 "use client"
 
 import type React from "react"
-import { useState, useCallback } from "react"
+import { useState, useCallback, lazy, Suspense } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Search, Bed, Bath, Square, Home, Plus, Check, ExternalLink, ChevronLeft, ChevronRight, SlidersHorizontal, ChevronDown, ChevronUp } from "lucide-react"
+import { Search, Bed, Bath, Square, Home, Plus, Check, ExternalLink, ChevronLeft, ChevronRight, SlidersHorizontal, ChevronDown, ChevronUp, Map, List } from "lucide-react"
 import type { RapidAPIProperty } from "@/lib/types/property"
 import { cn } from "@/lib/utils"
+
+const PropertyMap = lazy(() => import("./property-map").then((m) => ({ default: m.PropertyMap })))
 
 interface PropertySearchProps {
   /** If provided, renders an "Add to cart" button on each card */
@@ -168,6 +170,9 @@ export function PropertySearch({ onAddToCart, cartIds = [], compact = false }: P
   const [page, setPage] = useState(1)
 
   const [showMore, setShowMore] = useState(false)
+  const [viewMode, setViewMode] = useState<"list" | "map">("list")
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lon: number } | null>(null)
+  const [mapRadius, setMapRadius] = useState(5)
   const [results, setResults] = useState<RapidAPIProperty[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -177,12 +182,13 @@ export function PropertySearch({ onAddToCart, cartIds = [], compact = false }: P
   const pageSize = compact ? 6 : 12
   const totalPages = Math.ceil(total / pageSize)
 
-  const doSearch = useCallback(async (overridePage = 1) => {
-    if (!location.trim()) return
+  const doSearch = useCallback(async (overridePage = 1, overrideLat?: number, overrideLon?: number, overrideRadius?: number) => {
+    if (!location.trim() && overrideLat === undefined) return
     setLoading(true)
     setError(null)
     try {
-      const params = new URLSearchParams({ location: location.trim(), page: String(overridePage), pageSize: String(pageSize) })
+      const params = new URLSearchParams({ page: String(overridePage), pageSize: String(pageSize) })
+      if (location.trim()) params.set("location", location.trim())
       if (minPrice)                       params.set("minPrice", minPrice)
       if (maxPrice)                       params.set("maxPrice", maxPrice)
       if (minBeds && minBeds !== "any")   params.set("minBeds", minBeds)
@@ -196,6 +202,15 @@ export function PropertySearch({ onAddToCart, cartIds = [], compact = false }: P
       if (maxYear)                        params.set("maxYear", maxYear)
       if (garage && garage !== "any")     params.set("garage", garage)
       if (maxDom)                         params.set("maxDom", maxDom)
+      // Radius / map search
+      const useLat = overrideLat ?? mapCenter?.lat
+      const useLon = overrideLon ?? mapCenter?.lon
+      const useRadius = overrideRadius ?? mapRadius
+      if (useLat !== undefined && useLon !== undefined) {
+        params.set("lat", String(useLat))
+        params.set("lon", String(useLon))
+        params.set("radius", String(useRadius))
+      }
 
       const res = await fetch(`/api/properties/search?${params.toString()}`)
       const data = await res.json()
@@ -209,7 +224,7 @@ export function PropertySearch({ onAddToCart, cartIds = [], compact = false }: P
     } finally {
       setLoading(false)
     }
-  }, [location, minPrice, maxPrice, minBeds, minBaths, propType, status, sortBy, minSqft, maxSqft, minYear, maxYear, garage, maxDom, pageSize])
+  }, [location, minPrice, maxPrice, minBeds, minBaths, propType, status, sortBy, minSqft, maxSqft, minYear, maxYear, garage, maxDom, pageSize, mapCenter, mapRadius])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -219,6 +234,13 @@ export function PropertySearch({ onAddToCart, cartIds = [], compact = false }: P
   const handlePage = (newPage: number) => {
     doSearch(newPage)
     window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
+  const handleRadiusSearch = (lat: number, lon: number, radiusMi: number) => {
+    setMapCenter({ lat, lon })
+    setMapRadius(radiusMi)
+    doSearch(1, lat, lon, radiusMi)
+    setSearched(true)
   }
 
   return (
@@ -461,55 +483,76 @@ export function PropertySearch({ onAddToCart, cartIds = [], compact = false }: P
         </div>
       )}
 
-      {!loading && results.length > 0 && (
+      {!loading && (results.length > 0 || searched) && (
         <>
-          <div className="flex items-center justify-between">
+          {/* Results header + view toggle */}
+          <div className="flex items-center justify-between gap-2">
             <p className="text-sm text-muted-foreground">
-              {total.toLocaleString()} listing{total !== 1 ? "s" : ""} found
+              {results.length > 0
+                ? `${total.toLocaleString()} listing${total !== 1 ? "s" : ""} found`
+                : "No listings found"}
             </p>
-            {totalPages > 1 && (
-              <p className="text-sm text-muted-foreground">
-                Page {page} of {totalPages}
-              </p>
+            {!compact && (
+              <div className="flex items-center rounded-md border overflow-hidden">
+                <button
+                  className={cn("flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors", viewMode === "list" ? "bg-primary text-primary-foreground" : "hover:bg-muted")}
+                  onClick={() => setViewMode("list")}
+                >
+                  <List className="h-3.5 w-3.5" /> List
+                </button>
+                <button
+                  className={cn("flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors", viewMode === "map" ? "bg-primary text-primary-foreground" : "hover:bg-muted")}
+                  onClick={() => setViewMode("map")}
+                >
+                  <Map className="h-3.5 w-3.5" /> Map
+                </button>
+              </div>
             )}
           </div>
 
-          <div className={cn("grid gap-4", compact ? "grid-cols-2" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
-            {results.map((p) => (
-              <PropertyCard
-                key={p.property_id}
-                property={p}
-                onAdd={onAddToCart}
-                inCart={cartIds.includes(p.property_id)}
-                compact={compact}
+          {/* Map view */}
+          {viewMode === "map" && !compact && (
+            <Suspense fallback={<div className="h-[500px] rounded-lg border bg-muted animate-pulse" />}>
+              <PropertyMap
+                results={results}
+                center={mapCenter ?? undefined}
+                radius={mapRadius}
+                onRadiusSearch={handleRadiusSearch}
+                onAddToCart={onAddToCart}
+                cartIds={cartIds}
               />
-            ))}
-          </div>
+            </Suspense>
+          )}
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => handlePage(page - 1)}
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                Previous
-              </Button>
-              <span className="text-sm text-muted-foreground px-2">
-                {page} / {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => handlePage(page + 1)}
-              >
-                Next
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            </div>
+          {/* List view */}
+          {(viewMode === "list" || compact) && results.length > 0 && (
+            <>
+              <div className={cn("grid gap-4", compact ? "grid-cols-2" : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4")}>
+                {results.map((p) => (
+                  <PropertyCard
+                    key={p.property_id}
+                    property={p}
+                    onAdd={onAddToCart}
+                    inCart={cartIds.includes(p.property_id)}
+                    compact={compact}
+                  />
+                ))}
+              </div>
+
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 pt-2">
+                  <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => handlePage(page - 1)}>
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground px-2">{page} / {totalPages}</span>
+                  <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => handlePage(page + 1)}>
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </>
       )}
