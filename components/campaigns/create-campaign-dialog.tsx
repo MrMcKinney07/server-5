@@ -34,7 +34,7 @@ export function CreateCampaignDialog() {
   const [quietHoursEnd, setQuietHoursEnd] = useState("19:00")
   // Advanced settings
   const [stopOnReply, setStopOnReply] = useState(true)
-  const [throttlePerMinute, setThrottlePerMinute] = useState(30)
+  const [throttlePerMinute, setThrottlePerMinute] = useState(10)
   const [dedupeWindowDays, setDedupeWindowDays] = useState(365)
   const [error, setError] = useState<string | null>(null)
 
@@ -339,10 +339,9 @@ export function CreateCampaignDialog() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="10">10 messages/minute (Safe)</SelectItem>
-                    <SelectItem value="30">30 messages/minute (Normal)</SelectItem>
-                    <SelectItem value="60">60 messages/minute (Fast)</SelectItem>
-                    <SelectItem value="120">120 messages/minute (Max)</SelectItem>
+                    <SelectItem value="5">5 messages/minute (Safest)</SelectItem>
+                    <SelectItem value="10">10 messages/minute (Recommended)</SelectItem>
+                    <SelectItem value="20">20 messages/minute (Max)</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">How fast to send messages (helps avoid spam filters)</p>
