@@ -55,12 +55,12 @@ export default function MoneyMathPage() {
     })
   }
 
-  const handleCombinedExport = () => {
+  const handleCombinedExport = async () => {
     const sections = availableExports
       .filter((e) => selectedForExport.has(e.id))
       .map((e) => ({ title: e.label, rows: e.rows }))
     if (sections.length === 0) return
-    generateCombinedPDF(sections)
+    await generateCombinedPDF(sections)
   }
 
   return (

@@ -63,9 +63,9 @@ export function NetSheetCalculator({ onResultChange }: Props) {
     onResultChange?.(res)
   }, [salePrice, mortgagePayoff, commissionRate, closingCosts, prorations, otherFees, onResultChange])
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!result) return
-    generatePDF("netsheet", getNetSheetRows(result), "Seller Net Sheet")
+    await generatePDF("netsheet", getNetSheetRows(result), "Seller Net Sheet")
   }
 
   return (

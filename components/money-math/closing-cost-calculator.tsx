@@ -226,9 +226,9 @@ export function ClosingCostCalculator({ onResultChange }: Props) {
     onResultChange?.(res)
   }, [purchasePrice, downPct, county, isFHA, includeCommission, commissionPct, includeHOA, currentRate, onResultChange])
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!result) return
-    generatePDF("closing", getClosingCostRows(result), `Florida Closing Cost Estimate · ${result.county} County`)
+    await generatePDF("closing", getClosingCostRows(result), `Florida Closing Cost Estimate · ${result.county} County`)
   }
 
   const buyerItems = result?.breakdown.filter((b) => b.party === "buyer") ?? []

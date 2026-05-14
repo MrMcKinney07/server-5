@@ -39,17 +39,16 @@ export function InterestRatesViewer({ onRatesLoaded }: Props) {
     fetchRates()
   }, [fetchRates])
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!data) return
-    generatePDF(
+    await generatePDF(
       "rates",
       data.rates.map((r) => ({
         label: r.label,
         value: `${r.rateStr} (${r.changeStr})`,
         subtext: r.low52 && r.high52 ? `52-wk: ${r.low52.toFixed(2)}%–${r.high52.toFixed(2)}%` : undefined,
       })),
-      "Current Mortgage & Interest Rates",
-      `Source: Mortgage News Daily · As of ${data.asOf}`
+      `Current Mortgage Rates · As of ${data.asOf}`
     )
   }
 

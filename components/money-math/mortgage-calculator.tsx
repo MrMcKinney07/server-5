@@ -87,9 +87,9 @@ export function MortgageCalculator({ onResultChange, liveRates }: Props) {
     onResultChange?.(res)
   }, [homePrice, downPayment, interestRate, termYears, onResultChange])
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!result) return
-    generatePDF("mortgage", getMortgageRows(result), "Mortgage Payment Calculator")
+    await generatePDF("mortgage", getMortgageRows(result), "Mortgage Payment Calculator")
   }
 
   return (

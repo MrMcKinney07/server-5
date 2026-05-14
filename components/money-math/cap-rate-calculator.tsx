@@ -83,9 +83,9 @@ export function CapRateCalculator({ onResultChange }: Props) {
     onResultChange?.(res)
   }, [monthlyRent, vacancyRate, propertyTax, insurance, maintenance, management, otherExpenses, purchasePrice, downPct, mortgageRate, onResultChange])
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!result) return
-    generatePDF("caprate", getCapRateRows(result), "Cap Rate & Investment Analysis")
+    await generatePDF("caprate", getCapRateRows(result), "Cap Rate & Investment Analysis")
   }
 
   return (
