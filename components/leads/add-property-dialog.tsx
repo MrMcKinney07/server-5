@@ -15,7 +15,7 @@ import {
 import { Home, Plus } from "lucide-react"
 import { toast } from "sonner"
 import { PropertySearch } from "@/components/properties/property-search"
-import type { RapidAPIProperty } from "@/app/api/properties/search/route"
+import type { RapidAPIProperty } from "@/lib/types/property"
 
 interface AddPropertyDialogProps {
   leadId: string

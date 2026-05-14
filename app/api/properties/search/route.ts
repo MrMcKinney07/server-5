@@ -1,141 +1,124 @@
 import { NextResponse } from "next/server"
-
-export interface RapidAPIProperty {
-  property_id: string
-  listing_id?: string
-  mls_id?: string
-  address: {
-    line?: string
-    city?: string
-    state_code?: string
-    postal_code?: string
-    county?: string
-    lat?: number
-    lon?: number
-  }
-  price?: number
-  beds?: number
-  baths?: number
-  baths_full?: number
-  baths_half?: number
-  sqft?: number
-  lot_sqft?: number
-  year_built?: number
-  prop_type?: string
-  prop_status?: string
-  thumbnail?: string
-  photos?: { href: string }[]
-  description?: string
-  list_date?: string
-  last_update?: string
-  rdc_web_url?: string
-  garage?: number
-  pool?: boolean
-  spa?: boolean
-  hoa_fee?: number
-}
-
-export interface PropertySearchParams {
-  city?: string
-  state?: string
-  zip?: string
-  location?: string
-  minPrice?: number
-  maxPrice?: number
-  minBeds?: number
-  maxBeds?: number
-  minBaths?: number
-  maxBaths?: number
-  minSqft?: number
-  maxSqft?: number
-  propType?: string
-  page?: number
-  pageSize?: number
-}
+import type { RapidAPIProperty } from "@/lib/types/property"
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
 
   const location = searchParams.get("location") || ""
-  const city = searchParams.get("city") || ""
-  const state = searchParams.get("state") || ""
-  const zip = searchParams.get("zip") || ""
   const minPrice = searchParams.get("minPrice")
   const maxPrice = searchParams.get("maxPrice")
   const minBeds = searchParams.get("minBeds")
-  const maxBeds = searchParams.get("maxBeds")
   const minBaths = searchParams.get("minBaths")
-  const propType = searchParams.get("propType") || "single_family"
+  const propType = searchParams.get("propType") || ""
   const page = parseInt(searchParams.get("page") || "1", 10)
-  const pageSize = parseInt(searchParams.get("pageSize") || "20", 10)
+  const pageSize = parseInt(searchParams.get("pageSize") || "12", 10)
 
   const apiKey = process.env.RAPIDAPI_REALTOR_KEY
   if (!apiKey) {
     return NextResponse.json({ error: "API key not configured" }, { status: 500 })
   }
 
-  // Build the search location string
-  const searchLocation = zip || location || (city && state ? `${city}, ${state}` : city || state)
-  if (!searchLocation) {
-    return NextResponse.json({ properties: [], total: 0 }, { status: 200 })
+  if (!location.trim()) {
+    return NextResponse.json({ properties: [], total: 0 })
   }
 
   try {
     const params = new URLSearchParams({
-      location: searchLocation,
+      location,
       status: "for_sale",
-      sortBy: "newest",
-      property_type: propType,
-      offset: String((page - 1) * pageSize),
       limit: String(pageSize),
+      offset: String((page - 1) * pageSize),
     })
 
     if (minPrice) params.set("price_min", minPrice)
     if (maxPrice) params.set("price_max", maxPrice)
     if (minBeds) params.set("beds_min", minBeds)
-    if (maxBeds) params.set("beds_max", maxBeds)
     if (minBaths) params.set("baths_min", minBaths)
+    if (propType && propType !== "any") params.set("property_type", propType)
 
-    const response = await fetch(
-      `https://realtor-search.p.rapidapi.com/properties/list?${params.toString()}`,
-      {
-        headers: {
-          "Content-Type": "application/json",
-          "x-rapidapi-host": "realtor-search.p.rapidapi.com",
-          "x-rapidapi-key": apiKey,
-        },
-        next: { revalidate: 300 }, // cache 5 mins
+    // The correct endpoint path for this API (ntd119/realtor-search)
+    const url = `https://realtor-search.p.rapidapi.com/properties/for-sale?${params.toString()}`
+
+    console.log("[v0] Fetching:", url)
+
+    const response = await fetch(url, {
+      headers: {
+        "Content-Type": "application/json",
+        "x-rapidapi-host": "realtor-search.p.rapidapi.com",
+        "x-rapidapi-key": apiKey,
       },
-    )
+      next: { revalidate: 300 },
+    })
+
+    const rawText = await response.text()
+    console.log("[v0] RapidAPI status:", response.status, "body:", rawText.slice(0, 400))
 
     if (!response.ok) {
-      const errText = await response.text()
-      console.error("[properties/search] RapidAPI error:", response.status, errText)
-      return NextResponse.json({ error: "Failed to fetch listings" }, { status: 502 })
+      console.log("[v0] RapidAPI full error body:", rawText)
+      return NextResponse.json(
+        { error: `RapidAPI error ${response.status}: ${rawText.slice(0, 300)}` },
+        { status: 502 },
+      )
     }
 
-    const data = await response.json()
+    const data = JSON.parse(rawText)
 
-    // Normalise the response — RapidAPI returns { data: { home_search: { results, total } } }
-    const results: RapidAPIProperty[] =
+    // Handle multiple known response shapes from this API
+    const raw: Record<string, unknown>[] =
       data?.data?.home_search?.results ||
-      data?.results ||
       data?.data?.results ||
+      data?.results ||
+      data?.properties ||
+      (Array.isArray(data?.data) ? data.data : null) ||
       []
 
     const total: number =
       data?.data?.home_search?.total ||
       data?.total ||
-      results.length
+      data?.data?.total ||
+      raw.length
 
-    return NextResponse.json({
-      properties: results,
-      total,
-      page,
-      pageSize,
+    const properties: RapidAPIProperty[] = raw.map((p) => {
+      // Support both flat and nested address/location shapes
+      const addrRaw =
+        (p.location as Record<string, unknown>)?.address ||
+        (p.address as Record<string, unknown>) ||
+        {}
+      const addr = addrRaw as Record<string, unknown>
+
+      const desc = (p.description as Record<string, unknown>) || {}
+
+      return {
+        property_id: (p.property_id as string) || (p.listing_id as string) || String(Math.random()),
+        listing_id: (p.listing_id as string) || (p.property_id as string),
+        mls_id: (p.mls_id as string) || undefined,
+        address: {
+          line: (addr.line as string) || (addr.street as string) || "",
+          city: (addr.city as string) || "",
+          state_code: (addr.state_code as string) || (addr.state as string) || "",
+          postal_code: (addr.postal_code as string) || (addr.zip as string) || "",
+        },
+        price: (p.list_price as number) || (p.price as number) || 0,
+        beds: (desc.beds as number) || (p.beds as number) || 0,
+        baths: (desc.baths_consolidated as number) || (desc.baths as number) || (p.baths as number) || 0,
+        baths_full: (desc.baths_full as number) || (p.baths_full as number) || undefined,
+        sqft: (desc.sqft as number) || (p.sqft as number) || undefined,
+        year_built: (desc.year_built as number) || (p.year_built as number) || undefined,
+        prop_type: (desc.type as string) || (p.prop_type as string) || "",
+        prop_status: (p.status as string) || (p.prop_status as string) || "for_sale",
+        thumbnail:
+          ((p.primary_photo as Record<string, unknown>)?.href as string) ||
+          (p.thumbnail as string) ||
+          ((p.photos as Record<string, unknown>[])?.[0]?.href as string) ||
+          undefined,
+        rdc_web_url: (p.href as string) || (p.rdc_web_url as string) || undefined,
+        list_date: (p.list_date as string) || undefined,
+      }
     })
+
+    return NextResponse.json({ properties, total, page, pageSize })
   } catch (err) {
-    console.error("[properties/search] Unexpected error:", err)
+    console.error("[v0] Property search error:", err)
     return NextResponse.json({ error: "Search failed" }, { status: 500 })
   }
 }

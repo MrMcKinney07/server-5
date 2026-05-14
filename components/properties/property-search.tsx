@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Search, Bed, Bath, Square, Home, Plus, Check, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react"
-import type { RapidAPIProperty } from "@/app/api/properties/search/route"
+import type { RapidAPIProperty } from "@/lib/types/property"
 import { cn } from "@/lib/utils"
 
 interface PropertySearchProps {
@@ -182,7 +182,7 @@ export function PropertySearch({ onAddToCart, cartIds = [], compact = false }: P
 
       const res = await fetch(`/api/properties/search?${params.toString()}`)
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Search failed")
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
       setResults(data.properties || [])
       setTotal(data.total || 0)
       setPage(overridePage)
