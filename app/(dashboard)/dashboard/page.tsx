@@ -382,13 +382,7 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* ROW 1: Follow Up Tasks (left) + Calendar (right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        <LeadActionsWidget agentId={agent.id} />
-        <DashboardCalendar events={calendarEvents} agentId={agent.id} />
-      </div>
-
-      {/* ROW 2: Today's Missions */}
+      {/* ROW 1: Today's Missions */}
       <Link href="/dashboard/missions" className="block">
         <Card className="hover:shadow-md transition-shadow cursor-pointer">
           <CardHeader className="pb-3">
@@ -449,6 +443,12 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </Link>
+
+      {/* ROW 2: Follow Up Tasks (left) + Calendar (right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        <LeadActionsWidget agentId={agent.id} />
+        <DashboardCalendar events={calendarEvents} agentId={agent.id} />
+      </div>
 
       {/* ROW 3: Both leaderboards side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
