@@ -28,27 +28,43 @@ export interface MortgageResult {
   amortization: { month: number; principal: number; interest: number; balance: number }[]
 }
 
-interface Props {
-  onResultChange?: (result: MortgageResult | null) => void
-  liveRates?: Array<{ label: string; rate: number }>
+export interface MortgageSharedContext {
+  homePrice: string
+  downPayment: string
+  interestRate: string
+  termYears: string
 }
 
-export function MortgageCalculator({ onResultChange, liveRates }: Props) {
-  const [homePrice, setHomePrice] = useState("400000")
-  const [downPayment, setDownPayment] = useState("20")
-  const [interestRate, setInterestRate] = useState("7.25")
-  const [termYears, setTermYears] = useState("30")
+interface Props {
+  onResultChange?: (result: MortgageResult | null) => void
+  onContextChange?: (ctx: MortgageSharedContext) => void
+  liveRates?: Array<{ label: string; rate: number }>
+  initialHomePrice?: string
+  initialDownPayment?: string
+  initialInterestRate?: string
+  initialTermYears?: string
+}
+
+export function MortgageCalculator({ onResultChange, onContextChange, liveRates, initialHomePrice, initialDownPayment, initialInterestRate, initialTermYears }: Props) {
+  const [homePrice, setHomePrice] = useState(initialHomePrice ?? "400000")
+  const [downPayment, setDownPayment] = useState(initialDownPayment ?? "20")
+  const [interestRate, setInterestRate] = useState(initialInterestRate ?? "7.25")
+  const [termYears, setTermYears] = useState(initialTermYears ?? "30")
   const [result, setResult] = useState<MortgageResult | null>(null)
   const [liveRateLabel, setLiveRateLabel] = useState<string | null>(null)
 
   const applyLiveRate = (label: string, rate: number) => {
-    setInterestRate(rate.toFixed(2))
+    const rateStr = rate.toFixed(2)
+    setInterestRate(rateStr)
     setLiveRateLabel(label)
     setResult(null)
     onResultChange?.(null)
+    onContextChange?.({ homePrice, downPayment, interestRate: rateStr, termYears })
   }
 
   const calculate = useCallback(() => {
+    onContextChange?.({ homePrice, downPayment, interestRate, termYears })
+
     const price = parseCurrency(homePrice)
     const dpPct = parseFloat(downPayment) || 0
     const rate = parseFloat(interestRate) / 100 / 12

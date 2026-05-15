@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { MortgageCalculator, getMortgageRows, type MortgageResult } from "@/components/money-math/mortgage-calculator"
+import { MortgageCalculator, getMortgageRows, type MortgageResult, type MortgageSharedContext } from "@/components/money-math/mortgage-calculator"
 import { InterestRatesViewer, type LiveRate } from "@/components/money-math/interest-rates-viewer"
 import { NetSheetCalculator, getNetSheetRows, type NetSheetResult } from "@/components/money-math/net-sheet-calculator"
 import { CapRateCalculator, getCapRateRows, type CapRateResult } from "@/components/money-math/cap-rate-calculator"
@@ -29,9 +29,26 @@ export default function MoneyMathPage() {
   useEffect(() => {
     fetch("/api/money-math/rates")
       .then((r) => r.json())
-      .then((d) => { if (d?.rates) setLiveRates(d.rates) })
+      .then((d) => {
+        if (d?.rates?.length) {
+          setLiveRates(d.rates)
+          // Seed shared context with the 30-yr fixed rate if available
+          const thirtyYr = d.rates.find((r: { label: string }) => r.label.toLowerCase().includes("30"))
+          if (thirtyYr) {
+            setSharedCtx((prev) => ({ ...prev, interestRate: thirtyYr.rate.toFixed(2) }))
+          }
+        }
+      })
       .catch(() => {})
   }, [])
+  // Shared context: values set on one tab flow into the relevant fields of other tabs
+  const [sharedCtx, setSharedCtx] = useState<MortgageSharedContext>({
+    homePrice: "400000",
+    downPayment: "20",
+    interestRate: "7.25",
+    termYears: "30",
+  })
+
   const [mortgageResult, setMortgageResult] = useState<MortgageResult | null>(null)
   const [netSheetResult, setNetSheetResult] = useState<NetSheetResult | null>(null)
   const [capRateResult, setCapRateResult] = useState<CapRateResult | null>(null)
@@ -97,13 +114,38 @@ export default function MoneyMathPage() {
           {activeTab === "mortgage" && (
             <MortgageCalculator
               onResultChange={setMortgageResult}
+              onContextChange={setSharedCtx}
               liveRates={liveRates.map((r) => ({ label: r.label, rate: r.rate }))}
+              initialHomePrice={sharedCtx.homePrice}
+              initialDownPayment={sharedCtx.downPayment}
+              initialInterestRate={sharedCtx.interestRate}
+              initialTermYears={sharedCtx.termYears}
             />
           )}
           {activeTab === "rates" && <InterestRatesViewer onRatesLoaded={setLiveRates} />}
-          {activeTab === "netsheet" && <NetSheetCalculator onResultChange={setNetSheetResult} />}
-          {activeTab === "caprate" && <CapRateCalculator onResultChange={setCapRateResult} />}
-          {activeTab === "closing" && <ClosingCostCalculator onResultChange={setClosingResult} />}
+          {activeTab === "netsheet" && (
+            <NetSheetCalculator
+              onResultChange={setNetSheetResult}
+              initialSalePrice={sharedCtx.homePrice}
+            />
+          )}
+          {activeTab === "caprate" && (
+            <CapRateCalculator
+              onResultChange={setCapRateResult}
+              initialPurchasePrice={sharedCtx.homePrice}
+              initialDownPct={sharedCtx.downPayment}
+              initialMortgageRate={sharedCtx.interestRate}
+              initialLoanTerm={sharedCtx.termYears}
+            />
+          )}
+          {activeTab === "closing" && (
+            <ClosingCostCalculator
+              onResultChange={setClosingResult}
+              initialPurchasePrice={sharedCtx.homePrice}
+              initialDownPct={sharedCtx.downPayment}
+              initialInterestRate={sharedCtx.interestRate}
+            />
+          )}
         </div>
 
         {/* Combined Export Panel */}

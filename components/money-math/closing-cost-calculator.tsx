@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -105,18 +105,26 @@ export interface ClosingCostResult {
 
 interface Props {
   onResultChange?: (result: ClosingCostResult | null) => void
+  initialPurchasePrice?: string
+  initialDownPct?: string
+  initialInterestRate?: string
 }
 
-export function ClosingCostCalculator({ onResultChange }: Props) {
-  const [purchasePrice, setPurchasePrice] = useState("450000")
-  const [downPct, setDownPct] = useState("20")
+export function ClosingCostCalculator({ onResultChange, initialPurchasePrice, initialDownPct, initialInterestRate }: Props) {
+  const [purchasePrice, setPurchasePrice] = useState(initialPurchasePrice ?? "450000")
+  const [downPct, setDownPct] = useState(initialDownPct ?? "20")
   const [county, setCounty] = useState("Orange")
   const [isFHA, setIsFHA] = useState(false)
   const [includeCommission, setIncludeCommission] = useState(true)
   const [commissionPct, setCommissionPct] = useState("5.5")
   const [includeHOA, setIncludeHOA] = useState(false)
-  const [currentRate, setCurrentRate] = useState("7.00")
+  const [currentRate, setCurrentRate] = useState(initialInterestRate ?? "7.00")
   const [result, setResult] = useState<ClosingCostResult | null>(null)
+
+  // Keep fields in sync when parent provides updated shared context
+  useEffect(() => { if (initialPurchasePrice) setPurchasePrice(initialPurchasePrice) }, [initialPurchasePrice])
+  useEffect(() => { if (initialDownPct) setDownPct(initialDownPct) }, [initialDownPct])
+  useEffect(() => { if (initialInterestRate) setCurrentRate(initialInterestRate) }, [initialInterestRate])
 
   const calculate = useCallback(() => {
     const price = parse(purchasePrice)

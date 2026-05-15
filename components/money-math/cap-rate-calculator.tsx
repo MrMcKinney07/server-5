@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -36,9 +36,13 @@ export interface CashOnCashResult {
 
 interface Props {
   onResultChange?: (result: CapRateResult | null) => void
+  initialPurchasePrice?: string
+  initialDownPct?: string
+  initialMortgageRate?: string
+  initialLoanTerm?: string
 }
 
-export function CapRateCalculator({ onResultChange }: Props) {
+export function CapRateCalculator({ onResultChange, initialPurchasePrice, initialDownPct, initialMortgageRate, initialLoanTerm }: Props) {
   // --- Cap Rate inputs ---
   const [monthlyRent, setMonthlyRent] = useState("3500")
   const [vacancyRate, setVacancyRate] = useState("5")
@@ -48,13 +52,19 @@ export function CapRateCalculator({ onResultChange }: Props) {
   const [maintenance, setMaintenance] = useState("2400")
   const [management, setManagement] = useState("3")
   const [otherExpenses, setOtherExpenses] = useState("600")
-  const [purchasePrice, setPurchasePrice] = useState("400000")
+  const [purchasePrice, setPurchasePrice] = useState(initialPurchasePrice ?? "400000")
   const [capResult, setCapResult] = useState<CapRateResult | null>(null)
 
   // --- Cash-on-Cash inputs ---
-  const [downPct, setDownPct] = useState("20")
-  const [mortgageRate, setMortgageRate] = useState("7.0")
-  const [loanTerm, setLoanTerm] = useState("30")
+  const [downPct, setDownPct] = useState(initialDownPct ?? "20")
+  const [mortgageRate, setMortgageRate] = useState(initialMortgageRate ?? "7.0")
+  const [loanTerm, setLoanTerm] = useState(initialLoanTerm ?? "30")
+
+  // Sync when parent provides updated shared context
+  useEffect(() => { if (initialPurchasePrice) setPurchasePrice(initialPurchasePrice) }, [initialPurchasePrice])
+  useEffect(() => { if (initialDownPct) setDownPct(initialDownPct) }, [initialDownPct])
+  useEffect(() => { if (initialMortgageRate) setMortgageRate(initialMortgageRate) }, [initialMortgageRate])
+  useEffect(() => { if (initialLoanTerm) setLoanTerm(initialLoanTerm) }, [initialLoanTerm])
   const [closingCosts, setClosingCosts] = useState("8000")
   const [cocResult, setCocResult] = useState<CashOnCashResult | null>(null)
 

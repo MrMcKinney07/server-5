@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -28,10 +28,13 @@ export interface NetSheetResult {
 
 interface Props {
   onResultChange?: (result: NetSheetResult | null) => void
+  initialSalePrice?: string
 }
 
-export function NetSheetCalculator({ onResultChange }: Props) {
-  const [salePrice, setSalePrice] = useState("450000")
+export function NetSheetCalculator({ onResultChange, initialSalePrice }: Props) {
+  const [salePrice, setSalePrice] = useState(initialSalePrice ?? "450000")
+
+  useEffect(() => { if (initialSalePrice) setSalePrice(initialSalePrice) }, [initialSalePrice])
   const [mortgagePayoff, setMortgagePayoff] = useState("280000")
   const [commissionRate, setCommissionRate] = useState("6")
   const [closingCosts, setClosingCosts] = useState("2500")
