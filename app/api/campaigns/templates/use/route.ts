@@ -39,9 +39,17 @@ export async function POST(request: Request) {
 
     const campaignName = name || template.name
 
-    // Get the authenticated user id
+    // Get the authenticated user id and full agent name
     const { data: sessionData } = await authClient.auth.getSession()
     const userId = sessionData?.session?.user?.id || agent.id
+
+    const { data: agentRow } = await supabase
+      .from("agents")
+      .select("Name")
+      .eq("id", userId)
+      .single()
+    const agentName = agentRow?.Name || agent.full_name || "Your Agent"
+    const agentIntro = `This is ${agentName} with McKinney Realty Co.`
 
     // Create campaign
     const { data: campaign, error: cErr } = await supabase
@@ -80,14 +88,26 @@ export async function POST(request: Request) {
         subject: string | null
         body: string
         delay_hours: number
-      }) => ({
-        campaign_id: campaign.id,
-        step_number: s.step_number,
-        type: s.type?.toLowerCase(),
-        subject: s.subject,
-        body: s.body,
-        delay_hours: s.delay_hours,
-      }))
+      }) => {
+        // Replace {{agent_name}} placeholder with real name
+        let body = (s.body || "").replace(/\{\{agent_name\}\}/gi, agentName)
+        let subject = (s.subject || "").replace(/\{\{agent_name\}\}/gi, agentName)
+
+        // Prepend intro line if not already present
+        const introPattern = /this is .+ with mckinney realty/i
+        if (!introPattern.test(body)) {
+          body = `${agentIntro}\n\n${body}`
+        }
+
+        return {
+          campaign_id: campaign.id,
+          step_number: s.step_number,
+          type: s.type?.toLowerCase(),
+          subject,
+          body,
+          delay_hours: s.delay_hours,
+        }
+      })
 
       const { error: stepsErr } = await supabase.from("campaign_steps").insert(stepInserts)
       if (stepsErr) {
