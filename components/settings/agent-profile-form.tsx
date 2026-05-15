@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Camera, CheckCircle2, AlertCircle } from "lucide-react"
+import { Camera, CheckCircle2, AlertCircle, Copy, Check, Link2 } from "lucide-react"
 
 interface AgentProfileFormProps {
   agent: Agent
@@ -26,6 +26,7 @@ export function AgentProfileForm({ agent }: AgentProfileFormProps) {
   const [appointmentLink, setAppointmentLink] = useState((agent as any).appointment_link || "")
   const [profilePicture, setProfilePicture]   = useState((agent as any).profile_picture_url || "")
   const [isLoading, setIsLoading]             = useState(false)
+  const [copied, setCopied]                   = useState(false)
   const [isUploadingPicture, setIsUploadingPicture] = useState(false)
   const [message, setMessage]                 = useState<{ type: "success" | "error"; text: string } | null>(null)
   const fileInputRef                          = useRef<HTMLInputElement>(null)
@@ -165,6 +166,42 @@ export function AgentProfileForm({ agent }: AgentProfileFormProps) {
           placeholder="https://calendly.com/yourname"
         />
         <p className="text-xs text-muted-foreground">This link will appear as a CTA in all your campaign messages.</p>
+      </div>
+
+      {/* Appointment Webhook URL */}
+      <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <Link2 className="h-4 w-4 text-muted-foreground shrink-0" />
+          <p className="text-sm font-medium">Appointment Webhook URL</p>
+        </div>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Paste this URL into your Calendly or Cal.com webhook settings. When a client books, you will receive a CRM notification and a congratulations email.
+        </p>
+        <div className="flex items-center gap-2">
+          <code className="flex-1 text-xs bg-background border border-border rounded px-3 py-2 font-mono truncate text-muted-foreground select-all">
+            {typeof window !== "undefined"
+              ? `${window.location.origin}/api/webhooks/appointment?agent_id=${agent.id}`
+              : `/api/webhooks/appointment?agent_id=${agent.id}`}
+          </code>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="shrink-0"
+            onClick={() => {
+              const url = `${window.location.origin}/api/webhooks/appointment?agent_id=${agent.id}`
+              navigator.clipboard.writeText(url)
+              setCopied(true)
+              setTimeout(() => setCopied(false), 2000)
+            }}
+          >
+            {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+            <span className="ml-1.5">{copied ? "Copied" : "Copy"}</span>
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          In Calendly: Integrations &rarr; Webhooks &rarr; Add Webhook &rarr; paste the URL above and select <strong>invitee.created</strong>.
+        </p>
       </div>
 
       {/* Bio */}
