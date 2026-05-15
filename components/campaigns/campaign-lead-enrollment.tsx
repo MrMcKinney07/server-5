@@ -68,7 +68,7 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
         email,
         phone,
         contact_id,
-        contact:contact_id(
+        contact:contacts!contact_id(
           id,
           first_name,
           last_name,
