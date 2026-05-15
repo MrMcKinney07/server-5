@@ -74,6 +74,7 @@ export async function GET(request: Request) {
   const pageSize = parseInt(searchParams.get("pageSize") || "12", 10)
 
   const apiKey = process.env.RAPIDAPI_REALESTATE_KEY
+  console.log("[v0] property search: apiKey present =", !!apiKey, "location =", location)
   if (!apiKey) return NextResponse.json({ error: "API key not configured" }, { status: 500 })
 
   if (!location.trim()) {
@@ -81,17 +82,12 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Choose endpoint based on status
     const endpoint =
       status === "for_rent" ? `${BASE}/forRent` :
       status === "sold"     ? `${BASE}/sold`    :
                               `${BASE}/forSale`
 
-    const params = new URLSearchParams({
-      location,
-      page:      String(page),
-      resultsPerPage: String(pageSize),
-    })
+    const params = new URLSearchParams({ location, page: String(page) })
 
     if (minPrice && minPrice !== "any")  params.set("minPrice",  minPrice)
     if (maxPrice && maxPrice !== "any")  params.set("maxPrice",  maxPrice)
@@ -104,18 +100,21 @@ export async function GET(request: Request) {
     if (maxYear)                         params.set("maxYearBuilt", maxYear)
 
     const url = `${endpoint}?${params.toString()}`
+    console.log("[v0] property search URL:", url)
 
     const response = await fetch(url, {
       method: "GET",
       headers: {
-        "Content-Type":   "application/json",
+        "Content-Type":    "application/json",
         "x-rapidapi-host": HOST,
         "x-rapidapi-key":  apiKey,
       },
-      next: { revalidate: 300 },
+      cache: "no-store",
     })
 
     const rawText = await response.text()
+    console.log("[v0] property search status:", response.status)
+    console.log("[v0] property search raw (first 600):", rawText.slice(0, 600))
 
     if (!response.ok) {
       return NextResponse.json(
@@ -125,7 +124,10 @@ export async function GET(request: Request) {
     }
 
     const data = JSON.parse(rawText) as Record<string, unknown>
+    console.log("[v0] property search top-level keys:", Object.keys(data))
+
     const { raw, total } = extractResults(data)
+    console.log("[v0] property search extracted count:", raw.length, "total:", total)
 
     const properties: RapidAPIProperty[] = raw.map((p) => normalize(p, status))
 
