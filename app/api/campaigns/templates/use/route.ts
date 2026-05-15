@@ -45,11 +45,29 @@ export async function POST(request: Request) {
 
     const { data: agentRow } = await supabase
       .from("agents")
-      .select("Name")
+      .select("Name, Email, Phone, appointment_link")
       .eq("id", userId)
       .single()
     const agentName = agentRow?.Name || agent.full_name || "Your Agent"
+    const agentEmail: string | null = agentRow?.Email || null
+    const agentPhone: string | null = agentRow?.Phone || null
+    const appointmentLink: string | null = agentRow?.appointment_link || null
     const agentIntro = `This is ${agentName} with McKinney Realty Co.`
+
+    // Build the CTA block appended to every step
+    const ctaLines: string[] = []
+    if (appointmentLink) {
+      ctaLines.push(`Ready to take the next step? Schedule a time with me here: ${appointmentLink}`)
+    }
+    if (agentPhone) {
+      ctaLines.push(`Or reach me directly at ${agentPhone}.`)
+    }
+    if (agentEmail) {
+      ctaLines.push(`Email: ${agentEmail}`)
+    }
+    const ctaBlock = ctaLines.length > 0
+      ? `\n\n---\n${ctaLines.join("\n")}\n\n${agentName}\nMcKinney Realty Co.`
+      : `\n\n${agentName}\nMcKinney Realty Co.`
 
     // Create campaign
     const { data: campaign, error: cErr } = await supabase
@@ -97,6 +115,17 @@ export async function POST(request: Request) {
         const introPattern = /this is .+ with mckinney realty/i
         if (!introPattern.test(body)) {
           body = `${agentIntro}\n\n${body}`
+        }
+
+        // Append CTA block if not already present
+        if (!body.includes(appointmentLink || "---\n") && !body.includes("McKinney Realty Co.")) {
+          body = `${body}${ctaBlock}`
+        }
+
+        // Replace {{appointment_link}} placeholder
+        if (appointmentLink) {
+          body = body.replace(/\{\{appointment_link\}\}/gi, appointmentLink)
+          subject = subject.replace(/\{\{appointment_link\}\}/gi, appointmentLink)
         }
 
         return {

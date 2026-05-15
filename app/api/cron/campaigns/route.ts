@@ -79,18 +79,20 @@ export async function GET(request: Request) {
         let agentName = "McKinney Realty Team"
         let agentEmail: string | null = null
         let agentPhone: string | null = null
+        let agentAppointmentLink: string | null = null
         if (campaign.owner_id) {
           const { data: agent } = await supabase
             .from("agents")
-            .select("Name, Email, Phone")
+            .select("Name, Email, Phone, appointment_link")
             .eq("id", campaign.owner_id)
             .single()
           if (agent?.Name) agentName = agent.Name
           if (agent?.Email) agentEmail = agent.Email
           if (agent?.Phone) agentPhone = agent.Phone
+          if (agent?.appointment_link) agentAppointmentLink = agent.appointment_link
         }
 
-        const stepResult = await processStep(enrollment, lead, campaign, agentName, agentEmail, agentPhone, "lead", supabase)
+        const stepResult = await processStep(enrollment, lead, campaign, agentName, agentEmail, agentPhone, agentAppointmentLink, "lead", supabase)
         results.processed++
         if (stepResult.email) results.emails++
         if (stepResult.sms) results.sms++
@@ -125,18 +127,20 @@ export async function GET(request: Request) {
         let agentName = "McKinney Realty Team"
         let agentEmail: string | null = null
         let agentPhone: string | null = null
+        let agentAppointmentLink: string | null = null
         if (campaign.owner_id) {
           const { data: agent } = await supabase
             .from("agents")
-            .select("Name, Email, Phone")
+            .select("Name, Email, Phone, appointment_link")
             .eq("id", campaign.owner_id)
             .single()
           if (agent?.Name) agentName = agent.Name
           if (agent?.Email) agentEmail = agent.Email
           if (agent?.Phone) agentPhone = agent.Phone
+          if (agent?.appointment_link) agentAppointmentLink = agent.appointment_link
         }
 
-        const stepResult = await processStep(enrollment, contact, campaign, agentName, agentEmail, agentPhone, "contact", supabase)
+        const stepResult = await processStep(enrollment, contact, campaign, agentName, agentEmail, agentPhone, agentAppointmentLink, "contact", supabase)
         results.processed++
         if (stepResult.email) results.emails++
         if (stepResult.sms) results.sms++
@@ -163,6 +167,7 @@ async function processStep(
   agentName: string,
   agentEmail: string | null,
   agentPhone: string | null,
+  agentAppointmentLink: string | null,
   enrollmentType: "lead" | "contact",
   supabase: ReturnType<typeof createServiceClient>
 ): Promise<{ email: boolean; sms: boolean; task: boolean }> {
@@ -239,12 +244,12 @@ Return ONLY the personalized message, nothing else.
         subject = subjectText
       }
     } catch {
-      content = replacePlaceholders(content, recipient, agentName, agentEmail, agentPhone)
-      subject = replacePlaceholders(subject, recipient, agentName, agentEmail, agentPhone)
+      content = replacePlaceholders(content, recipient, agentName, agentEmail, agentPhone, agentAppointmentLink)
+      subject = replacePlaceholders(subject, recipient, agentName, agentEmail, agentPhone, agentAppointmentLink)
     }
   } else {
-    content = replacePlaceholders(content, recipient, agentName, agentEmail, agentPhone)
-    subject = replacePlaceholders(subject, recipient, agentName, agentEmail, agentPhone)
+    content = replacePlaceholders(content, recipient, agentName, agentEmail, agentPhone, agentAppointmentLink)
+    subject = replacePlaceholders(subject, recipient, agentName, agentEmail, agentPhone, agentAppointmentLink)
   }
 
   const campaignChannel = campaign.channel || "EMAIL"
@@ -331,13 +336,14 @@ Return ONLY the personalized message, nothing else.
   return result
 }
 
-function replacePlaceholders(text: string, recipient: any, agentName: string, agentEmail?: string | null, agentPhone?: string | null): string {
+function replacePlaceholders(text: string, recipient: any, agentName: string, agentEmail?: string | null, agentPhone?: string | null, appointmentLink?: string | null): string {
   return text
     .replace(/\{\{first_name\}\}/gi, recipient.first_name || "")
     .replace(/\{\{last_name\}\}/gi, recipient.last_name || "")
     .replace(/\{\{agent_name\}\}/gi, agentName)
     .replace(/\{\{agent_email\}\}/gi, agentEmail || "")
     .replace(/\{\{agent_phone\}\}/gi, agentPhone || "")
+    .replace(/\{\{appointment_link\}\}/gi, appointmentLink || "")
     .replace(/\{\{property_interest\}\}/gi, recipient.property_interest || "your area")
     .replace(/\{\{budget\}\}/gi, recipient.budget_max ? `$${recipient.budget_max.toLocaleString()}` : "your budget")
     .replace(/\{\{timeline\}\}/gi, recipient.timeline || "soon")

@@ -20,6 +20,7 @@ export async function POST(req: Request) {
     bio,
     emergency_contact_name,
     emergency_contact_phone,
+    appointment_link,
     must_change_password,
   } = body
 
@@ -33,6 +34,7 @@ export async function POST(req: Request) {
   if (bio !== undefined)                             updates.bio                     = bio || null
   if (emergency_contact_name !== undefined)          updates.emergency_contact_name  = emergency_contact_name || null
   if (emergency_contact_phone !== undefined)         updates.emergency_contact_phone = emergency_contact_phone || null
+  if (appointment_link !== undefined)                updates.appointment_link        = appointment_link || null
   if (must_change_password !== undefined)            updates.must_change_password    = must_change_password
 
   if (Object.keys(updates).length === 0) {

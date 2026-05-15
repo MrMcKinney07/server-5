@@ -23,6 +23,7 @@ export function AgentProfileForm({ agent }: AgentProfileFormProps) {
   const [agentState, setAgentState]           = useState((agent as any).state || "")
   const [zip, setZip]                         = useState((agent as any).zip || "")
   const [bio, setBio]                         = useState((agent as any).bio || "")
+  const [appointmentLink, setAppointmentLink] = useState((agent as any).appointment_link || "")
   const [profilePicture, setProfilePicture]   = useState((agent as any).profile_picture_url || "")
   const [isLoading, setIsLoading]             = useState(false)
   const [isUploadingPicture, setIsUploadingPicture] = useState(false)
@@ -61,13 +62,14 @@ export function AgentProfileForm({ agent }: AgentProfileFormProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name:    fullName,
-          phone:   phone,
-          address: address,
-          city:    city,
-          state:   agentState,
-          zip:     zip,
-          bio:     bio,
+          name:             fullName,
+          phone:            phone,
+          address:          address,
+          city:             city,
+          state:            agentState,
+          zip:              zip,
+          bio:              bio,
+          appointment_link: appointmentLink,
         }),
       })
       const data = await res.json()
@@ -150,6 +152,19 @@ export function AgentProfileForm({ agent }: AgentProfileFormProps) {
           <Label className="text-sm">ZIP</Label>
           <Input value={zip} onChange={(e) => setZip(e.target.value)} placeholder="33601" />
         </div>
+      </div>
+
+      {/* Appointment Link */}
+      <div className="space-y-1.5">
+        <Label htmlFor="appointmentLink" className="text-sm">Appointment / Scheduling Link</Label>
+        <Input
+          id="appointmentLink"
+          type="url"
+          value={appointmentLink}
+          onChange={(e) => setAppointmentLink(e.target.value)}
+          placeholder="https://calendly.com/yourname"
+        />
+        <p className="text-xs text-muted-foreground">This link will appear as a CTA in all your campaign messages.</p>
       </div>
 
       {/* Bio */}
