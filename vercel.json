@@ -5,6 +5,10 @@
       "schedule": "0 13 * * *"
     },
     {
+      "path": "/api/cron/mortgage-rates",
+      "schedule": "0 14 * * *"
+    },
+    {
       "path": "/api/cron/campaigns",
       "schedule": "*/15 * * * *"
     },

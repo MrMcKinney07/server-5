@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
+import { createClient } from "@supabase/supabase-js"
 
-export const revalidate = 3600 // cache for 1 hour
+// No Next.js cache — always go to DB for freshness
+export const revalidate = 0
 
 export interface LiveRate {
   label: string
@@ -124,6 +126,39 @@ function getFallbackRates(): LiveRate[] {
   }))
 }
 
+async function getRatesFromDB(): Promise<LiveRate[] | null> {
+  try {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!url || !key) return null
+
+    const supabase = createClient(url, key)
+    const today = new Date().toISOString().split("T")[0]
+
+    const { data, error } = await supabase
+      .from("mortgage_rates")
+      .select("*")
+      .eq("rate_date", today)
+      .order("id", { ascending: true })
+
+    if (error || !data || data.length < 4) return null
+
+    return data.map((r) => ({
+      label:     r.label,
+      rate:      Number(r.rate),
+      rateStr:   r.rate_str,
+      change:    Number(r.change),
+      changeStr: r.change_str,
+      direction: r.direction as "up" | "down" | "flat",
+      low52:     Number(r.low52),
+      high52:    Number(r.high52),
+      source:    r.source,
+    }))
+  } catch {
+    return null
+  }
+}
+
 export async function GET() {
   const fetchedAt = new Date().toISOString()
   const asOf = new Date().toLocaleDateString("en-US", {
@@ -132,26 +167,27 @@ export async function GET() {
     year: "numeric",
   })
 
+  // 1. Try DB first (populated by daily cron at 9am ET)
+  const dbRates = await getRatesFromDB()
+  if (dbRates) {
+    return NextResponse.json({ rates: dbRates, fetchedAt, asOf, source: "live" } satisfies RatesResponse)
+  }
+
+  // 2. DB empty for today — scrape live
   try {
     const rates = await scrapeMND()
-
     if (rates.length >= 4) {
       return NextResponse.json({ rates, fetchedAt, asOf, source: "live" } satisfies RatesResponse)
     }
-
-    // Not enough data — use fallback
-    return NextResponse.json({
-      rates: getFallbackRates(),
-      fetchedAt,
-      asOf,
-      source: "fallback",
-    } satisfies RatesResponse)
   } catch {
-    return NextResponse.json({
-      rates: getFallbackRates(),
-      fetchedAt,
-      asOf,
-      source: "fallback",
-    } satisfies RatesResponse)
+    // fall through
   }
+
+  // 3. Hardcoded fallback
+  return NextResponse.json({
+    rates: getFallbackRates(),
+    fetchedAt,
+    asOf,
+    source: "fallback",
+  } satisfies RatesResponse)
 }
