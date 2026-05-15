@@ -83,7 +83,7 @@ export async function POST(request: Request) {
       }) => ({
         campaign_id: campaign.id,
         step_number: s.step_number,
-        type: s.type,
+        type: s.type?.toLowerCase(),
         subject: s.subject,
         body: s.body,
         delay_hours: s.delay_hours,
