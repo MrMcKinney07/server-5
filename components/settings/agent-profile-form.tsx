@@ -165,7 +165,7 @@ export function AgentProfileForm({ agent }: AgentProfileFormProps) {
           onChange={(e) => setAppointmentLink(e.target.value)}
           placeholder="https://calendly.com/yourname"
         />
-        <p className="text-xs text-muted-foreground">This link will appear as a CTA in all your campaign messages. If left blank, the company link (<strong>mckinneyrealtyco.com/schedule-appointment</strong>) will be used.</p>
+        <p className="text-xs text-muted-foreground">This link will appear as a CTA in all your campaign messages.</p>
       </div>
 
       {/* Appointment Webhook URL */}
