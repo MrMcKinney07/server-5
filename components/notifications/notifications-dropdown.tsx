@@ -36,7 +36,8 @@ export function NotificationsDropdown({ isBroker = false }: { isBroker?: boolean
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
   const seenAppointmentIds = useRef<Set<string>>(new Set())
-  const supabase = createBrowserClient()
+  const supabaseRef = useRef(createBrowserClient())
+  const supabase = supabaseRef.current
 
   const fetchNotifications = useCallback(async () => {
     if (!hasSupabaseCredentials()) {
