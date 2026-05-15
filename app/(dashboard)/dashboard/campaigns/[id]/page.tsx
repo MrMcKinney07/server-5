@@ -14,6 +14,7 @@ import {
   AlertCircle,
 } from "lucide-react"
 import { CampaignDetailTabs } from "@/components/campaigns/campaign-detail-tabs"
+import { CampaignStatusToggle } from "@/components/campaigns/campaign-status-toggle"
 
 interface CampaignPageProps {
   params: Promise<{ id: string }>
@@ -128,6 +129,9 @@ export default async function CampaignPage({ params }: CampaignPageProps) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-2xl font-semibold tracking-tight">{campaign.name}</h1>
+            <div className="ml-auto shrink-0">
+              <CampaignStatusToggle campaignId={campaign.id} isActive={campaign.is_active} />
+            </div>
             <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-lg border ${channelStyle}`}>
               {campaign.channel === "SMS" ? <MessageSquare className="h-3 w-3" /> : <Mail className="h-3 w-3" />}
               {channelLabel}
