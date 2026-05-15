@@ -27,7 +27,6 @@ interface Lead {
     last_name: string | null
     email: string | null
     phone: string | null
-    tags: string[] | null
   } | null
 }
 
@@ -40,8 +39,7 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
   const [leads, setLeads] = useState<Lead[]>([])
   const [enrolledLeadIds, setEnrolledLeadIds] = useState<string[]>([])
   const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([])
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
-  const [allTags, setAllTags] = useState<string[]>([])
+
   const [searchQuery, setSearchQuery] = useState("")
   const [loading, setLoading] = useState(false)
   const [enrolling, setEnrolling] = useState(false)
@@ -73,8 +71,7 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
           first_name,
           last_name,
           email,
-          phone,
-          tags
+          phone
         )
       `,
       )
