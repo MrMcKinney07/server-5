@@ -311,25 +311,26 @@ Return ONLY the personalized message, nothing else.
     },
   })
 
-  // Get next step to calculate next_run_at
+  // Check if there is a next step to run (step after the one we just sent)
   const { data: nextStep } = await supabase
     .from("campaign_steps")
-    .select("delay_hours")
+    .select("id, delay_hours")
     .eq("campaign_id", enrollment.campaign_id)
     .eq("step_number", nextStepNumber + 1)
-    .single()
+    .maybeSingle()
 
-  const nextRunAt = nextStep
-    ? new Date(Date.now() + (nextStep.delay_hours || 1) * 60 * 60 * 1000).toISOString()
+  const hasMoreSteps = !!nextStep
+  const nextRunAt = hasMoreSteps
+    ? new Date(Date.now() + (nextStep!.delay_hours || 24) * 60 * 60 * 1000).toISOString()
     : null
 
-  // Update enrollment
+  // Update enrollment — only complete when there are truly no more steps
   await supabase
     .from(tableName)
     .update({
       current_step: nextStepNumber,
       next_run_at: nextRunAt,
-      status: nextRunAt ? "active" : "completed",
+      status: hasMoreSteps ? "active" : "completed",
     })
     .eq("id", enrollment.id)
 
