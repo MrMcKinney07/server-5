@@ -344,6 +344,8 @@ Return ONLY the personalized message, nothing else.
   return result
 }
 
+const COMPANY_APPOINTMENT_LINK = "https://mckinneyrealtyco.com/schedule-appointment"
+
 function replacePlaceholders(text: string, recipient: any, agentName: string, agentEmail?: string | null, agentPhone?: string | null, appointmentLink?: string | null): string {
   return text
     .replace(/\{\{first_name\}\}/gi, recipient.first_name || "")
@@ -351,7 +353,7 @@ function replacePlaceholders(text: string, recipient: any, agentName: string, ag
     .replace(/\{\{agent_name\}\}/gi, agentName)
     .replace(/\{\{agent_email\}\}/gi, agentEmail || "")
     .replace(/\{\{agent_phone\}\}/gi, agentPhone || "")
-    .replace(/\{\{appointment_link\}\}/gi, appointmentLink || "")
+    .replace(/\{\{appointment_link\}\}/gi, appointmentLink || COMPANY_APPOINTMENT_LINK)
     .replace(/\{\{property_interest\}\}/gi, recipient.property_interest || "your area")
     .replace(/\{\{budget\}\}/gi, recipient.budget_max ? `$${recipient.budget_max.toLocaleString()}` : "your budget")
     .replace(/\{\{timeline\}\}/gi, recipient.timeline || "soon")

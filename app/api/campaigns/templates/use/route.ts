@@ -51,14 +51,13 @@ export async function POST(request: Request) {
     const agentName = agentRow?.Name || agent.full_name || "Your Agent"
     const agentEmail: string | null = agentRow?.Email || null
     const agentPhone: string | null = agentRow?.Phone || null
-    const appointmentLink: string | null = agentRow?.appointment_link || null
+    const COMPANY_LINK = "https://mckinneyrealtyco.com/schedule-appointment"
+    const appointmentLink: string = agentRow?.appointment_link || COMPANY_LINK
     const agentIntro = `This is ${agentName} with McKinney Realty Co.`
 
     // Build the CTA block appended to every step
     const ctaLines: string[] = []
-    if (appointmentLink) {
-      ctaLines.push(`Ready to take the next step? Schedule a time with me here: ${appointmentLink}`)
-    }
+    ctaLines.push(`Ready to take the next step? Schedule a time with me here: ${appointmentLink}`)
     if (agentPhone) {
       ctaLines.push(`Or reach me directly at ${agentPhone}.`)
     }
