@@ -43,7 +43,7 @@ export default async function CampaignsPage() {
             .eq("campaign_id", campaign.id),
           supabase
             .from("lead_campaign_enrollments")
-            .select("id, status", { count: "exact" })
+            .select("id, status")
             .eq("campaign_id", campaign.id),
           supabase
             .from("campaign_logs")
@@ -59,7 +59,7 @@ export default async function CampaignsPage() {
 
         const enrollments = enrollRes.data || []
         const totalSent = (emailSentRes.count || 0) + (smsSentRes.count || 0)
-        const totalDelivered = totalSent // logs only record successful sends
+        const totalDelivered = totalSent
         const totalClicks = 0
         const totalReplies = 0
         const totalFailed = 0
@@ -67,7 +67,7 @@ export default async function CampaignsPage() {
         return {
           ...campaign,
           stepsCount: stepsRes.count || 0,
-          enrollmentsCount: enrollRes.count || 0,
+          enrollmentsCount: enrollments.length,
           activeCount: enrollments.filter((e) => e.status === "active").length,
           completedCount: enrollments.filter((e) => e.status === "completed").length,
           totalSent,

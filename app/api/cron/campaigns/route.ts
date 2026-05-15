@@ -75,18 +75,22 @@ export async function GET(request: Request) {
 
         if (!campaign) continue
 
-        // Get agent name for personalization
+        // Get agent info for personalization and sender identity
         let agentName = "McKinney Realty Team"
+        let agentEmail: string | null = null
+        let agentPhone: string | null = null
         if (campaign.owner_id) {
           const { data: agent } = await supabase
             .from("agents")
-            .select("Name")
+            .select("Name, Email, Phone")
             .eq("id", campaign.owner_id)
             .single()
           if (agent?.Name) agentName = agent.Name
+          if (agent?.Email) agentEmail = agent.Email
+          if (agent?.Phone) agentPhone = agent.Phone
         }
 
-        const stepResult = await processStep(enrollment, lead, campaign, agentName, "lead", supabase)
+        const stepResult = await processStep(enrollment, lead, campaign, agentName, agentEmail, agentPhone, "lead", supabase)
         results.processed++
         if (stepResult.email) results.emails++
         if (stepResult.sms) results.sms++
@@ -117,18 +121,22 @@ export async function GET(request: Request) {
 
         if (!campaign) continue
 
-        // Get agent name for personalization
+        // Get agent info for personalization and sender identity
         let agentName = "McKinney Realty Team"
+        let agentEmail: string | null = null
+        let agentPhone: string | null = null
         if (campaign.owner_id) {
           const { data: agent } = await supabase
             .from("agents")
-            .select("Name")
+            .select("Name, Email, Phone")
             .eq("id", campaign.owner_id)
             .single()
           if (agent?.Name) agentName = agent.Name
+          if (agent?.Email) agentEmail = agent.Email
+          if (agent?.Phone) agentPhone = agent.Phone
         }
 
-        const stepResult = await processStep(enrollment, contact, campaign, agentName, "contact", supabase)
+        const stepResult = await processStep(enrollment, contact, campaign, agentName, agentEmail, agentPhone, "contact", supabase)
         results.processed++
         if (stepResult.email) results.emails++
         if (stepResult.sms) results.sms++
@@ -153,6 +161,8 @@ async function processStep(
   recipient: any,
   campaign: any,
   agentName: string,
+  agentEmail: string | null,
+  agentPhone: string | null,
   enrollmentType: "lead" | "contact",
   supabase: ReturnType<typeof createServiceClient>
 ): Promise<{ email: boolean; sms: boolean; task: boolean }> {
@@ -229,12 +239,12 @@ Return ONLY the personalized message, nothing else.
         subject = subjectText
       }
     } catch {
-      content = replacePlaceholders(content, recipient, agentName)
-      subject = replacePlaceholders(subject, recipient, agentName)
+      content = replacePlaceholders(content, recipient, agentName, agentEmail, agentPhone)
+      subject = replacePlaceholders(subject, recipient, agentName, agentEmail, agentPhone)
     }
   } else {
-    content = replacePlaceholders(content, recipient, agentName)
-    subject = replacePlaceholders(subject, recipient, agentName)
+    content = replacePlaceholders(content, recipient, agentName, agentEmail, agentPhone)
+    subject = replacePlaceholders(subject, recipient, agentName, agentEmail, agentPhone)
   }
 
   const campaignChannel = campaign.channel || "EMAIL"
@@ -242,18 +252,27 @@ Return ONLY the personalized message, nothing else.
 
   // Execute based on step type and channel
   if ((stepType === "email" || campaignChannel === "EMAIL" || campaignChannel === "BOTH") && recipient?.email) {
+    // Send from agent's email if available, otherwise fallback to default
+    const fromAddress = agentEmail
+      ? `${agentName} <${agentEmail}>`
+      : `${agentName} <noreply@mckinneyrealtyco.com>`
     const sent = await sendEmail({
       to: recipient.email,
-      subject: subject || "Message from McKinney Realty",
+      subject: subject || `Message from ${agentName}`,
       body: content,
+      from: fromAddress,
     })
     result.email = sent
   }
 
   if ((stepType === "sms" || campaignChannel === "SMS" || campaignChannel === "BOTH") && recipient?.phone) {
+    // Include agent's phone number in the SMS body signature
+    const smsBody = agentPhone
+      ? `${content}\n\nReply or call: ${agentPhone}`
+      : content
     const sent = await sendSms({
       to: recipient.phone,
-      body: content,
+      body: smsBody,
     })
     result.sms = sent
   }
@@ -312,11 +331,13 @@ Return ONLY the personalized message, nothing else.
   return result
 }
 
-function replacePlaceholders(text: string, recipient: any, agentName: string): string {
+function replacePlaceholders(text: string, recipient: any, agentName: string, agentEmail?: string | null, agentPhone?: string | null): string {
   return text
     .replace(/\{\{first_name\}\}/gi, recipient.first_name || "")
     .replace(/\{\{last_name\}\}/gi, recipient.last_name || "")
     .replace(/\{\{agent_name\}\}/gi, agentName)
+    .replace(/\{\{agent_email\}\}/gi, agentEmail || "")
+    .replace(/\{\{agent_phone\}\}/gi, agentPhone || "")
     .replace(/\{\{property_interest\}\}/gi, recipient.property_interest || "your area")
     .replace(/\{\{budget\}\}/gi, recipient.budget_max ? `$${recipient.budget_max.toLocaleString()}` : "your budget")
     .replace(/\{\{timeline\}\}/gi, recipient.timeline || "soon")
