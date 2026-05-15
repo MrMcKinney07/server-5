@@ -13,6 +13,13 @@ export async function GET(request: Request) {
 
   const supabase = createServiceClient()
   const now = new Date()
+
+  // Quiet hours: 8pm–8am Central Time — no messages sent during this window
+  const hourCT = new Date(now.toLocaleString("en-US", { timeZone: "America/Chicago" })).getHours()
+  if (hourCT >= 20 || hourCT < 8) {
+    return NextResponse.json({ message: "Quiet hours (8pm–8am CT) — skipping campaign sends", skipped: true })
+  }
+
   const results = { processed: 0, emails: 0, sms: 0, tasks: 0, errors: [] as string[] }
 
   try {
