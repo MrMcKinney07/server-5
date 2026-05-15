@@ -10,16 +10,30 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json()
-  const { name, phone, address, city, state, zip, must_change_password } = body
+  const {
+    name,
+    phone,
+    address,
+    city,
+    state,
+    zip,
+    bio,
+    emergency_contact_name,
+    emergency_contact_phone,
+    must_change_password,
+  } = body
 
   const updates: Record<string, unknown> = {}
-  if (name !== undefined && name !== "")          updates.Name    = name
-  if (phone !== undefined)                        updates.Phone   = phone || null
-  if (address !== undefined)                      updates.address = address || null
-  if (city !== undefined)                         updates.city    = city || null
-  if (state !== undefined)                        updates.state   = (state as string).toUpperCase() || null
-  if (zip !== undefined)                          updates.zip     = zip || null
-  if (must_change_password !== undefined)         updates.must_change_password = must_change_password
+  if (name !== undefined && name !== "")             updates.Name                    = name
+  if (phone !== undefined)                           updates.Phone                   = phone || null
+  if (address !== undefined)                         updates.address                 = address || null
+  if (city !== undefined)                            updates.city                    = city || null
+  if (state !== undefined)                           updates.state                   = state ? (state as string).toUpperCase() : null
+  if (zip !== undefined)                             updates.zip                     = zip || null
+  if (bio !== undefined)                             updates.bio                     = bio || null
+  if (emergency_contact_name !== undefined)          updates.emergency_contact_name  = emergency_contact_name || null
+  if (emergency_contact_phone !== undefined)         updates.emergency_contact_phone = emergency_contact_phone || null
+  if (must_change_password !== undefined)            updates.must_change_password    = must_change_password
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ success: true })

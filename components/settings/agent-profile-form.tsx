@@ -4,7 +4,6 @@ import type React from "react"
 import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
-import { createBrowserClient } from "@/lib/supabase/client"
 import type { Agent } from "@/lib/types/database"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -57,27 +56,29 @@ export function AgentProfileForm({ agent }: AgentProfileFormProps) {
     setIsLoading(true)
     setMessage(null)
 
-    const supabase = createBrowserClient()
-    const { error } = await supabase
-      .from("agents")
-      .update({
-        Name:    fullName,
-        Phone:   phone || null,
-        address: address || null,
-        city:    city || null,
-        state:   agentState.toUpperCase() || null,
-        zip:     zip || null,
-        bio:     bio || null,
+    try {
+      const res = await fetch("/api/profile/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name:    fullName,
+          phone:   phone,
+          address: address,
+          city:    city,
+          state:   agentState,
+          zip:     zip,
+          bio:     bio,
+        }),
       })
-      .eq("id", agent.id)
-
-    if (error) {
-      setMessage({ type: "error", text: "Failed to update profile. Please try again." })
-    } else {
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to update profile")
       setMessage({ type: "success", text: "Profile updated successfully!" })
       router.refresh()
+    } catch (err) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to update profile. Please try again." })
+    } finally {
+      setIsLoading(false)
     }
-    setIsLoading(false)
   }
 
   const initials = fullName
