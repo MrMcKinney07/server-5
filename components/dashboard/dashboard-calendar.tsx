@@ -75,11 +75,13 @@ const EVENT_BADGE_COLORS: Record<EventType, string> = {
   other:       "bg-slate-500/10 text-slate-600 border-slate-200 dark:border-slate-700",
 }
 
-const EVENT_ICONS: Record<EventType, React.ReactNode> = {
-  appointment: <CalendarCheck className="h-3 w-3 shrink-0" />,
-  closing:     <Home className="h-3 w-3 shrink-0" />,
-  follow_up:   <Phone className="h-3 w-3 shrink-0" />,
-  other:       <MoreHorizontal className="h-3 w-3 shrink-0" />,
+function EventIcon({ type }: { type: EventType }) {
+  switch (type) {
+    case "appointment": return <CalendarCheck className="h-3 w-3 shrink-0" />
+    case "closing":     return <Home className="h-3 w-3 shrink-0" />
+    case "follow_up":   return <Phone className="h-3 w-3 shrink-0" />
+    case "other":       return <MoreHorizontal className="h-3 w-3 shrink-0" />
+  }
 }
 
 const EVENT_TYPE_LABELS: Record<EventType, string> = {
@@ -275,7 +277,7 @@ export function DashboardCalendar({ events: initialEvents, agentId }: DashboardC
                   key={e.id}
                   className={`flex items-center gap-2 px-2 py-1.5 rounded-md border text-xs font-medium ${EVENT_BADGE_COLORS[e.type]}`}
                 >
-                  {EVENT_ICONS[e.type]}
+                  <EventIcon type={e.type} />
                   <span className="truncate">{e.title}</span>
                   <Badge variant="outline" className="ml-auto text-[10px] py-0 h-4 capitalize shrink-0 border-current">
                     {EVENT_TYPE_LABELS[e.type]}
