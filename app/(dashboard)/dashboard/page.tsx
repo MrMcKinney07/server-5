@@ -21,11 +21,8 @@ import {
   Award,
   Medal,
   BookOpen,
-  CheckCircle2,
-  Circle,
 } from "lucide-react"
 import Link from "next/link"
-import { formatDistanceToNow } from "date-fns"
 import { LeadActionsWidget } from "@/components/dashboard/lead-actions-widget"
 import { OfficeLeaderboardHero } from "@/components/dashboard/office-leaderboard-hero"
 import { UserBadgeName } from "@/components/prestige/user-badge-name"
@@ -142,7 +139,6 @@ export default async function DashboardPage() {
     { data: knowledgeArticles },
     { data: appointmentNotifs },
     { data: upcomingClosings },
-    { data: dueTasks },
   ] = await Promise.all([
     supabase.from("leads").select("*", { count: "exact", head: true }).eq("agent_id", agent.id),
     supabase
@@ -195,15 +191,6 @@ export default async function DashboardPage() {
       .gte("expected_closing_date", threeMonthsAgo)
       .lte("expected_closing_date", threeMonthsAhead)
       .not("expected_closing_date", "is", null),
-    // Due tasks (activities with a due_date)
-    supabase
-      .from("activities")
-      .select("id, description, notes, type, due_date, completed")
-      .eq("agent_id", agent.id)
-      .lte("due_date", new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString())
-      .eq("completed", false)
-      .order("due_date", { ascending: true })
-      .limit(10),
   ])
 
   const { data: monthlyRankings } = monthlyRankingsResponse
@@ -395,64 +382,9 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* ROW 1: Due Tasks (left) + Calendar (right) */}
+      {/* ROW 1: Follow Up Tasks (left) + Calendar (right) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        {/* Due Tasks */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <CheckCircle2 className="h-4 w-4 text-rose-500" />
-                Due Tasks
-              </CardTitle>
-              <Link href="/dashboard/activities">
-                <span className="text-xs text-muted-foreground hover:text-foreground transition-colors">View all</span>
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {(!dueTasks || dueTasks.length === 0) ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
-                <CheckCircle2 className="h-10 w-10 mb-2 opacity-20" />
-                <p className="text-sm font-medium">All caught up!</p>
-                <p className="text-xs mt-1">No tasks due in the next 7 days</p>
-              </div>
-            ) : (
-              dueTasks.map((task: any) => {
-                const dueDate = task.due_date ? new Date(task.due_date) : null
-                const isOverdue = dueDate && dueDate < now
-                return (
-                  <div
-                    key={task.id}
-                    className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${
-                      isOverdue
-                        ? "bg-rose-50 border-rose-200 dark:bg-rose-950/20 dark:border-rose-900/40"
-                        : "bg-muted/40 border-border hover:bg-muted/70"
-                    }`}
-                  >
-                    <Circle className={`h-4 w-4 mt-0.5 shrink-0 ${isOverdue ? "text-rose-500" : "text-muted-foreground"}`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{task.description || task.notes || "Task"}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        {task.type && (
-                          <span className="text-xs text-muted-foreground capitalize">{task.type}</span>
-                        )}
-                        {dueDate && (
-                          <span className={`text-xs font-medium ${isOverdue ? "text-rose-600" : "text-muted-foreground"}`}>
-                            {isOverdue ? "Overdue · " : "Due · "}
-                            {formatDistanceToNow(dueDate, { addSuffix: true })}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Calendar */}
+        <LeadActionsWidget agentId={agent.id} />
         <DashboardCalendar events={calendarEvents} agentId={agent.id} />
       </div>
 
@@ -517,8 +449,6 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </Link>
-
-      <LeadActionsWidget agentId={agent.id} />
 
       {/* ROW 3: Both leaderboards side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
