@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState } from "react"
-import { createBrowserClient } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -42,7 +42,7 @@ export function ChangePasswordForm() {
     setIsLoading(true)
     setMessage(null)
 
-    const supabase = createBrowserClient()
+    const supabase = createClient()
     const { error } = await supabase.auth.updateUser({ password })
     if (error) {
       setMessage({ type: "error", text: error.message })
