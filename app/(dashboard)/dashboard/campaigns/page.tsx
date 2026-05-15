@@ -36,7 +36,7 @@ export default async function CampaignsPage() {
 
     const enriched = await Promise.all(
       filteredCampaigns.map(async (campaign) => {
-        const [stepsRes, enrollRes, runsRes, logsRes] = await Promise.all([
+        const [stepsRes, enrollRes, emailSentRes, smsSentRes] = await Promise.all([
           supabase
             .from("campaign_steps")
             .select("id", { count: "exact", head: true })
@@ -46,22 +46,23 @@ export default async function CampaignsPage() {
             .select("id, status", { count: "exact" })
             .eq("campaign_id", campaign.id),
           supabase
-            .from("campaign_runs")
-            .select("sent, delivered, failed, clicks, replies")
-            .eq("campaign_id", campaign.id),
+            .from("campaign_logs")
+            .select("id", { count: "exact", head: true })
+            .eq("campaign_id", campaign.id)
+            .eq("event", "email_sent"),
           supabase
             .from("campaign_logs")
             .select("id", { count: "exact", head: true })
-            .eq("campaign_id", campaign.id),
+            .eq("campaign_id", campaign.id)
+            .eq("event", "sms_sent"),
         ])
 
         const enrollments = enrollRes.data || []
-        const runs = runsRes.data || []
-        const totalSent = runs.reduce((s, r) => s + (r.sent || 0), 0)
-        const totalDelivered = runs.reduce((s, r) => s + (r.delivered || 0), 0)
-        const totalClicks = runs.reduce((s, r) => s + (r.clicks || 0), 0)
-        const totalReplies = runs.reduce((s, r) => s + (r.replies || 0), 0)
-        const totalFailed = runs.reduce((s, r) => s + (r.failed || 0), 0)
+        const totalSent = (emailSentRes.count || 0) + (smsSentRes.count || 0)
+        const totalDelivered = totalSent // logs only record successful sends
+        const totalClicks = 0
+        const totalReplies = 0
+        const totalFailed = 0
 
         return {
           ...campaign,
@@ -76,7 +77,7 @@ export default async function CampaignsPage() {
           totalFailed,
           deliveryRate: totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : null,
           replyRate: totalSent > 0 ? Math.round((totalReplies / totalSent) * 100) : null,
-          activityCount: logsRes.count || 0,
+          activityCount: totalSent,
         }
       }),
     )
