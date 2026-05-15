@@ -250,12 +250,14 @@ export function CampaignDetailTabs({ campaign, steps, enrollments, runs = [] }: 
 
       {activeTab === "analytics" && <AnalyticsTab runs={runs} enrollments={enrollments} />}
       {activeTab === "sequence" && (
-        <div className="space-y-4">
+        <CampaignTimelineBuilder steps={steps} campaignId={campaign.id} />
+      )}
+      {activeTab === "enrollments" && (
+        <div className="space-y-6">
           <CampaignLeadEnrollment campaignId={campaign.id} campaignName={campaign.name} />
-          <CampaignTimelineBuilder steps={steps} campaignId={campaign.id} />
+          <CampaignEnrollmentsList enrollments={enrollments} />
         </div>
       )}
-      {activeTab === "enrollments" && <CampaignEnrollmentsList enrollments={enrollments} />}
       {activeTab === "activity" && <CampaignActivityLog campaignId={campaign.id} />}
       {activeTab === "settings" && <CampaignDetails campaign={campaign} />}
     </div>
