@@ -81,7 +81,14 @@ export function LeadDetail({ lead, activities, agentId }: LeadDetailProps) {
     setIsLoading(true)
     const supabase = createBrowserClient()
 
-    const followUpDate = nextFollowUp ? new Date(nextFollowUp).toISOString() : null
+    // Parse date-only string as local noon to avoid UTC midnight shifting the date back a day
+    const followUpDate = nextFollowUp
+      ? (() => {
+          const [y, m, d] = nextFollowUp.split("-").map(Number)
+          const local = new Date(y, m - 1, d, 12, 0, 0)
+          return local.toISOString()
+        })()
+      : null
 
     const { error } = await supabase
       .from("leads")

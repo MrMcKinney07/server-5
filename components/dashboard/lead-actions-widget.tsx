@@ -39,7 +39,9 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
       return
     }
     setLoading(true)
-    const today = new Date().toISOString().split("T")[0]
+    // Use local end-of-day to avoid UTC midnight cutting off today's tasks for US timezones
+    const now = new Date()
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
 
     const { data, error } = await supabaseRef.current
       .from("activities")
@@ -55,7 +57,8 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
       `)
       .eq("agent_id", agentId)
       .eq("completed", false)
-      .lte("due_at", `${today}T23:59:59`)
+      .not("due_at", "is", null)
+      .lte("due_at", endOfToday.toISOString())
       .order("due_at", { ascending: true })
 
     if (!error && data) {

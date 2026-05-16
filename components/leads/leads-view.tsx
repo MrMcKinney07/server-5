@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Users, Phone, Mail, Calendar, AlertCircle, Search, FileUp } from "lucide-react"
+import { Plus, Users, Phone, Mail, Calendar, Search, FileUp } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import Link from "next/link"
 import { toast } from "sonner"
@@ -210,39 +210,7 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
 
   return (
     <div className="space-y-6">
-      {/* Follow-up Alert */}
-      {needsFollowUp.length > 0 && (
-        <Card className="border-red-200 bg-red-50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-red-700 flex items-center gap-2 text-lg">
-              <AlertCircle className="h-5 w-5" />
-              Follow-ups Due ({needsFollowUp.length})
-            </CardTitle>
-            <CardDescription className="text-red-600">These leads need your attention today</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {needsFollowUp.slice(0, 5).map((lead) => (
-                <Link
-                  key={lead.id}
-                  href={`/dashboard/leads/${lead.id}`}
-                  className="bg-white border border-red-200 rounded-lg px-3 py-2 text-sm hover:bg-red-100 transition-colors"
-                >
-                  <span className="font-medium">
-                    {lead.first_name} {lead.last_name}
-                  </span>
-                  <span className="text-muted-foreground ml-2">
-                    {lead.next_follow_up && new Date(lead.next_follow_up).toLocaleDateString()}
-                  </span>
-                </Link>
-              ))}
-              {needsFollowUp.length > 5 && (
-                <span className="text-sm text-red-600 self-center">+{needsFollowUp.length - 5} more</span>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+
 
       {/* Leads Table */}
       <Card>
