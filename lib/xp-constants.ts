@@ -1,3 +1,9 @@
+// XP awards for specific actions
+export const XP_REWARDS = {
+  CONTRACT_CLOSE: 30,
+  MISSION_DEFAULT: 10,
+} as const
+
 export const PRESTIGE_TIERS = {
   1: {
     name: "Bronze",

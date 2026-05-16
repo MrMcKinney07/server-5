@@ -22,10 +22,10 @@ export default function SignUpPage() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
-    const supabase = createClient()
     setIsLoading(true)
     setError(null)
 
+    const supabase = createClient()
     if (password !== confirmPassword) {
       setError("Passwords do not match")
       setIsLoading(false)

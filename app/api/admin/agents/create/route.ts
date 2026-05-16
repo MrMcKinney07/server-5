@@ -142,6 +142,7 @@ export async function POST(request: Request) {
           emergency_contact_name: emergencyContactName || null,
           emergency_contact_phone: emergencyContactPhone || null,
           bio: bio || null,
+          must_change_password: true,
         })
         .select()
         .single()

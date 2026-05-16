@@ -1,8 +1,8 @@
 import { requireAuth } from "@/lib/auth"
-import { MarketingMarketplace } from "@/components/marketing/marketing-marketplace"
+import { ComingSoon } from "@/components/ui/coming-soon"
 
 export default async function MarketingPage() {
   await requireAuth()
 
-  return <MarketingMarketplace />
+  return <ComingSoon title="Marketing" description="Marketing tools and resources are on their way. Check back soon." />
 }

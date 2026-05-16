@@ -13,6 +13,13 @@ export async function GET(request: Request) {
 
   const supabase = createServiceClient()
   const now = new Date()
+
+  // Quiet hours: 8pm–8am Central Time — no messages sent during this window
+  const hourCT = new Date(now.toLocaleString("en-US", { timeZone: "America/Chicago" })).getHours()
+  if (hourCT >= 20 || hourCT < 8) {
+    return NextResponse.json({ message: "Quiet hours (8pm–8am CT) — skipping campaign sends", skipped: true })
+  }
+
   const results = { processed: 0, emails: 0, sms: 0, tasks: 0, errors: [] as string[] }
 
   try {
@@ -75,18 +82,24 @@ export async function GET(request: Request) {
 
         if (!campaign) continue
 
-        // Get agent name for personalization
+        // Get agent info for personalization and sender identity
         let agentName = "McKinney Realty Team"
+        let agentEmail: string | null = null
+        let agentPhone: string | null = null
+        let agentAppointmentLink: string | null = null
         if (campaign.owner_id) {
           const { data: agent } = await supabase
             .from("agents")
-            .select("Name")
+            .select("Name, Email, Phone, appointment_link")
             .eq("id", campaign.owner_id)
             .single()
           if (agent?.Name) agentName = agent.Name
+          if (agent?.Email) agentEmail = agent.Email
+          if (agent?.Phone) agentPhone = agent.Phone
+          if (agent?.appointment_link) agentAppointmentLink = agent.appointment_link
         }
 
-        const stepResult = await processStep(enrollment, lead, campaign, agentName, "lead")
+        const stepResult = await processStep(enrollment, lead, campaign, agentName, agentEmail, agentPhone, agentAppointmentLink, "lead", supabase)
         results.processed++
         if (stepResult.email) results.emails++
         if (stepResult.sms) results.sms++
@@ -117,18 +130,24 @@ export async function GET(request: Request) {
 
         if (!campaign) continue
 
-        // Get agent name for personalization
+        // Get agent info for personalization and sender identity
         let agentName = "McKinney Realty Team"
+        let agentEmail: string | null = null
+        let agentPhone: string | null = null
+        let agentAppointmentLink: string | null = null
         if (campaign.owner_id) {
           const { data: agent } = await supabase
             .from("agents")
-            .select("Name")
+            .select("Name, Email, Phone, appointment_link")
             .eq("id", campaign.owner_id)
             .single()
           if (agent?.Name) agentName = agent.Name
+          if (agent?.Email) agentEmail = agent.Email
+          if (agent?.Phone) agentPhone = agent.Phone
+          if (agent?.appointment_link) agentAppointmentLink = agent.appointment_link
         }
 
-        const stepResult = await processStep(enrollment, contact, campaign, agentName, "contact")
+        const stepResult = await processStep(enrollment, contact, campaign, agentName, agentEmail, agentPhone, agentAppointmentLink, "contact", supabase)
         results.processed++
         if (stepResult.email) results.emails++
         if (stepResult.sms) results.sms++
@@ -153,7 +172,11 @@ async function processStep(
   recipient: any,
   campaign: any,
   agentName: string,
-  enrollmentType: "lead" | "contact"
+  agentEmail: string | null,
+  agentPhone: string | null,
+  agentAppointmentLink: string | null,
+  enrollmentType: "lead" | "contact",
+  supabase: ReturnType<typeof createServiceClient>
 ): Promise<{ email: boolean; sms: boolean; task: boolean }> {
   const result = { email: false, sms: false, task: false }
   const nextStepNumber = (enrollment.current_step || 0) + 1
@@ -228,12 +251,12 @@ Return ONLY the personalized message, nothing else.
         subject = subjectText
       }
     } catch {
-      content = replacePlaceholders(content, recipient, agentName)
-      subject = replacePlaceholders(subject, recipient, agentName)
+      content = replacePlaceholders(content, recipient, agentName, agentEmail, agentPhone, agentAppointmentLink)
+      subject = replacePlaceholders(subject, recipient, agentName, agentEmail, agentPhone, agentAppointmentLink)
     }
   } else {
-    content = replacePlaceholders(content, recipient, agentName)
-    subject = replacePlaceholders(subject, recipient, agentName)
+    content = replacePlaceholders(content, recipient, agentName, agentEmail, agentPhone, agentAppointmentLink)
+    subject = replacePlaceholders(subject, recipient, agentName, agentEmail, agentPhone, agentAppointmentLink)
   }
 
   const campaignChannel = campaign.channel || "EMAIL"
@@ -241,18 +264,27 @@ Return ONLY the personalized message, nothing else.
 
   // Execute based on step type and channel
   if ((stepType === "email" || campaignChannel === "EMAIL" || campaignChannel === "BOTH") && recipient?.email) {
+    // Send from agent's email if available, otherwise fallback to default
+    const fromAddress = agentEmail
+      ? `${agentName} <${agentEmail}>`
+      : `${agentName} <noreply@mckinneyrealtyco.com>`
     const sent = await sendEmail({
       to: recipient.email,
-      subject: subject || "Message from McKinney Realty",
+      subject: subject || `Message from ${agentName}`,
       body: content,
+      from: fromAddress,
     })
     result.email = sent
   }
 
   if ((stepType === "sms" || campaignChannel === "SMS" || campaignChannel === "BOTH") && recipient?.phone) {
+    // Include agent's phone number in the SMS body signature
+    const smsBody = agentPhone
+      ? `${content}\n\nReply or call: ${agentPhone}`
+      : content
     const sent = await sendSms({
       to: recipient.phone,
-      body: content,
+      body: smsBody,
     })
     result.sms = sent
   }
@@ -286,36 +318,42 @@ Return ONLY the personalized message, nothing else.
     },
   })
 
-  // Get next step to calculate next_run_at
+  // Check if there is a next step to run (step after the one we just sent)
   const { data: nextStep } = await supabase
     .from("campaign_steps")
-    .select("delay_hours")
+    .select("id, delay_hours")
     .eq("campaign_id", enrollment.campaign_id)
     .eq("step_number", nextStepNumber + 1)
-    .single()
+    .maybeSingle()
 
-  const nextRunAt = nextStep
-    ? new Date(Date.now() + (nextStep.delay_hours || 1) * 60 * 60 * 1000).toISOString()
+  const hasMoreSteps = !!nextStep
+  const nextRunAt = hasMoreSteps
+    ? new Date(Date.now() + (nextStep!.delay_hours || 24) * 60 * 60 * 1000).toISOString()
     : null
 
-  // Update enrollment
+  // Update enrollment — only complete when there are truly no more steps
   await supabase
     .from(tableName)
     .update({
       current_step: nextStepNumber,
       next_run_at: nextRunAt,
-      status: nextRunAt ? "active" : "completed",
+      status: hasMoreSteps ? "active" : "completed",
     })
     .eq("id", enrollment.id)
 
   return result
 }
 
-function replacePlaceholders(text: string, recipient: any, agentName: string): string {
+const COMPANY_APPOINTMENT_LINK = "https://mckinneyrealtyco.com/schedule-appointment"
+
+function replacePlaceholders(text: string, recipient: any, agentName: string, agentEmail?: string | null, agentPhone?: string | null, appointmentLink?: string | null): string {
   return text
     .replace(/\{\{first_name\}\}/gi, recipient.first_name || "")
     .replace(/\{\{last_name\}\}/gi, recipient.last_name || "")
     .replace(/\{\{agent_name\}\}/gi, agentName)
+    .replace(/\{\{agent_email\}\}/gi, agentEmail || "")
+    .replace(/\{\{agent_phone\}\}/gi, agentPhone || "")
+    .replace(/\{\{appointment_link\}\}/gi, appointmentLink || COMPANY_APPOINTMENT_LINK)
     .replace(/\{\{property_interest\}\}/gi, recipient.property_interest || "your area")
     .replace(/\{\{budget\}\}/gi, recipient.budget_max ? `$${recipient.budget_max.toLocaleString()}` : "your budget")
     .replace(/\{\{timeline\}\}/gi, recipient.timeline || "soon")

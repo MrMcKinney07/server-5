@@ -1,0 +1,10 @@
+export function formatPrice(price?: number): string {
+  if (!price) return ""
+  if (price >= 1_000_000) {
+    return `$${(price / 1_000_000).toFixed(price % 1_000_000 === 0 ? 0 : 1)}M`
+  }
+  if (price >= 1_000) {
+    return `$${(price / 1_000).toFixed(price % 1_000 === 0 ? 0 : 0)}K`
+  }
+  return `$${price.toLocaleString()}`
+}

@@ -20,6 +20,7 @@ interface Lead {
   last_name: string | null
   email: string | null
   phone: string | null
+  tags: string[]
   contact_id: string | null
   contact: {
     id: string
@@ -27,7 +28,6 @@ interface Lead {
     last_name: string | null
     email: string | null
     phone: string | null
-    tags: string[] | null
   } | null
 }
 
@@ -40,6 +40,7 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
   const [leads, setLeads] = useState<Lead[]>([])
   const [enrolledLeadIds, setEnrolledLeadIds] = useState<string[]>([])
   const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([])
+
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [allTags, setAllTags] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState("")
@@ -67,14 +68,14 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
         last_name,
         email,
         phone,
+        tags,
         contact_id,
         contact:contacts(
           id,
           first_name,
           last_name,
           email,
-          phone,
-          tags
+          phone
         )
       `,
       )
@@ -93,10 +94,10 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
       .select("lead_id")
       .eq("campaign_id", campaignId)
 
-    // Extract all unique tags from contacts
+    // Extract all unique tags from leads
     const tags = new Set<string>()
     leadsData?.forEach((lead: any) => {
-      lead.contact?.tags?.forEach((tag: string) => tags.add(tag))
+      lead.tags?.forEach((tag: string) => tags.add(tag))
     })
 
     setLeads(leadsData || [])
@@ -120,7 +121,7 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
     }
 
     const leadsWithTags = leads.filter(
-      (lead) => !enrolledLeadIds.includes(lead.id) && lead.contact?.tags?.some((tag) => selectedTags.includes(tag)),
+      (lead) => !enrolledLeadIds.includes(lead.id) && lead.tags?.some((tag) => selectedTags.includes(tag)),
     )
 
     setSelectedLeadIds(leadsWithTags.map((l) => l.id))
@@ -213,7 +214,7 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
   })
 
   const leadsFilteredByTags = selectedTags.length
-    ? filteredLeads.filter((lead) => lead.contact?.tags?.some((tag) => selectedTags.includes(tag)))
+    ? filteredLeads.filter((lead) => lead.tags?.some((tag) => selectedTags.includes(tag)))
     : filteredLeads
 
   return (
@@ -301,9 +302,9 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
                             </span>
                           )}
                         </div>
-                        {lead.contact?.tags && lead.contact.tags.length > 0 && (
+                        {lead.tags?.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-2">
-                            {lead.contact.tags.map((tag) => (
+                            {lead.tags.map((tag) => (
                               <Badge key={tag} variant="secondary" className="text-xs">
                                 {tag}
                               </Badge>
@@ -331,8 +332,8 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
               {allTags.length === 0 ? (
                 <div className="text-center py-8 border rounded-lg">
                   <Tag className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">No tags found on your contacts</p>
-                  <p className="text-xs text-muted-foreground mt-1">Add tags to contacts to use group enrollment</p>
+                  <p className="text-sm text-muted-foreground">No tags found on your leads</p>
+                  <p className="text-xs text-muted-foreground mt-1">Add tags to leads to use group enrollment</p>
                 </div>
               ) : (
                 <div className="flex flex-wrap gap-2">
@@ -377,7 +378,7 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
                               {getLeadName(lead)}
                             </p>
                             <div className="flex flex-wrap gap-1 mt-1">
-                              {lead.contact?.tags
+                              {lead.tags
                                 ?.filter((tag) => selectedTags.includes(tag))
                                 .map((tag) => (
                                   <Badge key={tag} variant="secondary" className="text-xs">

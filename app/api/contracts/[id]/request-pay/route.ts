@@ -1,6 +1,8 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server"
 import { getCurrentAgent } from "@/lib/auth"
 import { NextResponse } from "next/server"
+import { grantXP } from "@/lib/xp-service"
+import { XP_REWARDS } from "@/lib/xp-constants"
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient()
@@ -23,13 +25,58 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Payment already requested" }, { status: 400 })
   }
 
-  // Set payment_status to pending
+  // Set payment_status to pending and status to closed
   const { error: updateErr } = await supabase
     .from("executed_contracts")
-    .update({ payment_status: "pending" })
+    .update({ payment_status: "pending", status: "closed" })
     .eq("id", contractId)
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
+
+  // Grant 30 XP for closing a contract
+  const xpResult = await grantXP(
+    agent.id,
+    XP_REWARDS.CONTRACT_CLOSE,
+    `Closed contract: ${contract.property_address}`,
+    "CONTRACT_CLOSE",
+  )
+
+  // Credit one incomplete mission item for today (counts towards the 3 daily missions)
+  try {
+    const today = new Date().toISOString().split("T")[0]
+    const { data: todaySet } = await supabase
+      .from("daily_mission_sets")
+      .select("id")
+      .eq("user_id", agent.id)
+      .eq("mission_date", today)
+      .maybeSingle()
+
+    if (todaySet) {
+      // Find the first incomplete mission item
+      const { data: pendingItem } = await supabase
+        .from("daily_mission_items")
+        .select("id")
+        .eq("daily_set_id", todaySet.id)
+        .neq("status", "completed")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle()
+
+      if (pendingItem) {
+        await supabase
+          .from("daily_mission_items")
+          .update({
+            status: "completed",
+            completed_at: new Date().toISOString(),
+            notes: `Auto-completed: closed contract at ${contract.property_address}`,
+          })
+          .eq("id", pendingItem.id)
+      }
+    }
+  } catch (missionErr) {
+    // Non-critical — don't fail the whole request
+    console.error("[v0] Failed to credit mission on contract close:", missionErr)
+  }
 
   // Fetch agent name
   const { data: agentRow } = await supabase
@@ -58,5 +105,8 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     await serviceClient.from("contract_notifications").insert(notifRows)
   }
 
-  return NextResponse.json({ success: true })
+  return NextResponse.json({
+    success: true,
+    xp: xpResult.success ? { earned: XP_REWARDS.CONTRACT_CLOSE, newSeasonXP: xpResult.newSeasonXP } : null,
+  })
 }

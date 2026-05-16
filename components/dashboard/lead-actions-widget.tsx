@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { AlertCircle, Phone, MessageSquare, CheckCircle, Clock, Mail, Calendar, User, RefreshCw } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
+import { createClient, hasSupabaseCredentials } from "@/lib/supabase/client"
 import { format, isToday, isBefore, startOfDay } from "date-fns"
 
 interface Task {
@@ -30,13 +30,18 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
-  const supabase = createClient()
+  const supabaseRef = useRef(createClient())
+  const supabase = supabaseRef.current
 
   const fetchTasks = useCallback(async () => {
+    if (!hasSupabaseCredentials()) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
     const today = new Date().toISOString().split("T")[0]
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseRef.current
       .from("activities")
       .select(`
         id,
@@ -58,7 +63,7 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
     }
 
     setLoading(false)
-  }, [agentId, supabase])
+  }, [agentId])
 
   useEffect(() => {
     fetchTasks()
@@ -86,13 +91,13 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
     }
 
     // Mark task as completed
-    const { error: taskError } = await supabase
+    const { error: taskError } = await supabaseRef.current
       .from("activities")
       .update({ completed: true, completed_at: new Date().toISOString() })
       .eq("id", taskId)
 
     if (!taskError) {
-      const { data: nextActivity } = await supabase
+      const { data: nextActivity } = await supabaseRef.current
         .from("activities")
         .select("due_at")
         .eq("lead_id", task.lead_id)
@@ -101,7 +106,7 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
         .limit(1)
         .single()
 
-      await supabase
+      await supabaseRef.current
         .from("leads")
         .update({
           next_follow_up: nextActivity?.due_at || null,
@@ -123,7 +128,7 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
     tomorrow.setDate(tomorrow.getDate() + 1)
     tomorrow.setHours(9, 0, 0, 0)
 
-    await supabase.from("activities").update({ due_at: tomorrow.toISOString() }).eq("id", taskId)
+    await supabaseRef.current.from("activities").update({ due_at: tomorrow.toISOString() }).eq("id", taskId)
 
     setTasks((prevTasks) => prevTasks.filter((t) => t.id !== taskId))
 

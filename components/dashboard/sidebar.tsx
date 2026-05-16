@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation"
 import {
   LayoutDashboard,
   Users,
-  Home,
   Settings,
   Target,
   Mail,
@@ -15,6 +14,7 @@ import {
   BookOpen,
   Megaphone,
   FileSignature,
+  Calculator,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -23,10 +23,10 @@ const navItems = [
   { label: "Missions", href: "/dashboard/missions", icon: Target, color: "text-amber-400" },
   { label: "Leads", href: "/dashboard/leads", icon: Users, color: "text-cyan-400" },
   { label: "Campaigns", href: "/dashboard/campaigns", icon: Mail, color: "text-rose-400" },
-  { label: "Properties", href: "/dashboard/properties", icon: Home, color: "text-emerald-400" },
   { label: "Marketing", href: "/dashboard/marketing", icon: Megaphone, color: "text-pink-400" },
   { label: "Contracts", href: "/dashboard/contracts", icon: FileSignature, color: "text-cyan-400" },
   { label: "Earnings", href: "/dashboard/earnings", icon: DollarSign, color: "text-emerald-400" },
+  { label: "Money Math", href: "/dashboard/money-math", icon: Calculator, color: "text-cyan-400" },
   { label: "Knowledge Base", href: "/dashboard/knowledge", icon: BookOpen, color: "text-violet-400" },
   { label: "Prestige", href: "/dashboard/prestige", icon: Trophy, color: "text-amber-400" },
   { label: "Settings", href: "/dashboard/settings", icon: Settings, color: "text-slate-400" },

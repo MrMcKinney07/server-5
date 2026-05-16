@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
 import { Rocket, Star, Sparkles, Zap } from "lucide-react"
 
 interface Firework {
@@ -73,7 +74,21 @@ export default function LaunchingPage() {
       setTimeout(() => clearInterval(finaleInterval), 2000)
     }, 4000)
 
-    const timeout = setTimeout(() => {
+    const timeout = setTimeout(async () => {
+      try {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const res = await fetch("/api/profile/check-password-flag")
+          const data = await res.json()
+          if (data.must_change_password) {
+            router.push("/auth/set-password")
+            return
+          }
+        }
+      } catch {
+        // fall through to dashboard
+      }
       router.push("/dashboard")
     }, 5000)
 

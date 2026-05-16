@@ -1,5 +1,6 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server"
 import { TopCloserLeaderboard } from "@/components/dashboard/top-closer-leaderboard"
+import { ListingLeaderboard } from "@/components/dashboard/listing-leaderboard"
 import { requireAuth } from "@/lib/auth"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -23,12 +24,12 @@ import {
   BookOpen,
 } from "lucide-react"
 import Link from "next/link"
-import { formatDistanceToNow } from "date-fns"
 import { LeadActionsWidget } from "@/components/dashboard/lead-actions-widget"
 import { OfficeLeaderboardHero } from "@/components/dashboard/office-leaderboard-hero"
 import { UserBadgeName } from "@/components/prestige/user-badge-name"
 import { getPrestigeTierInfo } from "@/lib/xp-constants"
 import { HustleStreakBadge } from "@/components/dashboard/hustle-streak-badge"
+import { DashboardCalendar, type CalendarEvent } from "@/components/dashboard/dashboard-calendar"
 
 const PRESTIGE_LEVELS = [
   {
@@ -128,12 +129,17 @@ export default async function DashboardPage() {
   const monthYear = `${year}-${String(month).padStart(2, "0")}`
   const today = new Date().toISOString().split("T")[0]
 
+  const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split("T")[0]
+  const threeMonthsAhead = new Date(now.getFullYear(), now.getMonth() + 3, 0).toISOString().split("T")[0]
+
   const [
     { count: leadsCount },
     { data: todayMissionSet },
     { data: recentActivities },
     monthlyRankingsResponse,
     { data: knowledgeArticles },
+    { data: appointmentNotifs },
+    { data: upcomingClosings },
   ] = await Promise.all([
     supabase.from("leads").select("*", { count: "exact", head: true }).eq("agent_id", agent.id),
     supabase
@@ -170,6 +176,22 @@ export default async function DashboardPage() {
       .eq("is_published", true)
       .order("created_at", { ascending: false })
       .limit(4),
+    // Appointment notifications with a scheduled_at in metadata
+    supabase
+      .from("agent_notifications")
+      .select("id, title, metadata, created_at")
+      .eq("agent_id", agent.id)
+      .eq("type", "appointment")
+      .order("created_at", { ascending: false })
+      .limit(30),
+    // Upcoming closings from executed_contracts
+    supabase
+      .from("executed_contracts")
+      .select("id, property_address, expected_closing_date")
+      .eq("agent_id", agent.id)
+      .gte("expected_closing_date", threeMonthsAgo)
+      .lte("expected_closing_date", threeMonthsAhead)
+      .not("expected_closing_date", "is", null),
   ])
 
   const { data: monthlyRankings } = monthlyRankingsResponse
@@ -258,6 +280,37 @@ export default async function DashboardPage() {
   const endOfQuarter = new Date(now.getFullYear(), quarterStartMonth + 3, 0).toISOString().split("T")[0]
   const currentQuarter = Math.floor(now.getMonth() / 3) + 1
 
+  // Listing leaderboard — listing agreements uploaded this month
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0]
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0]
+
+  const { data: listingUploads } = await serviceClient
+    .from("contract_documents")
+    .select(`
+      contract_id,
+      uploaded_at,
+      executed_contracts!inner(agent_id, agents("Name", profile_picture_url))
+    `)
+    .eq("document_key", "listing_agreement")
+    .not("uploaded_at", "is", null)
+    .gte("uploaded_at", startOfMonth)
+    .lte("uploaded_at", endOfMonth + "T23:59:59")
+
+  const listingMap = new Map<string, { name: string; profilePicture: string | null; listingCount: number }>()
+  listingUploads?.forEach((row: any) => {
+    const agentId = row.executed_contracts?.agent_id
+    if (!agentId) return
+    const name = (row.executed_contracts?.agents as any)?.Name || "Unknown"
+    const pic = (row.executed_contracts?.agents as any)?.profile_picture_url || null
+    if (!listingMap.has(agentId)) listingMap.set(agentId, { name, profilePicture: pic, listingCount: 0 })
+    listingMap.get(agentId)!.listingCount += 1
+  })
+
+  const sortedListings = Array.from(listingMap.entries())
+    .map(([agentId, data]) => ({ agentId, ...data, isCurrentUser: agentId === agent.id }))
+    .sort((a, b) => b.listingCount - a.listingCount)
+    .slice(0, 10)
+
   const [{ data: closedContracts }, { data: closedTransactions }] = await Promise.all([
     serviceClient
       .from("executed_contracts")
@@ -295,6 +348,28 @@ export default async function DashboardPage() {
     .sort((a, b) => b.closedCount !== a.closedCount ? b.closedCount - a.closedCount : b.closedVolume - a.closedVolume)
     .slice(0, 10)
 
+  // Build calendar events
+  const calendarEvents: CalendarEvent[] = []
+  appointmentNotifs?.forEach((n) => {
+    const dt = n.metadata?.event_start_time || n.metadata?.scheduled_at || n.created_at
+    calendarEvents.push({
+      id: n.id,
+      type: "appointment",
+      title: n.title || "Appointment",
+      date: new Date(dt),
+      link: "/dashboard/calendar",
+    })
+  })
+  upcomingClosings?.forEach((c) => {
+    calendarEvents.push({
+      id: c.id,
+      type: "closing",
+      title: c.property_address || "Closing",
+      date: new Date(c.expected_closing_date),
+      link: "/dashboard/transactions",
+    })
+  })
+
   const myPrestige = getPrestigeLevel(myPoints)
   const PrestigeIcon = myPrestige.icon
   const prestigeTierInfo = getPrestigeTierInfo(agent.lifetime_xp || 0)
@@ -310,6 +385,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Welcome header */}
       <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-xl p-4 text-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -325,7 +401,6 @@ export default async function DashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            {/* Hustle Streak Badge */}
             <HustleStreakBadge />
             <div className="text-right">
               <p className="text-xs text-white/60">Prestige Level</p>
@@ -339,326 +414,98 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <OfficeLeaderboardHero
-        leaderboard={sortedLeaderboard}
-        currentUserId={agent.id}
-        currentUserRank={myRank}
-        currentUserPoints={myPoints}
-      />
-
-      <TopCloserLeaderboard
-        closers={sortedClosers}
-        currentUserId={agent.id}
-        quarter={currentQuarter}
-        year={now.getFullYear()}
-      />
-
+      {/* ROW 1: Today's Missions */}
       <Link href="/dashboard/missions" className="block">
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-amber-500" />
-              Today's Missions
-              <span className="ml-auto text-sm font-normal text-amber-500">Click to manage</span>
-            </CardTitle>
-            <CardDescription>Complete your daily missions to earn points</CardDescription>
+        <Card className="hover:shadow-md transition-shadow cursor-pointer">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Target className="h-4 w-4 text-amber-500" />
+                {"Today's Missions"}
+                {totalMissions > 0 && (
+                  <span className={`text-xs font-normal px-2 py-0.5 rounded-full ${
+                    completedMissions === totalMissions
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-amber-100 text-amber-700"
+                  }`}>
+                    {completedMissions}/{totalMissions} done
+                  </span>
+                )}
+              </CardTitle>
+              <span className="text-xs text-amber-500 font-medium">Manage missions</span>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent>
             {todayMissionSet && todayMissionSet.daily_mission_items.length > 0 ? (
-              todayMissionSet.daily_mission_items.slice(0, 3).map((mission: any, index: number) => (
-                <div
-                  key={mission.id}
-                  className={`flex items-center gap-3 p-3 rounded-lg border ${
-                    mission.status === "completed"
-                      ? "bg-emerald-500/10 border-emerald-500/30"
-                      : "bg-blue-500/10 border-blue-500/30"
-                  }`}
-                >
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {todayMissionSet.daily_mission_items.slice(0, 3).map((mission: any, index: number) => (
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      mission.status === "completed" ? "bg-emerald-500 text-white" : "bg-blue-500 text-white font-bold"
+                    key={mission.id}
+                    className={`flex items-center gap-3 p-3 rounded-lg border ${
+                      mission.status === "completed"
+                        ? "bg-emerald-500/8 border-emerald-200 dark:border-emerald-900/40"
+                        : "bg-amber-500/5 border-amber-200 dark:border-amber-900/30"
                     }`}
                   >
-                    {mission.status === "completed" ? "✓" : index + 1}
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${
+                      mission.status === "completed"
+                        ? "bg-emerald-500 text-white"
+                        : "bg-amber-500/20 text-amber-600"
+                    }`}>
+                      {mission.status === "completed" ? <CheckCircle2 className="h-4 w-4" /> : index + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-medium truncate ${
+                        mission.status === "completed" ? "line-through text-muted-foreground" : ""
+                      }`}>
+                        {mission.mission_templates?.title || "Mission"}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">{mission.mission_templates?.description}</p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <p
-                      className={`font-medium text-blue-400 ${mission.status === "completed" ? "line-through opacity-60" : ""}`}
-                    >
-                      {mission.mission_templates?.title || "Mission"}
-                    </p>
-                    <p className="text-xs text-slate-300 line-clamp-1">{mission.mission_templates?.description}</p>
-                  </div>
-                </div>
-              ))
+                ))}
+              </div>
             ) : (
               <div className="text-center py-6 text-muted-foreground">
-                <Target className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>No missions selected for today</p>
-                <p className="text-sm text-amber-500 font-medium">Click to select your 3 daily missions</p>
+                <Target className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                <p className="text-sm">No missions selected for today</p>
+                <p className="text-sm text-amber-500 font-medium mt-1">Click to select your 3 daily missions</p>
               </div>
             )}
           </CardContent>
         </Card>
       </Link>
 
-      <LeadActionsWidget agentId={agent.id} />
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Award className="h-5 w-5 text-purple-500" />
-            Achievements
-          </CardTitle>
-          <CardDescription>
-            {earnedAchievements.length} of {MILESTONES.length} unlocked
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-5 md:grid-cols-10 gap-2">
-            {MILESTONES.slice(0, 10).map((milestone) => {
-              const MilestoneIcon = milestone.icon
-              const isEarned = earnedAchievements.some((a) => a.id === milestone.id)
-              return (
-                <div
-                  key={milestone.id}
-                  className={`aspect-square rounded-lg flex flex-col items-center justify-center p-2 ${
-                    isEarned
-                      ? "bg-gradient-to-br from-purple-100 to-purple-200 border-2 border-purple-300"
-                      : "bg-gray-100 opacity-40"
-                  }`}
-                  title={`${milestone.name}: ${milestone.description}`}
-                >
-                  <MilestoneIcon className={`h-5 w-5 ${isEarned ? "text-purple-600" : "text-gray-400"}`} />
-                </div>
-              )
-            })}
-          </div>
-          <Link
-            href="/dashboard/rewards"
-            className="block text-center text-sm text-purple-600 hover:underline font-medium mt-4"
-          >
-            View All Achievements
-          </Link>
-        </CardContent>
-      </Card>
-
-      {/* Knowledge Base Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-blue-500" />
-            Knowledge Base
-          </CardTitle>
-          <CardDescription>Training materials and best practices</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {knowledgeArticles && knowledgeArticles.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              {knowledgeArticles.map((article: any) => {
-                const categoryLabels: Record<string, string> = {
-                  lead_handling: "Lead Handling",
-                  listings: "Listings",
-                  transactions: "Transactions",
-                  open_house: "Open Houses",
-                  training: "Training",
-                  general: "General",
-                }
-                return (
-                  <Link
-                    key={article.id}
-                    href={`/dashboard/knowledge/${article.id}`}
-                    className="block p-3 rounded-lg border hover:shadow-md hover:border-blue-200 transition-all bg-gradient-to-br from-white to-blue-50/50"
-                  >
-                    <div className="flex items-start gap-2 mb-2">
-                      <BookOpen className="h-4 w-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                      <h4 className="font-medium text-sm line-clamp-2">{article.title}</h4>
-                    </div>
-                    <p className="text-xs text-muted-foreground line-clamp-2">{article.content?.substring(0, 80)}...</p>
-                    <span className="inline-block mt-2 text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded">
-                      {categoryLabels[article.category] || article.category}
-                    </span>
-                  </Link>
-                )
-              })}
-            </div>
-          ) : (
-            <div className="text-center py-6 text-muted-foreground">
-              <BookOpen className="h-12 w-12 mx-auto mb-2 opacity-50" />
-              <p>No articles available yet</p>
-            </div>
-          )}
-          <Link
-            href="/dashboard/knowledge"
-            className="block text-center text-sm text-blue-600 hover:underline font-medium mt-4"
-          >
-            Browse All Articles
-          </Link>
-        </CardContent>
-      </Card>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Active Leads</CardTitle>
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Users className="h-4 w-4 text-blue-600" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{leadsCount || 0}</div>
-            <Link href="/dashboard/leads" className="text-xs text-blue-500 hover:underline">
-              View all leads
-            </Link>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-emerald-500 hover:shadow-lg transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Monthly Rank</CardTitle>
-            <div className={`p-2 rounded-lg ${myPrestige.bg}`}>
-              <PrestigeIcon className={`h-4 w-4 ${myPrestige.color}`} />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${myPrestige.color}`}>{myRank > 0 ? `#${myRank}` : "--"}</div>
-            <p className="text-xs text-muted-foreground">
-              {myPoints} pts - {myPrestige.name}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Link href="/dashboard/missions" className="block">
-          <Card className="border-l-4 border-l-amber-500 hover:shadow-lg transition-shadow cursor-pointer h-full">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Today's Missions</CardTitle>
-              <div className="p-2 bg-amber-100 rounded-lg">
-                <Target className="h-4 w-4 text-amber-600" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-amber-600">
-                {completedMissions}/{totalMissions}
-              </div>
-              <span className="text-xs text-amber-500 hover:underline">Click to view missions</span>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Card className="border-l-4 border-l-rose-500 hover:shadow-lg transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Earnings</CardTitle>
-            <div className="p-2 bg-rose-100 rounded-lg">
-              <DollarSign className="h-4 w-4 text-rose-600" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-rose-600">$0</div>
-            <Link href="/dashboard/earnings" className="text-xs text-rose-500 hover:underline">
-              View earnings
-            </Link>
-          </CardContent>
-        </Card>
+      {/* ROW 2: Follow Up Tasks (left) + Calendar (right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        <LeadActionsWidget agentId={agent.id} />
+        <DashboardCalendar events={calendarEvents} agentId={agent.id} />
       </div>
 
+      {/* ROW 3: XP + Closer leaderboards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Star className="h-5 w-5 text-amber-500" />
-              Quick Actions
-            </CardTitle>
-            <CardDescription>Jump to common tasks</CardDescription>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-3">
-            <Link
-              href="/dashboard/leads"
-              className="bg-blue-500 hover:bg-blue-600 text-white rounded-lg p-4 flex flex-col items-center gap-2 transition-colors"
-            >
-              <Plus className="h-6 w-6" />
-              <span className="text-sm font-medium">Add Lead</span>
-            </Link>
-            <Link
-              href="/dashboard/transactions"
-              className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg p-4 flex flex-col items-center gap-2 transition-colors"
-            >
-              <Receipt className="h-6 w-6" />
-              <span className="text-sm font-medium">Transactions</span>
-            </Link>
-            <Link
-              href="/dashboard/missions"
-              className="bg-amber-500 hover:bg-amber-600 text-white rounded-lg p-4 flex flex-col items-center gap-2 transition-colors"
-            >
-              <Target className="h-6 w-6" />
-              <span className="text-sm font-medium">View Missions</span>
-            </Link>
-            <Link
-              href="/dashboard/earnings"
-              className="bg-rose-500 hover:bg-rose-600 text-white rounded-lg p-4 flex flex-col items-center gap-2 transition-colors"
-            >
-              <DollarSign className="h-6 w-6" />
-              <span className="text-sm font-medium">Check Earnings</span>
-            </Link>
-          </CardContent>
-        </Card>
+        <OfficeLeaderboardHero
+          leaderboard={sortedLeaderboard}
+          currentUserId={agent.id}
+          currentUserRank={myRank}
+          currentUserPoints={myPoints}
+        />
+        <TopCloserLeaderboard
+          closers={sortedClosers}
+          currentUserId={agent.id}
+          quarter={currentQuarter}
+          year={now.getFullYear()}
+        />
+      </div>
 
-        {/* Recent Activity */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-blue-500" />
-              Recent Activity
-            </CardTitle>
-            <CardDescription>Your latest actions and updates</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {recentActivities && recentActivities.length > 0 ? (
-              <div className="space-y-4">
-                {recentActivities.map((activity: any) => {
-                  const Icon =
-                    activity.type === "call"
-                      ? Phone
-                      : activity.type === "email"
-                        ? Mail
-                        : activity.type === "meeting"
-                          ? Calendar
-                          : TrendingUp
-                  return (
-                    <div key={activity.id} className="flex gap-3">
-                      <div
-                        className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                          activity.type === "call"
-                            ? "bg-blue-100 text-blue-600"
-                            : activity.type === "email"
-                              ? "bg-emerald-100 text-emerald-600"
-                              : activity.type === "meeting"
-                                ? "bg-purple-100 text-purple-600"
-                                : "bg-gray-100 text-gray-600"
-                        }`}
-                      >
-                        <Icon className="h-4 w-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium line-clamp-1">{activity.description || activity.notes}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
-                        </p>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-6 text-muted-foreground">
-                <TrendingUp className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>No recent activity</p>
-                <p className="text-sm">Start by adding a lead or completing a mission</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      {/* ROW 4: Listing leaderboard */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ListingLeaderboard
+          agents={sortedListings}
+          currentUserId={agent.id}
+          month={String(now.getMonth() + 1).padStart(2, "0")}
+          year={now.getFullYear()}
+        />
       </div>
     </div>
   )

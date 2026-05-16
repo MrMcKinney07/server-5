@@ -102,7 +102,7 @@ export function CampaignDetails({ campaign }: CampaignDetailsProps) {
   const [quietHoursStart, setQuietHoursStart] = useState(campaign.quiet_hours_start?.slice(0, 5) || "09:00")
   const [quietHoursEnd, setQuietHoursEnd] = useState(campaign.quiet_hours_end?.slice(0, 5) || "19:00")
   const [stopOnReply, setStopOnReply] = useState(campaign.stop_on_reply ?? true)
-  const [throttlePerMinute, setThrottlePerMinute] = useState(campaign.throttle_per_minute ?? 30)
+  const [throttlePerMinute, setThrottlePerMinute] = useState(campaign.throttle_per_minute ?? 10)
   const [dedupeWindowDays, setDedupeWindowDays] = useState(campaign.dedupe_window_days ?? 365)
   const [sendDays, setSendDays] = useState<string[]>(
     campaign.audience_filter?.send_days || ["mon", "tue", "wed", "thu", "fri"],
@@ -256,10 +256,9 @@ export function CampaignDetails({ campaign }: CampaignDetailsProps) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="10">10/min</SelectItem>
-                    <SelectItem value="30">30/min</SelectItem>
-                    <SelectItem value="60">60/min</SelectItem>
-                    <SelectItem value="120">120/min</SelectItem>
+                    <SelectItem value="5">5/min (Safest)</SelectItem>
+                    <SelectItem value="10">10/min (Recommended)</SelectItem>
+                    <SelectItem value="20">20/min (Max)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -361,7 +360,7 @@ export function CampaignDetails({ campaign }: CampaignDetailsProps) {
           </div>
           <div className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
             <span className="text-xs text-muted-foreground">Throttle</span>
-            <span className="text-xs font-medium">{campaign.throttle_per_minute || 30}/min</span>
+            <span className="text-xs font-medium">{campaign.throttle_per_minute || 10}/min</span>
           </div>
         </div>
 

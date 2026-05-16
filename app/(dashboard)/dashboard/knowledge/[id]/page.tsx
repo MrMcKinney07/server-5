@@ -14,7 +14,7 @@ export default async function KnowledgeArticlePage({ params }: { params: Promise
 
   const { data: article } = await supabase
     .from("knowledge_articles")
-    .select("*, created_by_agent:agents(*), related_mission_template:mission_templates(*)")
+    .select("*")
     .eq("id", id)
     .eq("is_published", true)
     .single()

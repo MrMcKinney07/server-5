@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import useSWR, { mutate } from "swr"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
+import { BrokerAddContractDialog } from "@/components/admin/broker-add-contract-dialog"
 import {
   ChevronRight,
   FolderOpen,
@@ -15,13 +16,16 @@ import {
   Clock,
   Circle,
   AlertTriangle,
-  Home,
   Users,
   Loader2,
   X,
   DollarSign,
   Mail,
+  Plus,
+  Upload,
+  ExternalLink,
 } from "lucide-react"
+import { toast } from "sonner"
 
 const fetcher = async (url: string) => {
   const res = await fetch(url, { credentials: "include" })
@@ -58,6 +62,9 @@ interface Contract {
   expected_closing_date: string | null
   contract_documents: ContractDoc[]
   contract_deal_specific_docs: any[]
+  is_referral: boolean | null
+  referral_agent_name: string | null
+  referral_fee: number | null
 }
 
 interface AgentGroup {
@@ -226,6 +233,34 @@ function CheckSentButton({ contractId, onSuccess }: { contractId: string; onSucc
 function TransactionFolder({ contract }: { contract: Contract }) {
   const [open, setOpen] = useState(false)
   const [paymentStatus, setPaymentStatus] = useState(contract.payment_status)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      const res = await fetch(`/api/broker/contracts/${contract.id}/upload`, {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || "Upload failed")
+      }
+      toast.success(`${file.name} uploaded successfully`)
+      mutate("/api/broker/contracts")
+    } catch (err: any) {
+      toast.error(err.message || "Upload failed")
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    }
+  }
   const pendingCount = contract.contract_documents.filter((d) => d.status === "uploaded").length
   const risk = RISK_CONFIG[contract.risk_status] ?? RISK_CONFIG.green
 
@@ -275,6 +310,11 @@ function TransactionFolder({ contract }: { contract: Contract }) {
               {risk.icon}
               {risk.label}
             </div>
+            {contract.is_referral && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-500/15 text-violet-400 border border-violet-500/20 font-medium">
+                Referral
+              </span>
+            )}
           </div>
         </div>
 
@@ -303,6 +343,20 @@ function TransactionFolder({ contract }: { contract: Contract }) {
             <span className="text-white font-medium">{contract.progress_percent}%</span>
           </div>
           <Progress value={contract.progress_percent} className="h-1.5 mb-4 bg-white/10" />
+
+          {/* Referral info */}
+          {contract.is_referral && (
+            <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-violet-500/20 bg-violet-500/[0.05] mb-3">
+              <DollarSign className="h-4 w-4 text-violet-400 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-violet-400">Referral Fee Owed</p>
+                <p className="text-[11px] text-slate-400 truncate">
+                  {contract.referral_agent_name ? `To: ${contract.referral_agent_name}` : "Referring agent not specified"}
+                  {contract.referral_fee ? ` · $${contract.referral_fee.toLocaleString()}` : ""}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Pay requested banner + Check Sent button */}
           {paymentStatus === "pending" && (
@@ -338,22 +392,54 @@ function TransactionFolder({ contract }: { contract: Contract }) {
             </div>
           )}
 
-          {contract.contract_deal_specific_docs.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-white/[0.04]">
-              <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Deal-Specific</p>
+          {/* Additional files section */}
+          <div className="mt-3 pt-3 border-t border-white/[0.04]">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-slate-500 uppercase tracking-wider">Additional Files</p>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300 transition-colors disabled:opacity-50"
+              >
+                {uploading ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Upload className="h-3 w-3" />
+                )}
+                {uploading ? "Uploading..." : "Upload File"}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+            </div>
+
+            {contract.contract_deal_specific_docs.length === 0 ? (
+              <p className="text-xs text-slate-600 text-center py-3">No additional files uploaded yet.</p>
+            ) : (
               <div className="space-y-1.5">
                 {contract.contract_deal_specific_docs.map((doc: any) => (
                   <div key={doc.id} className="flex items-center gap-3 px-3 py-2 rounded-lg border border-white/[0.05] bg-white/[0.02]">
                     <FileText className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-                    <span className="text-sm text-slate-300 truncate">{doc.document_name}</span>
-                    <span className={cn("ml-auto text-[10px] px-1.5 py-0.5 rounded-full border flex items-center gap-1", STATUS_BADGE[doc.status as DocStatus]?.className)}>
-                      {STATUS_BADGE[doc.status as DocStatus]?.label}
-                    </span>
+                    <span className="text-sm text-slate-300 truncate flex-1">{doc.document_name}</span>
+                    {doc.file_url && (
+                      <a
+                        href={doc.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0 text-cyan-400 hover:text-cyan-300 transition-colors"
+                        title="Open file"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    )}
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -420,8 +506,13 @@ function AgentFolder({ group }: { group: AgentGroup }) {
   )
 }
 
-export function BrokerContractsFolder() {
+interface BrokerContractsFolderProps {
+  agents?: { id: string; Name: string; Email: string }[]
+}
+
+export function BrokerContractsFolder({ agents = [] }: BrokerContractsFolderProps) {
   const { data, isLoading } = useSWR("/api/broker/contracts", fetcher, { revalidateOnFocus: true })
+  const [addOpen, setAddOpen] = useState(false)
 
   const groups: AgentGroup[] = data?.grouped ?? []
   const total = data?.total ?? 0
@@ -443,19 +534,32 @@ export function BrokerContractsFolder() {
 
   return (
     <div className="space-y-4">
-      {/* Summary bar */}
-      <div className="flex items-center gap-4 px-1">
-        <div className="flex items-center gap-1.5 text-sm text-slate-400">
-          <Home className="h-4 w-4 text-slate-500" />
-          <span className="text-white font-medium">{total}</span> total contracts
+      {/* Summary bar + Add button */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4 px-1">
+          <div className="flex items-center gap-1.5 text-sm text-slate-400">
+            <Home className="h-4 w-4 text-slate-500" />
+            <span className="text-white font-medium">{total}</span> total contracts
+          </div>
+          <div className="flex items-center gap-1.5 text-sm">
+            <Clock className="h-4 w-4 text-amber-400" />
+            <span className={cn("font-medium", totalPending > 0 ? "text-amber-400" : "text-slate-400")}>
+              {totalPending}
+            </span>
+            <span className="text-slate-500">awaiting review</span>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5 text-sm">
-          <Clock className="h-4 w-4 text-amber-400" />
-          <span className={cn("font-medium", totalPending > 0 ? "text-amber-400" : "text-slate-400")}>
-            {totalPending}
-          </span>
-          <span className="text-slate-500">awaiting review</span>
-        </div>
+
+        {agents.length > 0 && (
+          <Button
+            size="sm"
+            onClick={() => setAddOpen(true)}
+            className="gap-1.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 border border-cyan-500/20 shrink-0"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add Contract
+          </Button>
+        )}
       </div>
 
       {groups.length === 0 ? (
@@ -471,6 +575,12 @@ export function BrokerContractsFolder() {
           ))}
         </div>
       )}
+
+      <BrokerAddContractDialog
+        agents={agents}
+        open={addOpen}
+        onOpenChange={setAddOpen}
+      />
     </div>
   )
 }

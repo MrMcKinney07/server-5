@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
-import { createBrowserClient } from "@/lib/supabase/client"
+import { useEffect, useState, useCallback, useRef } from "react"
+import { createBrowserClient, hasSupabaseCredentials } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -12,27 +12,38 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
-import { Bell, User, Clock, FileText, Target, AlertCircle, FileSignature, CheckCheck } from "lucide-react"
+import { Bell, User, Clock, FileText, Target, AlertCircle, FileSignature, CheckCheck, CalendarCheck } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import Link from "next/link"
 
 type Notification = {
   id: string
-  type: "lead" | "follow_up" | "closing" | "mission" | "system" | "contract_doc"
+  type: "lead" | "follow_up" | "closing" | "mission" | "system" | "contract_doc" | "appointment"
   title: string
   message: string
   link?: string
   read: boolean
   createdAt: Date
-  dbId?: string // for contract_notifications rows
+  dbId?: string
+}
+
+async function fireConfetti() {
+  const confetti = (await import("canvas-confetti")).default
+  confetti({ particleCount: 120, spread: 80, origin: { y: 0.3 }, colors: ["#f59e0b", "#10b981", "#3b82f6", "#ec4899", "#8b5cf6"] })
 }
 
 export function NotificationsDropdown({ isBroker = false }: { isBroker?: boolean }) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createBrowserClient()
+  const seenAppointmentIds = useRef<Set<string>>(new Set())
+  const supabaseRef = useRef(createBrowserClient())
+  const supabase = supabaseRef.current
 
   const fetchNotifications = useCallback(async () => {
+    if (!hasSupabaseCredentials()) {
+      setLoading(false)
+      return
+    }
     const {
       data: { user },
     } = await supabase.auth.getUser()
@@ -47,6 +58,36 @@ export function NotificationsDropdown({ isBroker = false }: { isBroker?: boolean
 
     const now = new Date()
     const allNotifications: Notification[] = []
+
+    // ── Appointment notifications from agent_notifications table ──
+    const { data: agentNotifs } = await supabase
+      .from("agent_notifications")
+      .select("id, type, title, message, link, read, created_at")
+      .eq("agent_id", agent.id)
+      .order("created_at", { ascending: false })
+      .limit(10)
+
+    let newAppointmentFound = false
+    agentNotifs?.forEach((n) => {
+      allNotifications.push({
+        id: `an-${n.id}`,
+        dbId: n.id,
+        type: n.type as Notification["type"],
+        title: n.title,
+        message: n.message,
+        link: n.link || "/dashboard/calendar",
+        read: n.read,
+        createdAt: new Date(n.created_at),
+      })
+      if (n.type === "appointment" && !n.read && !seenAppointmentIds.current.has(n.id)) {
+        newAppointmentFound = true
+        seenAppointmentIds.current.add(n.id)
+      }
+    })
+
+    if (newAppointmentFound) {
+      fireConfetti()
+    }
 
     // ── Contract document notifications (broker/admin only) ──
     if (isBroker) {
@@ -169,8 +210,21 @@ export function NotificationsDropdown({ isBroker = false }: { isBroker?: boolean
   const unreadCount = notifications.filter((n) => !n.read).length
   const unreadContractCount = notifications.filter((n) => n.type === "contract_doc" && !n.read).length
 
+  async function markAppointmentNotificationsRead() {
+    const unread = notifications.filter((n) => n.type === "appointment" && !n.read && n.dbId)
+    if (!unread.length) return
+    await supabase
+      .from("agent_notifications")
+      .update({ read: true })
+      .in("id", unread.map((n) => n.dbId!))
+    setNotifications((prev) =>
+      prev.map((n) => (n.type === "appointment" ? { ...n, read: true } : n))
+    )
+  }
+
   const getIcon = (type: string) => {
     switch (type) {
+      case "appointment": return <CalendarCheck className="h-4 w-4 text-emerald-400" />
       case "follow_up":   return <Clock className="h-4 w-4 text-amber-400" />
       case "closing":     return <FileText className="h-4 w-4 text-emerald-400" />
       case "mission":     return <Target className="h-4 w-4 text-purple-400" />
@@ -181,7 +235,7 @@ export function NotificationsDropdown({ isBroker = false }: { isBroker?: boolean
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={(open) => { if (open) markAppointmentNotificationsRead() }}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-4 w-4" />
