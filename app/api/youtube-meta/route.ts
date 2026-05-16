@@ -1,29 +1,5 @@
 import { NextResponse } from "next/server"
 
-function decodeHtml(str: string) {
-  return str
-    .replace(/&amp;/g, "&")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&#x27;/g, "'")
-    .replace(/&#x2F;/g, "/")
-}
-
-function extractMeta(html: string, property: string): string {
-  const patterns = [
-    new RegExp(`<meta[^>]+property=["']${property}["'][^>]+content=["']([^"']+)["']`, "i"),
-    new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+property=["']${property}["']`, "i"),
-    new RegExp(`<meta[^>]+name=["']${property}["'][^>]+content=["']([^"']+)["']`, "i"),
-  ]
-  for (const re of patterns) {
-    const m = html.match(re)
-    if (m?.[1]) return decodeHtml(m[1])
-  }
-  return ""
-}
-
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const videoId = searchParams.get("id")
@@ -31,23 +7,53 @@ export async function GET(request: Request) {
   if (!videoId) return NextResponse.json({ error: "Missing id" }, { status: 400 })
 
   try {
-    const pageRes = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
-      cache: "no-store",
-    })
+    // noembed.com is a reliable free oEmbed proxy — returns title reliably
+    const [noembedRes, ytRes] = await Promise.all([
+      fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${videoId}`, {
+        cache: "no-store",
+      }),
+      fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+        cache: "no-store",
+      }),
+    ])
 
-    if (!pageRes.ok) {
-      return NextResponse.json({ title: "", description: "" })
+    let title = ""
+    if (noembedRes.ok) {
+      const data = await noembedRes.json()
+      title = data.title || ""
     }
 
-    const html = await pageRes.text()
+    let description = ""
+    if (ytRes.ok) {
+      const html = await ytRes.text()
 
-    const title = extractMeta(html, "og:title") || extractMeta(html, "title")
-    const description = extractMeta(html, "og:description") || extractMeta(html, "description")
+      // YouTube embeds a JSON-LD block with description
+      const ldMatch = html.match(/<script[^>]+type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/)
+      if (ldMatch?.[1]) {
+        try {
+          const ld = JSON.parse(ldMatch[1])
+          description = ld.description || ld.articleBody || ""
+        } catch {
+          // fall through to meta tag approach
+        }
+      }
+
+      // Fallback: pull description from ytInitialData snippet
+      if (!description) {
+        const snipMatch = html.match(/"shortDescription":"((?:[^"\\]|\\.)*)"/s)
+        if (snipMatch?.[1]) {
+          description = snipMatch[1]
+            .replace(/\\n/g, " ")
+            .replace(/\\"/g, '"')
+            .replace(/\\\\/g, "\\")
+            .slice(0, 300)
+        }
+      }
+    }
 
     return NextResponse.json({ title, description })
   } catch {
