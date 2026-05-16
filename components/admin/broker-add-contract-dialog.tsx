@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { mutate } from "swr"
 import { toast } from "sonner"
-import { Loader2, Plus } from "lucide-react"
+import { Loader2, Plus, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -54,8 +54,28 @@ export function BrokerAddContractDialog({ agents, open, onOpenChange }: BrokerAd
       expected_closing_date: "",
       sale_price: "",
       commission_type: "percent",
+    commission_value: "",
+    notes: "",
+    is_referral: false,
+    referral_agent_name: "",
+    referral_fee: "",
+  })
+
+  function resetForm() {
+    setForm({
+      agent_id: "",
+      transaction_type: "buyer",
+      property_address: "",
+      client_name: "",
+      contract_date: new Date().toISOString().split("T")[0],
+      expected_closing_date: "",
+      sale_price: "",
+      commission_type: "percent" as "percent" | "dollar",
       commission_value: "",
       notes: "",
+      is_referral: false,
+      referral_agent_name: "",
+      referral_fee: "",
     })
   }
 
@@ -71,7 +91,12 @@ export function BrokerAddContractDialog({ agents, open, onOpenChange }: BrokerAd
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          is_referral: form.is_referral,
+          referral_agent_name: form.is_referral ? form.referral_agent_name : null,
+          referral_fee: form.is_referral && form.referral_fee ? parseFloat(form.referral_fee) : null,
+        }),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
@@ -243,6 +268,52 @@ export function BrokerAddContractDialog({ agents, open, onOpenChange }: BrokerAd
                 className="bg-white/5 border-white/10 text-white [color-scheme:dark]"
               />
             </div>
+          </div>
+
+          {/* Referral */}
+          <div className="rounded-lg border border-white/10 p-4 space-y-3 bg-white/[0.02]">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-slate-300 text-sm font-medium">Referral Fee Owed</Label>
+                <p className="text-slate-500 text-xs mt-0.5">Is a referral fee payable on this contract?</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setForm((p) => ({ ...p, is_referral: !p.is_referral }))}
+                className={`relative w-11 h-6 rounded-full transition-colors ${form.is_referral ? "bg-cyan-500" : "bg-white/10"}`}
+              >
+                <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${form.is_referral ? "translate-x-5" : "translate-x-0"}`} />
+              </button>
+            </div>
+
+            {form.is_referral && (
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="space-y-1.5">
+                  <Label className="text-slate-400 text-xs">Referring Agent / Company</Label>
+                  <Input
+                    value={form.referral_agent_name}
+                    onChange={(e) => setForm((p) => ({ ...p, referral_agent_name: e.target.value }))}
+                    placeholder="Agent or brokerage name"
+                    className="bg-white/5 border-white/10 text-white placeholder:text-slate-500 text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-slate-400 text-xs">Referral Fee ($)</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="100"
+                      value={form.referral_fee}
+                      onChange={(e) => setForm((p) => ({ ...p, referral_fee: e.target.value }))}
+                      placeholder="0"
+                      className="pl-7 bg-white/5 border-white/10 text-white placeholder:text-slate-500 text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Notes */}

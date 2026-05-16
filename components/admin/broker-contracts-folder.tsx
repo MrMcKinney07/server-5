@@ -64,6 +64,9 @@ interface Contract {
   expected_closing_date: string | null
   contract_documents: ContractDoc[]
   contract_deal_specific_docs: any[]
+  is_referral: boolean | null
+  referral_agent_name: string | null
+  referral_fee: number | null
 }
 
 interface AgentGroup {
@@ -309,6 +312,11 @@ function TransactionFolder({ contract }: { contract: Contract }) {
               {risk.icon}
               {risk.label}
             </div>
+            {contract.is_referral && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-500/15 text-violet-400 border border-violet-500/20 font-medium">
+                Referral
+              </span>
+            )}
           </div>
         </div>
 
@@ -337,6 +345,20 @@ function TransactionFolder({ contract }: { contract: Contract }) {
             <span className="text-white font-medium">{contract.progress_percent}%</span>
           </div>
           <Progress value={contract.progress_percent} className="h-1.5 mb-4 bg-white/10" />
+
+          {/* Referral info */}
+          {contract.is_referral && (
+            <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-violet-500/20 bg-violet-500/[0.05] mb-3">
+              <DollarSign className="h-4 w-4 text-violet-400 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-violet-400">Referral Fee Owed</p>
+                <p className="text-[11px] text-slate-400 truncate">
+                  {contract.referral_agent_name ? `To: ${contract.referral_agent_name}` : "Referring agent not specified"}
+                  {contract.referral_fee ? ` · $${contract.referral_fee.toLocaleString()}` : ""}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Pay requested banner + Check Sent button */}
           {paymentStatus === "pending" && (
