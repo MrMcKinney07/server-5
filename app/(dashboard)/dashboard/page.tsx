@@ -24,7 +24,7 @@ import {
   BookOpen,
 } from "lucide-react"
 import Link from "next/link"
-import { LeadActionsWidget } from "@/components/dashboard/lead-actions-widget"
+import { LeadPipelineWidget } from "@/components/dashboard/lead-pipeline-widget"
 import { OfficeLeaderboardHero } from "@/components/dashboard/office-leaderboard-hero"
 import { UserBadgeName } from "@/components/prestige/user-badge-name"
 import { getPrestigeTierInfo } from "@/lib/xp-constants"
@@ -478,7 +478,7 @@ export default async function DashboardPage() {
 
       {/* ROW 2: Follow Up Tasks (left) + Calendar (right) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        <LeadActionsWidget agentId={agent.id} />
+        <LeadPipelineWidget agentId={agent.id} />
         <DashboardCalendar events={calendarEvents} agentId={agent.id} />
       </div>
 
