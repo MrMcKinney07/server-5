@@ -73,7 +73,28 @@ export function RecommendedVideos({ videos: initial, agentId, isBroker }: Recomm
   const [description, setDescription] = useState("")
   const [category, setCategory]     = useState("general")
 
+  const [fetchingTitle, setFetchingTitle] = useState(false)
   const urlPreviewId = getYouTubeId(url)
+
+  async function handleUrlChange(value: string) {
+    setUrl(value)
+    const ytId = getYouTubeId(value.trim())
+    if (!ytId) return
+    // Only auto-fill if title is still empty
+    if (title.trim()) return
+    setFetchingTitle(true)
+    try {
+      const res = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${ytId}&format=json`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.title) setTitle(data.title)
+      }
+    } catch {
+      // silently ignore — user can type it manually
+    } finally {
+      setFetchingTitle(false)
+    }
+  }
 
   async function handleAdd() {
     if (!title.trim() || !url.trim()) return
@@ -229,7 +250,7 @@ export function RecommendedVideos({ videos: initial, agentId, isBroker }: Recomm
                 id="vid-url"
                 placeholder="https://www.youtube.com/watch?v=..."
                 value={url}
-                onChange={(e) => setUrl(e.target.value)}
+                onChange={(e) => handleUrlChange(e.target.value)}
               />
               {/* Live thumbnail preview */}
               {urlPreviewId && (
@@ -244,7 +265,10 @@ export function RecommendedVideos({ videos: initial, agentId, isBroker }: Recomm
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="vid-title">Title *</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="vid-title">Title *</Label>
+                {fetchingTitle && <span className="text-xs text-muted-foreground">Fetching title...</span>}
+              </div>
               <Input
                 id="vid-title"
                 placeholder="e.g. How to Handle Objections"
