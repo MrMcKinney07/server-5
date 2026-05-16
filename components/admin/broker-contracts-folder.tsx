@@ -23,7 +23,11 @@ import {
   DollarSign,
   Mail,
   Plus,
+  Upload,
+  ExternalLink,
 } from "lucide-react"
+import { useRef } from "react"
+import { toast } from "sonner"
 
 const fetcher = async (url: string) => {
   const res = await fetch(url, { credentials: "include" })
@@ -228,6 +232,34 @@ function CheckSentButton({ contractId, onSuccess }: { contractId: string; onSucc
 function TransactionFolder({ contract }: { contract: Contract }) {
   const [open, setOpen] = useState(false)
   const [paymentStatus, setPaymentStatus] = useState(contract.payment_status)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      const res = await fetch(`/api/broker/contracts/${contract.id}/upload`, {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || "Upload failed")
+      }
+      toast.success(`${file.name} uploaded successfully`)
+      mutate("/api/broker/contracts")
+    } catch (err: any) {
+      toast.error(err.message || "Upload failed")
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    }
+  }
   const pendingCount = contract.contract_documents.filter((d) => d.status === "uploaded").length
   const risk = RISK_CONFIG[contract.risk_status] ?? RISK_CONFIG.green
 
@@ -340,22 +372,54 @@ function TransactionFolder({ contract }: { contract: Contract }) {
             </div>
           )}
 
-          {contract.contract_deal_specific_docs.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-white/[0.04]">
-              <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Deal-Specific</p>
+          {/* Additional files section */}
+          <div className="mt-3 pt-3 border-t border-white/[0.04]">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-slate-500 uppercase tracking-wider">Additional Files</p>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300 transition-colors disabled:opacity-50"
+              >
+                {uploading ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Upload className="h-3 w-3" />
+                )}
+                {uploading ? "Uploading..." : "Upload File"}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+            </div>
+
+            {contract.contract_deal_specific_docs.length === 0 ? (
+              <p className="text-xs text-slate-600 text-center py-3">No additional files uploaded yet.</p>
+            ) : (
               <div className="space-y-1.5">
                 {contract.contract_deal_specific_docs.map((doc: any) => (
                   <div key={doc.id} className="flex items-center gap-3 px-3 py-2 rounded-lg border border-white/[0.05] bg-white/[0.02]">
                     <FileText className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-                    <span className="text-sm text-slate-300 truncate">{doc.document_name}</span>
-                    <span className={cn("ml-auto text-[10px] px-1.5 py-0.5 rounded-full border flex items-center gap-1", STATUS_BADGE[doc.status as DocStatus]?.className)}>
-                      {STATUS_BADGE[doc.status as DocStatus]?.label}
-                    </span>
+                    <span className="text-sm text-slate-300 truncate flex-1">{doc.document_name}</span>
+                    {doc.file_url && (
+                      <a
+                        href={doc.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0 text-cyan-400 hover:text-cyan-300 transition-colors"
+                        title="Open file"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    )}
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
     </div>
