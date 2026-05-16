@@ -71,7 +71,40 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
     timeline: "",
   })
   const [importDialogOpen, setImportDialogOpen] = useState(false)
+  const [completingId, setCompletingId] = useState<string | null>(null)
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set())
   const router = useRouter()
+  const supabase = createBrowserClient()
+
+  const handleCompleteFollowUp = async (e: React.MouseEvent, lead: Lead) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setCompletingId(lead.id)
+    try {
+      // Log a completed follow-up activity
+      await supabase.from("activities").insert({
+        agent_id: agentId,
+        lead_id: lead.id,
+        activity_type: "follow_up",
+        subject: "Follow-up completed",
+        description: `Follow-up with ${lead.first_name} ${lead.last_name} marked complete`,
+        completed: true,
+        completed_at: new Date().toISOString(),
+        due_at: lead.next_follow_up,
+      })
+      // Clear the follow-up date on the lead
+      await supabase
+        .from("leads")
+        .update({ next_follow_up: null, last_contacted_at: new Date().toISOString() })
+        .eq("id", lead.id)
+      setCompletedIds((prev) => new Set(prev).add(lead.id))
+      toast.success(`Follow-up with ${lead.first_name} ${lead.last_name} marked complete`)
+      router.refresh()
+    } catch {
+      toast.error("Failed to complete follow-up")
+    }
+    setCompletingId(null)
+  }
 
   const filteredLeads = leads.filter((lead) => {
     if (!searchQuery.trim()) return true
@@ -231,58 +264,82 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
     const daysAgo = Math.floor(
       (new Date().getTime() - new Date(lead.next_follow_up!).getTime()) / (1000 * 60 * 60 * 24)
     )
+    const isDone = completedIds.has(lead.id)
+
+    if (isDone) return null
 
     return (
-      <Link key={lead.id} href={`/dashboard/leads/${lead.id}`}>
+      <div
+        key={lead.id}
+        className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${
+          isOverdue
+            ? "border-red-500/30 bg-red-500/5"
+            : "border-amber-500/30 bg-amber-500/5"
+        }`}
+      >
         <div
-          className={`group flex items-center gap-4 p-4 rounded-xl border transition-all hover:shadow-lg ${
-            isOverdue
-              ? "border-red-500/30 bg-red-500/5 hover:bg-red-500/10"
-              : "border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10"
+          className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+            isOverdue ? "bg-red-500/20" : "bg-amber-500/20"
           }`}
         >
-          <div
-            className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-              isOverdue ? "bg-red-500/20" : "bg-amber-500/20"
-            }`}
-          >
-            <Clock className={`h-5 w-5 ${isOverdue ? "text-red-400" : "text-amber-400"}`} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-white">
-              {lead.first_name} {lead.last_name}
-            </p>
-            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-              <Badge variant="outline" className={statusColors[lead.status] + " text-xs"}>
-                {lead.status.replace("_", " ")}
-              </Badge>
-              {lead.phone && (
-                <span className="text-xs text-slate-400 flex items-center gap-1">
-                  <Phone className="h-3 w-3" /> {lead.phone}
-                </span>
-              )}
-              {lead.email && (
-                <span className="text-xs text-slate-400 flex items-center gap-1">
-                  <Mail className="h-3 w-3" /> {lead.email}
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="text-right shrink-0">
-            <p className={`text-sm font-semibold ${isOverdue ? "text-red-400" : "text-amber-400"}`}>
-              {isOverdue
-                ? daysAgo === 0
-                  ? "Due today"
-                  : `${daysAgo}d overdue`
-                : new Date(lead.next_follow_up!).toLocaleDateString()}
-            </p>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {new Date(lead.next_follow_up!).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-            </p>
-          </div>
-          <ArrowRight className="h-4 w-4 text-slate-500 group-hover:text-white transition-colors shrink-0" />
+          <Clock className={`h-5 w-5 ${isOverdue ? "text-red-400" : "text-amber-400"}`} />
         </div>
-      </Link>
+
+        {/* Lead info */}
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-white">
+            {lead.first_name} {lead.last_name}
+          </p>
+          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+            <Badge variant="outline" className={statusColors[lead.status] + " text-xs"}>
+              {lead.status.replace("_", " ")}
+            </Badge>
+            {lead.phone && (
+              <span className="text-xs text-slate-400 flex items-center gap-1">
+                <Phone className="h-3 w-3" /> {lead.phone}
+              </span>
+            )}
+            {lead.email && (
+              <span className="text-xs text-slate-400 flex items-center gap-1">
+                <Mail className="h-3 w-3" /> {lead.email}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Due date */}
+        <div className="text-right shrink-0 hidden sm:block">
+          <p className={`text-sm font-semibold ${isOverdue ? "text-red-400" : "text-amber-400"}`}>
+            {isOverdue
+              ? daysAgo === 0
+                ? "Due today"
+                : `${daysAgo}d overdue`
+              : new Date(lead.next_follow_up!).toLocaleDateString()}
+          </p>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {new Date(lead.next_follow_up!).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+          </p>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-2 shrink-0">
+          <Link href={`/dashboard/leads/${lead.id}`}>
+            <Button size="sm" variant="outline" className="text-xs border-white/10 bg-transparent hover:bg-white/5">
+              <ArrowRight className="h-3 w-3 mr-1" />
+              Open
+            </Button>
+          </Link>
+          <Button
+            size="sm"
+            className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+            onClick={(e) => handleCompleteFollowUp(e, lead)}
+            disabled={completingId === lead.id}
+          >
+            <CheckCircle2 className="h-3 w-3 mr-1" />
+            {completingId === lead.id ? "Saving..." : "Complete"}
+          </Button>
+        </div>
+      </div>
     )
   }
 
