@@ -12,6 +12,81 @@ interface KnowledgeArticleViewProps {
   relatedArticles: { id: string; title: string }[]
 }
 
+// Renders inline markdown: **bold** and *italic*
+function renderInline(text: string) {
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g)
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={i} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>
+    }
+    if (part.startsWith("*") && part.endsWith("*")) {
+      return <em key={i}>{part.slice(1, -1)}</em>
+    }
+    return <span key={i}>{part}</span>
+  })
+}
+
+function renderContent(content: string) {
+  const lines = content.split("\n")
+  const elements: React.ReactNode[] = []
+  let listItems: string[] = []
+  let key = 0
+
+  const flushList = () => {
+    if (listItems.length > 0) {
+      elements.push(
+        <ul key={key++} className="space-y-1.5 my-3 ml-1">
+          {listItems.map((item, i) => (
+            <li key={i} className="flex gap-2 text-sm leading-relaxed text-foreground/90">
+              <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-foreground/40 shrink-0" />
+              <span>{renderInline(item)}</span>
+            </li>
+          ))}
+        </ul>
+      )
+      listItems = []
+    }
+  }
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+
+    // Bullet list item
+    if (trimmed.startsWith("- ")) {
+      listItems.push(trimmed.slice(2))
+      continue
+    }
+
+    flushList()
+
+    // Blank line — spacer
+    if (trimmed === "") {
+      elements.push(<div key={key++} className="h-2" />)
+      continue
+    }
+
+    // Bold-only line = section heading (e.g. **The goal:**)
+    if (/^\*\*[^*]+\*\*$/.test(trimmed)) {
+      elements.push(
+        <p key={key++} className="text-sm font-semibold text-foreground mt-4 mb-1">
+          {trimmed.slice(2, -2)}
+        </p>
+      )
+      continue
+    }
+
+    // Regular paragraph
+    elements.push(
+      <p key={key++} className="text-sm leading-relaxed text-foreground/90">
+        {renderInline(trimmed)}
+      </p>
+    )
+  }
+
+  flushList()
+  return elements
+}
+
 export function KnowledgeArticleView({ article, relatedArticles }: KnowledgeArticleViewProps) {
   const categoryLabels: Record<string, string> = {
     lead_handling: "Lead Handling",
@@ -51,10 +126,8 @@ export function KnowledgeArticleView({ article, relatedArticles }: KnowledgeArti
             </div>
           </CardHeader>
           <CardContent>
-            <div className="prose prose-sm max-w-none dark:prose-invert">
-              {article.content.split("\n").map((paragraph, i) => (
-                <p key={i}>{paragraph}</p>
-              ))}
+            <div className="space-y-0.5">
+              {renderContent(article.content)}
             </div>
           </CardContent>
         </Card>
