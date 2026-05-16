@@ -42,7 +42,11 @@ export default async function KnowledgeBasePage() {
         <p className="text-muted-foreground">SOPs, guides, and best practices</p>
       </div>
 
-      <RecommendedVideos videos={videos || []} agentId={agent.id} isBroker={agent.role === "broker"} />
+      <RecommendedVideos
+        videos={videos || []}
+        agentId={agent.id}
+        isBroker={agent.role === "broker" || agent.role === "admin"}
+      />
 
       <KnowledgeBaseList articles={articles || []} categories={categories} />
     </div>
