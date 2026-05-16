@@ -80,17 +80,18 @@ export function RecommendedVideos({ videos: initial, agentId, isBroker }: Recomm
     setUrl(value)
     const ytId = getYouTubeId(value.trim())
     if (!ytId) return
-    // Only auto-fill if title is still empty
-    if (title.trim()) return
+    // Only auto-fill if both fields are still empty
+    if (title.trim() && description.trim()) return
     setFetchingTitle(true)
     try {
-      const res = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${ytId}&format=json`)
+      const res = await fetch(`/api/youtube-meta?id=${ytId}`)
       if (res.ok) {
         const data = await res.json()
-        if (data.title) setTitle(data.title)
+        if (data.title && !title.trim()) setTitle(data.title)
+        if (data.description && !description.trim()) setDescription(data.description)
       }
     } catch {
-      // silently ignore — user can type it manually
+      // silently ignore — user can type manually
     } finally {
       setFetchingTitle(false)
     }
@@ -267,7 +268,7 @@ export function RecommendedVideos({ videos: initial, agentId, isBroker }: Recomm
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label htmlFor="vid-title">Title *</Label>
-                {fetchingTitle && <span className="text-xs text-muted-foreground">Fetching title...</span>}
+                {fetchingTitle && <span className="text-xs text-muted-foreground">Fetching info...</span>}
               </div>
               <Input
                 id="vid-title"
