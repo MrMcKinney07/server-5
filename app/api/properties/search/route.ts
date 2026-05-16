@@ -151,7 +151,6 @@ export async function GET(request: Request) {
     if (maxYear)                        params.set("year_built_max", maxYear)
 
     const url = `${endpoint}?${params.toString()}`
-    console.log("[v0] search URL:", url)
 
     const response = await fetch(url, {
       headers: {
@@ -162,7 +161,6 @@ export async function GET(request: Request) {
     })
 
     const rawText = await response.text()
-    console.log("[v0] search status:", response.status, "raw:", rawText.slice(0, 300))
 
     if (!response.ok) {
       return NextResponse.json(
