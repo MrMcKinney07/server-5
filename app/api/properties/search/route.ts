@@ -120,19 +120,16 @@ export async function GET(request: Request) {
   if (!apiKey) return NextResponse.json({ error: "API key not configured" }, { status: 500 })
   if (!location.trim()) return NextResponse.json({ properties: [], total: 0 })
 
-  // Parse "City, ST" or "City ST" or "12345" into separate params
-  const isZip = /^\d{5}$/.test(location.trim())
-  let city = ""
-  let state_code = ""
-  let zipcode = ""
+  // Extract zip code from input — zip is the only required param for this API
+  // Accepts: "75070", "McKinney, TX 75070", "McKinney TX 75070", bare zip, etc.
+  const zipMatch = location.match(/\b(\d{5})\b/)
+  const zip = zipMatch ? zipMatch[1] : ""
 
-  if (isZip) {
-    zipcode = location.trim()
-  } else {
-    // Handle "McKinney, TX" or "McKinney TX" or "McKinney, Texas"
-    const parts = location.split(/,\s*|\s{2,}/)
-    city = parts[0]?.trim() || location.trim()
-    state_code = parts[1]?.trim().toUpperCase().slice(0, 2) || ""
+  if (!zip) {
+    return NextResponse.json(
+      { error: "Please enter a ZIP code (e.g. 75070) to search properties." },
+      { status: 400 },
+    )
   }
 
   try {
@@ -141,15 +138,7 @@ export async function GET(request: Request) {
       status === "sold"     ? `${BASE}/sold`    :
                               `${BASE}/forSale`
 
-    const params = new URLSearchParams({ page: String(page) })
-
-    // Use the correct params for this API
-    if (isZip) {
-      params.set("zipcode", zipcode)
-    } else {
-      if (city)       params.set("city",      city)
-      if (state_code) params.set("state_code", state_code)
-    }
+    const params = new URLSearchParams({ zip, page: String(page) })
 
     if (minPrice && minPrice !== "any") params.set("price_min",      minPrice)
     if (maxPrice && maxPrice !== "any") params.set("price_max",      maxPrice)

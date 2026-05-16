@@ -251,13 +251,14 @@ export function PropertySearch({ onAddToCart, cartIds = [], compact = false }: P
         {/* Row 1 — core filters */}
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex-1 min-w-[180px]">
-            <Label htmlFor="ps-location" className="text-xs mb-1 block">Location *</Label>
+            <Label htmlFor="ps-location" className="text-xs mb-1 block">ZIP Code *</Label>
             <Input
               id="ps-location"
-              placeholder="e.g. McKinney, TX or 75070"
+              placeholder="e.g. 75070"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               className="h-9"
+              maxLength={10}
             />
           </div>
 
