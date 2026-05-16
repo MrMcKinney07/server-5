@@ -22,11 +22,11 @@ import {
 } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Users, Phone, Mail, Calendar, Search, FileUp } from "lucide-react"
+import { Plus, Users, Phone, Mail, Calendar, Search, FileUp, Clock, ArrowRight, CheckCircle2 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import Link from "next/link"
 import { toast } from "sonner"
-import { ImportLeadsTool } from "@/components/admin/import-leads-tool" // Updated import path
+import { ImportLeadsTool } from "@/components/admin/import-leads-tool"
 
 interface LeadsViewProps {
   leads: Lead[]
@@ -35,22 +35,22 @@ interface LeadsViewProps {
 }
 
 const statusColors: Record<string, string> = {
-  new: "bg-blue-100 text-blue-800 border-blue-200",
-  contacted: "bg-purple-100 text-purple-800 border-purple-200",
-  qualified: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  nurturing: "bg-amber-100 text-amber-800 border-amber-200",
-  active: "bg-green-100 text-green-800 border-green-200",
-  under_contract: "bg-indigo-100 text-indigo-800 border-indigo-200",
-  closed_won: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  closed_lost: "bg-red-100 text-red-800 border-red-200",
+  new: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+  contacted: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+  qualified: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+  nurturing: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+  active: "bg-green-500/20 text-green-300 border-green-500/30",
+  under_contract: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
+  closed_won: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+  closed_lost: "bg-red-500/20 text-red-300 border-red-500/30",
 }
 
 const typeColors: Record<string, string> = {
-  buyer: "bg-blue-50 text-blue-700",
-  seller: "bg-emerald-50 text-emerald-700",
-  both: "bg-amber-50 text-amber-700",
-  investor: "bg-purple-50 text-purple-700",
-  renter: "bg-gray-50 text-gray-700",
+  buyer: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+  seller: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+  both: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+  investor: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+  renter: "bg-slate-500/20 text-slate-300 border-slate-500/30",
 }
 
 export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
@@ -85,6 +85,16 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
       lead.property_interest?.toLowerCase().includes(query)
     )
   })
+
+  // Follow-up leads: due today or past
+  const followUpLeads = leads.filter(
+    (lead) => lead.next_follow_up && new Date(lead.next_follow_up) <= new Date()
+  ).sort((a, b) => new Date(a.next_follow_up!).getTime() - new Date(b.next_follow_up!).getTime())
+
+  // Upcoming follow-ups: due in future
+  const upcomingLeads = leads.filter(
+    (lead) => lead.next_follow_up && new Date(lead.next_follow_up) > new Date()
+  ).sort((a, b) => new Date(a.next_follow_up!).getTime() - new Date(b.next_follow_up!).getTime())
 
   const handleCreateLead = async () => {
     if (!formData.first_name.trim() || !formData.last_name.trim()) {
@@ -153,11 +163,15 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
   }
 
   const renderLeadRow = (lead: Lead) => (
-    <TableRow key={lead.id} className="hover:bg-gray-50 cursor-pointer" onClick={(e) => handleRowClick(lead.id, e)}>
+    <TableRow
+      key={lead.id}
+      className="hover:bg-white/5 cursor-pointer border-white/5 transition-colors"
+      onClick={(e) => handleRowClick(lead.id, e)}
+    >
       <TableCell>
         <Link
           href={`/dashboard/leads/${lead.id}`}
-          className="font-medium text-blue-600 hover:underline"
+          className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
           onClick={(e) => e.stopPropagation()}
         >
           {lead.first_name} {lead.last_name}
@@ -166,13 +180,13 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
       <TableCell>
         <div className="flex flex-col gap-1">
           {lead.email && (
-            <span className="text-sm text-muted-foreground flex items-center gap-1">
+            <span className="text-sm text-slate-400 flex items-center gap-1">
               <Mail className="h-3 w-3" />
               {lead.email}
             </span>
           )}
           {lead.phone && (
-            <span className="text-sm text-muted-foreground flex items-center gap-1">
+            <span className="text-sm text-slate-400 flex items-center gap-1">
               <Phone className="h-3 w-3" />
               {lead.phone}
             </span>
@@ -189,51 +203,123 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
           {lead.status.replace("_", " ")}
         </Badge>
       </TableCell>
-      <TableCell className="text-muted-foreground text-sm">{lead.source}</TableCell>
+      <TableCell className="text-slate-400 text-sm">{lead.source}</TableCell>
       <TableCell>
         {lead.next_follow_up ? (
           <span
-            className={`text-sm flex items-center gap-1 ${new Date(lead.next_follow_up) <= new Date() ? "text-red-600 font-medium" : "text-muted-foreground"}`}
+            className={`text-sm flex items-center gap-1 ${
+              new Date(lead.next_follow_up) <= new Date()
+                ? "text-red-400 font-medium"
+                : "text-slate-400"
+            }`}
           >
             <Calendar className="h-3 w-3" />
             {new Date(lead.next_follow_up).toLocaleDateString()}
           </span>
         ) : (
-          <span className="text-sm text-muted-foreground">-</span>
+          <span className="text-sm text-slate-600">-</span>
         )}
       </TableCell>
-      <TableCell className="text-muted-foreground text-sm">
+      <TableCell className="text-slate-400 text-sm">
         {formatDistanceToNow(new Date(lead.created_at), { addSuffix: true })}
       </TableCell>
     </TableRow>
   )
 
+  const renderFollowUpCard = (lead: Lead) => {
+    const isOverdue = new Date(lead.next_follow_up!) <= new Date()
+    const daysAgo = Math.floor(
+      (new Date().getTime() - new Date(lead.next_follow_up!).getTime()) / (1000 * 60 * 60 * 24)
+    )
+
+    return (
+      <Link key={lead.id} href={`/dashboard/leads/${lead.id}`}>
+        <div
+          className={`group flex items-center gap-4 p-4 rounded-xl border transition-all hover:shadow-lg ${
+            isOverdue
+              ? "border-red-500/30 bg-red-500/5 hover:bg-red-500/10"
+              : "border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10"
+          }`}
+        >
+          <div
+            className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+              isOverdue ? "bg-red-500/20" : "bg-amber-500/20"
+            }`}
+          >
+            <Clock className={`h-5 w-5 ${isOverdue ? "text-red-400" : "text-amber-400"}`} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-white">
+              {lead.first_name} {lead.last_name}
+            </p>
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+              <Badge variant="outline" className={statusColors[lead.status] + " text-xs"}>
+                {lead.status.replace("_", " ")}
+              </Badge>
+              {lead.phone && (
+                <span className="text-xs text-slate-400 flex items-center gap-1">
+                  <Phone className="h-3 w-3" /> {lead.phone}
+                </span>
+              )}
+              {lead.email && (
+                <span className="text-xs text-slate-400 flex items-center gap-1">
+                  <Mail className="h-3 w-3" /> {lead.email}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="text-right shrink-0">
+            <p className={`text-sm font-semibold ${isOverdue ? "text-red-400" : "text-amber-400"}`}>
+              {isOverdue
+                ? daysAgo === 0
+                  ? "Due today"
+                  : `${daysAgo}d overdue`
+                : new Date(lead.next_follow_up!).toLocaleDateString()}
+            </p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {new Date(lead.next_follow_up!).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+            </p>
+          </div>
+          <ArrowRight className="h-4 w-4 text-slate-500 group-hover:text-white transition-colors shrink-0" />
+        </div>
+      </Link>
+    )
+  }
+
+  const tableHeaders = (
+    <TableRow className="border-white/5">
+      <TableHead className="text-slate-400">Name</TableHead>
+      <TableHead className="text-slate-400">Contact</TableHead>
+      <TableHead className="text-slate-400">Type</TableHead>
+      <TableHead className="text-slate-400">Status</TableHead>
+      <TableHead className="text-slate-400">Source</TableHead>
+      <TableHead className="text-slate-400">Follow-up</TableHead>
+      <TableHead className="text-slate-400">Created</TableHead>
+    </TableRow>
+  )
+
   return (
     <div className="space-y-6">
-
-
       {/* Leads Table */}
-      <Card>
+      <Card className="border-white/10 bg-slate-900/50">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-blue-500" />
-              All Leads
+            <CardTitle className="flex items-center gap-2 text-white">
+              <Users className="h-5 w-5 text-cyan-400" />
+              Lead Pipeline
             </CardTitle>
-            <CardDescription>Your complete lead pipeline</CardDescription>
+            <CardDescription className="text-slate-400">Manage and track your leads</CardDescription>
           </div>
           <div className="flex items-center gap-2">
             <Button
-              onClick={() => {
-                console.log("[v0] Import Leads button clicked")
-                setImportDialogOpen(true)
-              }}
+              onClick={() => setImportDialogOpen(true)}
               variant="outline"
+              className="border-white/10 text-slate-300 hover:text-white bg-transparent"
             >
               <FileUp className="h-4 w-4 mr-2" />
-              Import Leads
+              Import
             </Button>
-            <Button onClick={() => setCreateDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+            <Button onClick={() => setCreateDialogOpen(true)} className="bg-cyan-600 hover:bg-cyan-700 text-white">
               <Plus className="h-4 w-4 mr-2" />
               Add Lead
             </Button>
@@ -252,105 +338,119 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
               />
             </div>
             {searchQuery && (
-              <p className="text-sm text-muted-foreground mt-2">
+              <p className="text-sm text-slate-500 mt-2">
                 Found {filteredLeads.length} lead{filteredLeads.length !== 1 ? "s" : ""}
               </p>
             )}
           </div>
 
-          <Tabs defaultValue="all">
-            <TabsList className="mb-4">
-              <TabsTrigger value="all">All ({filteredLeads.length})</TabsTrigger>
-              <TabsTrigger value="new">New ({filteredLeads.filter((l) => l.status === "new").length})</TabsTrigger>
-              <TabsTrigger value="active">
+          <Tabs defaultValue="followup">
+            <TabsList className="mb-4 bg-white/5 border border-white/10">
+              <TabsTrigger value="followup" className="data-[state=active]:bg-red-500/20 data-[state=active]:text-red-300">
+                Follow-up{followUpLeads.length > 0 && (
+                  <span className="ml-1.5 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 leading-none">
+                    {followUpLeads.length}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="upcoming" className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-300">
+                Upcoming ({upcomingLeads.length})
+              </TabsTrigger>
+              <TabsTrigger value="all" className="data-[state=active]:bg-white/10">
+                All ({filteredLeads.length})
+              </TabsTrigger>
+              <TabsTrigger value="new" className="data-[state=active]:bg-white/10">
+                New ({filteredLeads.filter((l) => l.status === "new").length})
+              </TabsTrigger>
+              <TabsTrigger value="active" className="data-[state=active]:bg-white/10">
                 Active ({filteredLeads.filter((l) => l.status === "active").length})
               </TabsTrigger>
-              <TabsTrigger value="nurturing">
+              <TabsTrigger value="nurturing" className="data-[state=active]:bg-white/10">
                 Nurturing ({filteredLeads.filter((l) => l.status === "nurturing").length})
               </TabsTrigger>
             </TabsList>
 
+            {/* FOLLOW-UP TAB */}
+            <TabsContent value="followup">
+              {followUpLeads.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-slate-400 mb-3">
+                    {followUpLeads.length} lead{followUpLeads.length !== 1 ? "s" : ""} need your attention now. Click a lead to open and reschedule or log a call.
+                  </p>
+                  {followUpLeads.map(renderFollowUpCard)}
+                </div>
+              ) : (
+                <div className="text-center py-14 text-muted-foreground">
+                  <CheckCircle2 className="h-14 w-14 mx-auto mb-3 text-emerald-500 opacity-80" />
+                  <p className="text-lg font-medium text-emerald-400">All caught up!</p>
+                  <p className="text-sm text-slate-500 mt-1">No follow-ups are overdue right now.</p>
+                </div>
+              )}
+            </TabsContent>
+
+            {/* UPCOMING TAB */}
+            <TabsContent value="upcoming">
+              {upcomingLeads.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-slate-400 mb-3">
+                    {upcomingLeads.length} scheduled follow-up{upcomingLeads.length !== 1 ? "s" : ""} coming up.
+                  </p>
+                  {upcomingLeads.map((lead) => renderFollowUpCard(lead))}
+                </div>
+              ) : (
+                <div className="text-center py-14 text-muted-foreground">
+                  <Calendar className="h-14 w-14 mx-auto mb-3 opacity-30" />
+                  <p className="text-lg font-medium text-white">No upcoming follow-ups</p>
+                  <p className="text-sm text-slate-500 mt-1">Open a lead and set a follow-up date to see it here.</p>
+                </div>
+              )}
+            </TabsContent>
+
+            {/* ALL TAB */}
             <TabsContent value="all">
               {filteredLeads.length > 0 ? (
-                <div className="border rounded-lg">
+                <div className="border border-white/10 rounded-lg overflow-hidden">
                   <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Contact</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Source</TableHead>
-                        <TableHead>Follow-up</TableHead>
-                        <TableHead>Created</TableHead>
-                      </TableRow>
-                    </TableHeader>
+                    <TableHeader>{tableHeaders}</TableHeader>
                     <TableBody>{filteredLeads.map(renderLeadRow)}</TableBody>
                   </Table>
                 </div>
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
                   <Users className="h-16 w-16 mx-auto mb-4 opacity-30" />
-                  <p className="text-lg font-medium">{searchQuery ? "No leads found" : "No leads yet"}</p>
-                  <p className="text-sm">
+                  <p className="text-lg font-medium text-white">{searchQuery ? "No leads found" : "No leads yet"}</p>
+                  <p className="text-sm text-slate-500">
                     {searchQuery ? "Try adjusting your search" : 'Click "Add Lead" to create your first lead'}
                   </p>
                 </div>
               )}
             </TabsContent>
 
+            {/* NEW TAB */}
             <TabsContent value="new">
-              <div className="border rounded-lg">
+              <div className="border border-white/10 rounded-lg overflow-hidden">
                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Contact</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Source</TableHead>
-                      <TableHead>Follow-up</TableHead>
-                      <TableHead>Created</TableHead>
-                    </TableRow>
-                  </TableHeader>
+                  <TableHeader>{tableHeaders}</TableHeader>
                   <TableBody>{filteredLeads.filter((l) => l.status === "new").map(renderLeadRow)}</TableBody>
                 </Table>
               </div>
             </TabsContent>
 
+            {/* ACTIVE TAB */}
             <TabsContent value="active">
-              <div className="border rounded-lg">
+              <div className="border border-white/10 rounded-lg overflow-hidden">
                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Contact</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Source</TableHead>
-                      <TableHead>Follow-up</TableHead>
-                      <TableHead>Created</TableHead>
-                    </TableRow>
-                  </TableHeader>
+                  <TableHeader>{tableHeaders}</TableHeader>
                   <TableBody>{filteredLeads.filter((l) => l.status === "active").map(renderLeadRow)}</TableBody>
                 </Table>
               </div>
             </TabsContent>
 
+            {/* NURTURING TAB */}
             <TabsContent value="nurturing">
-              <div className="border rounded-lg">
+              <div className="border border-white/10 rounded-lg overflow-hidden">
                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Contact</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Source</TableHead>
-                      <TableHead>Follow-up</TableHead>
-                      <TableHead>Created</TableHead>
-                    </TableRow>
-                  </TableHeader>
+                  <TableHeader>{tableHeaders}</TableHeader>
                   <TableBody>{filteredLeads.filter((l) => l.status === "nurturing").map(renderLeadRow)}</TableBody>
                 </Table>
               </div>
@@ -363,26 +463,18 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
       <Dialog
         open={createDialogOpen}
         onOpenChange={(open) => {
-          // Only allow closing via Cancel button or successful submission
-          if (!open && !isLoading) {
-            setCreateDialogOpen(false)
-          }
+          if (!open && !isLoading) setCreateDialogOpen(false)
         }}
       >
         <DialogContent
           className="max-w-2xl"
           onPointerDownOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => {
-            if (!isLoading) {
-              setCreateDialogOpen(false)
-            }
-          }}
+          onEscapeKeyDown={() => { if (!isLoading) setCreateDialogOpen(false) }}
         >
           <DialogHeader>
             <DialogTitle>Add New Lead</DialogTitle>
             <DialogDescription>
-              Enter the lead's information to add them to your pipeline. At least name and one contact method (email or
-              phone) required.
+              Enter the lead's information. At least a name and one contact method (email or phone) is required.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -393,7 +485,6 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
                   value={formData.first_name}
                   onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                   placeholder="John"
-                  onFocus={(e) => e.stopPropagation()}
                 />
               </div>
               <div className="space-y-2">
@@ -402,29 +493,26 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
                   value={formData.last_name}
                   onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                   placeholder="Smith"
-                  onFocus={(e) => e.stopPropagation()}
                 />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Email *</Label>
+                <Label>Email</Label>
                 <Input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="john@example.com"
-                  onFocus={(e) => e.stopPropagation()}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Phone *</Label>
+                <Label>Phone</Label>
                 <Input
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   placeholder="(555) 123-4567"
-                  onFocus={(e) => e.stopPropagation()}
                 />
               </div>
             </div>
@@ -432,9 +520,7 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
               <div className="space-y-2">
                 <Label>Lead Type</Label>
                 <Select value={formData.lead_type} onValueChange={(v) => setFormData({ ...formData, lead_type: v })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="buyer">Buyer</SelectItem>
                     <SelectItem value="seller">Seller</SelectItem>
@@ -447,9 +533,7 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
               <div className="space-y-2">
                 <Label>Source</Label>
                 <Select value={formData.source} onValueChange={(v) => setFormData({ ...formData, source: v })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="manual">Manual Entry</SelectItem>
                     <SelectItem value="referral">Referral</SelectItem>
@@ -470,7 +554,7 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
                   type="number"
                   value={formData.budget_min}
                   onChange={(e) => setFormData({ ...formData, budget_min: e.target.value })}
-                  placeholder="$200,000"
+                  placeholder="200000"
                 />
               </div>
               <div className="space-y-2">
@@ -479,7 +563,7 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
                   type="number"
                   value={formData.budget_max}
                   onChange={(e) => setFormData({ ...formData, budget_max: e.target.value })}
-                  placeholder="$400,000"
+                  placeholder="400000"
                 />
               </div>
               <div className="space-y-2">
@@ -496,7 +580,7 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
               <Input
                 value={formData.property_interest}
                 onChange={(e) => setFormData({ ...formData, property_interest: e.target.value })}
-                placeholder="3BR/2BA in North Dallas, close to schools"
+                placeholder="3BR/2BA in North Dallas"
               />
             </div>
             <div className="space-y-2">
@@ -504,7 +588,7 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
               <Textarea
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Any additional notes about this lead..."
+                placeholder="Any additional notes..."
                 rows={3}
               />
             </div>
@@ -521,7 +605,7 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
                 !formData.last_name.trim() ||
                 (!formData.email.trim() && !formData.phone.trim())
               }
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-cyan-600 hover:bg-cyan-700"
             >
               {isLoading ? "Creating..." : "Create Lead"}
             </Button>
@@ -529,15 +613,16 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Import Leads</DialogTitle>
-            <DialogDescription>Bulk upload leads from a CSV file</DialogDescription>
-          </DialogHeader>
-          <ImportLeadsTool agentId={agentId} />
-        </DialogContent>
-      </Dialog>
+      {/* Import Dialog */}
+      <ImportLeadsTool
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        agentId={agentId}
+        onImportComplete={() => {
+          setImportDialogOpen(false)
+          router.refresh()
+        }}
+      />
     </div>
   )
 }
