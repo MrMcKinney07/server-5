@@ -254,7 +254,7 @@ export function PropertySearch({ onAddToCart, cartIds = [], compact = false }: P
             <Label htmlFor="ps-location" className="text-xs mb-1 block">Location *</Label>
             <Input
               id="ps-location"
-              placeholder="City, ZIP, neighborhood..."
+              placeholder="e.g. McKinney, TX or 75070"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               className="h-9"
