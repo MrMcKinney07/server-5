@@ -155,6 +155,44 @@ export const DOCUMENT_DEFINITIONS: DocumentDefinition[] = [
     transactionTypes: ["buyer"],
   },
 
+  // ── Closing Documents (Buyer & Listing) ─────────────────────
+  {
+    key: "closing_fully_executed_alta",
+    name: "Fully Executed ALTA Settlement Statement",
+    description: "The signed ALTA/HUD closing statement showing all debits, credits, and final figures for both parties.",
+    category: "Closing Documents",
+    isRequired: true,
+    isConditional: false,
+    transactionTypes: ["buyer", "listing"],
+  },
+  {
+    key: "closing_addendum",
+    name: "Any Addendum",
+    description: "All addenda to the purchase contract (repairs, extensions, concessions, etc.) fully executed by all parties.",
+    category: "Closing Documents",
+    isRequired: false,
+    isConditional: false,
+    transactionTypes: ["buyer", "listing"],
+  },
+  {
+    key: "closing_earnest_money_receipt",
+    name: "Earnest Money Receipt",
+    description: "Official receipt confirming the earnest money deposit was received and applied at closing.",
+    category: "Closing Documents",
+    isRequired: true,
+    isConditional: false,
+    transactionTypes: ["buyer", "listing"],
+  },
+  {
+    key: "closing_completed_deed",
+    name: "Completed Deed",
+    description: "The recorded deed transferring title from seller to buyer, stamped and confirmed by the county.",
+    category: "Closing Documents",
+    isRequired: true,
+    isConditional: false,
+    transactionTypes: ["buyer", "listing"],
+  },
+
   // ── Referral ─────────────────────────────────────────────────
   {
     key: "referral_agreement",
