@@ -215,6 +215,7 @@ export function PropertySearch({ onAddToCart, cartIds = [], compact = false }: P
       const res = await fetch(`/api/properties/search?${params.toString()}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+      if (data._debug) console.log("[v0] search debug:", JSON.stringify(data._debug))
       setResults(data.properties || [])
       setTotal(data.total || 0)
       setPage(overridePage)
