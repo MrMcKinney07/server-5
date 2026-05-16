@@ -50,15 +50,7 @@ export const DOCUMENT_DEFINITIONS: DocumentDefinition[] = [
     isConditional: false,
     transactionTypes: ["listing"],
   },
-  {
-    key: "hoa_condo_disclosures",
-    name: "HOA / Condo Disclosures",
-    description: "Includes the 2025 Milestone Inspection and Structural Integrity Reserve Study for condos if applicable.",
-    category: "Listing Documents",
-    isRequired: false,
-    isConditional: false,
-    transactionTypes: ["listing"],
-  },
+
   {
     key: "flood_disclosure",
     name: "Flood Disclosure",
