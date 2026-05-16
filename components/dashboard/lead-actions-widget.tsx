@@ -30,6 +30,8 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [mockLoading, setMockLoading] = useState(false)
+  const [mockMessage, setMockMessage] = useState<string | null>(null)
   const supabaseRef = useRef(createClient())
   const supabase = supabaseRef.current
 
@@ -83,6 +85,25 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
     }
     checkMidnight()
   }, [fetchTasks])
+
+  const createMockTask = async () => {
+    setMockLoading(true)
+    setMockMessage(null)
+    try {
+      const res = await fetch("/api/test/mock-task", { method: "POST" })
+      const json = await res.json()
+      if (res.ok) {
+        setMockMessage(`Test task created for ${json.leadName}`)
+        fetchTasks()
+      } else {
+        setMockMessage(json.error || "Failed to create test task")
+      }
+    } catch {
+      setMockMessage("Request failed")
+    }
+    setMockLoading(false)
+    setTimeout(() => setMockMessage(null), 4000)
+  }
 
   const handleComplete = async (taskId: string) => {
     setActionLoading(taskId)
@@ -183,9 +204,20 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
             </CardTitle>
             <CardDescription>Tasks due today and overdue items</CardDescription>
           </div>
-          <Button variant="ghost" size="icon" onClick={fetchTasks} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={createMockTask}
+              disabled={mockLoading}
+              className="text-xs border-dashed border-slate-600 text-slate-400 hover:text-white hover:border-slate-400 bg-transparent"
+            >
+              {mockLoading ? <RefreshCw className="h-3 w-3 animate-spin" /> : "+ Test Task"}
+            </Button>
+            <Button variant="ghost" size="icon" onClick={fetchTasks} disabled={loading}>
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
         </div>
 
         {/* Stats Bar */}
@@ -194,6 +226,9 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
           <span className="text-red-400 font-medium">Overdue: {overdueTasks.length} tasks</span>
           <span className="text-slate-400 font-medium">Total: {totalTasks} actions</span>
         </div>
+        {mockMessage && (
+          <p className="text-xs mt-2 text-cyan-400">{mockMessage}</p>
+        )}
       </CardHeader>
 
       <CardContent className="space-y-3 max-h-[400px] overflow-y-auto">
