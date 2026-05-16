@@ -44,10 +44,10 @@ export const DOCUMENT_DEFINITIONS: DocumentDefinition[] = [
   {
     key: "listing_lead_based_paint",
     name: "Lead-Based Paint Disclosure",
-    description: "Mandatory for homes built before 1978.",
+    description: "Required for homes built in 1978 or earlier (42 U.S.C. § 4852d). Not applicable to newer construction.",
     category: "Listing Documents",
-    isRequired: true,
-    isConditional: false,
+    isRequired: false,
+    isConditional: true,
     transactionTypes: ["listing"],
   },
 
