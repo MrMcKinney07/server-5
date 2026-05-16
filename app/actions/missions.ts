@@ -4,18 +4,17 @@ import { createServerClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import { grantXP } from "@/lib/xp-service"
 
-async function isNewAgent(userId: string): Promise<boolean> {
+async function getAgentDaysActive(userId: string): Promise<number> {
   const supabase = await createServerClient()
-
   const { data: agent } = await supabase.from("agents").select("created_at").eq("id", userId).single()
+  if (!agent?.created_at) return 0
+  const ms = Date.now() - new Date(agent.created_at).getTime()
+  return Math.floor(ms / (1000 * 60 * 60 * 24))
+}
 
-  if (!agent?.created_at) return false
-
-  const createdDate = new Date(agent.created_at)
-  const sixMonthsAgo = new Date()
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
-
-  return createdDate > sixMonthsAgo
+async function isNewAgent(userId: string): Promise<boolean> {
+  const days = await getAgentDaysActive(userId)
+  return days <= 180 // within 6 months
 }
 
 export async function autoAssignMissionsIfNeeded() {
@@ -33,6 +32,7 @@ export async function autoAssignMissionsIfNeeded() {
     return { success: false, isVeteran: true }
   }
 
+  const daysActive = await getAgentDaysActive(user.id)
   const today = new Date().toISOString().split("T")[0]
 
   // Check if missions already exist for today
@@ -47,14 +47,16 @@ export async function autoAssignMissionsIfNeeded() {
     return { success: true, alreadyAssigned: true }
   }
 
-  // Get available templates for today
+  // Get available templates for today, filtered by agent tenure
   const dayOfWeek = new Date().getDay()
 
-  const { data: templates } = await supabase
+  const { data: allTemplates } = await supabase
     .from("mission_templates")
-    .select("id, category")
+    .select("id, category, min_days_active")
     .eq("is_active", true)
     .contains("active_days", [dayOfWeek])
+
+  const templates = (allTemplates || []).filter((t) => daysActive >= (t.min_days_active ?? 0))
 
   if (!templates || templates.length < 3) {
     return { success: false, error: "Not enough missions available" }
@@ -233,17 +235,6 @@ export async function completeMission(itemId: string, notes?: string, photoUrl?:
     lifetime_delta: xpReward,
   })
 
-  if (txError) {
-    console.error("[v0] Failed to record XP transaction (non-critical):", txError)
-  }
-
-  console.log("[v0] Mission completed successfully:", {
-    xpEarned: xpReward,
-    newLifetimeXP: xpResult.newLifetimeXP,
-    prestigeTier: xpResult.prestigeTier,
-    tierChanged: xpResult.tierChanged,
-  })
-
   revalidatePath("/dashboard/missions")
   revalidatePath("/dashboard/prestige")
   return { success: true, xpEarned: xpReward }
@@ -259,13 +250,14 @@ export async function getTodaysMissions() {
     return { missions: [], templates: [], isNewAgent: false }
   }
 
-  const isNew = await isNewAgent(user.id)
+  const [isNew, daysActive] = await Promise.all([
+    isNewAgent(user.id),
+    getAgentDaysActive(user.id),
+  ])
 
   const today = new Date().toISOString().split("T")[0]
 
-  console.log("[v0] Fetching missions for date:", today, "user:", user.id, "isNewAgent:", isNew)
-
-  const { data: set, error: setError } = await supabase
+  const { data: set } = await supabase
     .from("daily_mission_sets")
     .select(`
       id,
@@ -287,23 +279,20 @@ export async function getTodaysMissions() {
     .eq("mission_date", today)
     .maybeSingle()
 
-  console.log("[v0] Mission set result:", { set, setError })
-  console.log("[v0] Missions found:", set?.daily_mission_items?.length || 0)
+  const dayOfWeek = new Date().getDay()
 
-  const dayOfWeek = new Date().getDay() // 0=Sunday, 6=Saturday
-  console.log("[v0] Current day of week:", dayOfWeek)
-
-  const { data: templates, error: templatesError } = await supabase
+  const { data: allTemplates } = await supabase
     .from("mission_templates")
-    .select("id, title, description, xp_reward, active_days")
+    .select("id, title, description, xp_reward, active_days, min_days_active")
     .eq("is_active", true)
     .contains("active_days", [dayOfWeek])
 
-  console.log("[v0] Templates found:", templates?.length || 0, "error:", templatesError)
+  // Filter out listing-style missions for agents in their first 14 days
+  const templates = (allTemplates || []).filter((t) => daysActive >= (t.min_days_active ?? 0))
 
   return {
     missions: set?.daily_mission_items || [],
-    templates: templates || [],
-    isNewAgent: isNew, // Return whether agent is new
+    templates,
+    isNewAgent: isNew,
   }
 }
