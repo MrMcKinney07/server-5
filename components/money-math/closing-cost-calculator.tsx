@@ -114,6 +114,7 @@ export function ClosingCostCalculator({ onResultChange, initialPurchasePrice, in
   const [purchasePrice, setPurchasePrice] = useState(initialPurchasePrice ?? "450000")
   const [downPct, setDownPct] = useState(initialDownPct ?? "20")
   const [county, setCounty] = useState("Orange")
+  const [isCash, setIsCash] = useState(false)
   const [isFHA, setIsFHA] = useState(false)
   const [includeCommission, setIncludeCommission] = useState(true)
   const [commissionPct, setCommissionPct] = useState("5.5")
@@ -129,46 +130,46 @@ export function ClosingCostCalculator({ onResultChange, initialPurchasePrice, in
   const calculate = useCallback(() => {
     const price = parse(purchasePrice)
     const down = (parseFloat(downPct) || 20) / 100
-    const loanAmt = price * (1 - down)
+    const loanAmt = isCash ? 0 : price * (1 - down)
     const isMiamiDade = county === "Miami-Dade"
     const rate = parseFloat(currentRate) / 100 || 0.07
 
     // --- BUYER COSTS (real FL market data) ---
 
-    // Lender fees
-    const originationFee = loanAmt * 0.01           // 0.5–1.0%, avg 1.0% per CFPB data
-    const appraisalFee = price < 500_000 ? 525 : price < 1_000_000 ? 650 : 900  // FL avg $500–$650
-    const creditReportFee = 35                       // standard $30–$50
+    // Lender fees (finance only)
+    const originationFee = isCash ? 0 : loanAmt * 0.01
+    const appraisalFee = isCash ? 0 : (price < 500_000 ? 525 : price < 1_000_000 ? 650 : 900)
+    const creditReportFee = isCash ? 0 : 35
 
     // Title insurance (Florida promulgated rates - Fla. Admin. Code 69O-186)
     const ownerTitlePremium = floridaTitlePremium(price)
-    const lenderTitlePremium = floridaLenderTitlePremium(loanAmt)  // simultaneous issue discount
-    const titleSearchFee = 175                       // FL avg $150–$200
-    const titleExamFee = 100                         // attorney exam fee
-    const settlementFee = 595                        // FL avg title company settlement $500–$700
+    const lenderTitlePremium = isCash ? 0 : floridaLenderTitlePremium(loanAmt)
+    const titleSearchFee = 175
+    const titleExamFee = 100
+    const settlementFee = 595
 
     // Government fees (exact statutory rates)
     const deedPages = 3
-    const deedRec = recordingFee(deedPages)          // deed: avg 3 pages
+    const deedRec = recordingFee(deedPages)
     const mortgagePages = 14
-    const mortgageRec = recordingFee(mortgagePages)  // mortgage: avg 12–15 pages
-    const intangTax = intangiblesTax(loanAmt)        // $0.35/$100 of loan (Fla. Stat. § 199.133)
+    const mortgageRec = isCash ? 0 : recordingFee(mortgagePages)
+    const intangTax = isCash ? 0 : intangiblesTax(loanAmt)
 
-    // Prepaids
-    const daysOfInterest = 15                        // avg 15 days prepaid interest
-    const prepaidInt = (loanAmt * rate) / 365 * daysOfInterest
-    const hoiAnnual = price < 300_000 ? 2_400 : price < 600_000 ? 3_600 : 5_200  // FL avg skyrocketed
-    const hoiPrepaid = (hoiAnnual / 12) * 3          // 3 months prepaid
-    const propTaxRate = 0.0093                        // FL avg effective rate 0.93% (Tax Foundation 2025)
-    const propTaxEscrow = (price * propTaxRate) / 12 * 3  // 3 months escrow
+    // Prepaids — cash buyers skip interest & tax/insurance escrow
+    const daysOfInterest = 15
+    const prepaidInt = isCash ? 0 : (loanAmt * rate) / 365 * daysOfInterest
+    const hoiAnnual = price < 300_000 ? 2_400 : price < 600_000 ? 3_600 : 5_200
+    const hoiPrepaid = isCash ? 0 : (hoiAnnual / 12) * 3
+    const propTaxRate = 0.0093
+    const propTaxEscrow = isCash ? 0 : (price * propTaxRate) / 12 * 3
 
     // Services
-    const inspectionFee = price < 400_000 ? 425 : price < 700_000 ? 525 : 700   // FL avg $400–$550
-    const surveyFee = 450                             // FL avg $400–$550
-    const hoaFee = includeHOA ? 600 : 0              // HOA transfer/resale cert avg $300–$800
+    const inspectionFee = price < 400_000 ? 425 : price < 700_000 ? 525 : 700
+    const surveyFee = 450
+    const hoaFee = includeHOA ? 600 : 0
 
-    // FHA upfront MIP
-    const fhaMIP = isFHA ? loanAmt * 0.0175 : 0      // 1.75% upfront MIP (FHA handbook)
+    // FHA upfront MIP (finance only)
+    const fhaMIP = (!isCash && isFHA) ? loanAmt * 0.0175 : 0
 
     const totalBuyerCosts =
       originationFee + appraisalFee + creditReportFee +
@@ -187,29 +188,35 @@ export function ClosingCostCalculator({ onResultChange, initialPurchasePrice, in
     const totalSellerCosts = docStampsAmt + agentComm + titleSellerPortion + homeWarranty
 
     const breakdown: ClosingCostResult["breakdown"] = [
-      // Buyer — Lender
-      { category: "Lender Fees", item: "Origination Fee", amount: originationFee, note: "1.0% of loan amount (avg FL market)", party: "buyer" },
-      { category: "Lender Fees", item: "Appraisal Fee", amount: appraisalFee, note: "FL market avg $500–$650", party: "buyer" },
-      { category: "Lender Fees", item: "Credit Report Fee", amount: creditReportFee, note: "Standard $30–$50", party: "buyer" },
+      // Buyer — Lender (finance only)
+      ...(!isCash ? [
+        { category: "Lender Fees", item: "Origination Fee", amount: originationFee, note: "1.0% of loan amount (avg FL market)", party: "buyer" as const },
+        { category: "Lender Fees", item: "Appraisal Fee", amount: appraisalFee, note: "FL market avg $500–$650", party: "buyer" as const },
+        { category: "Lender Fees", item: "Credit Report Fee", amount: creditReportFee, note: "Standard $30–$50", party: "buyer" as const },
+      ] : []),
       // Buyer — Title
       { category: "Title Insurance", item: "Owner's Title Insurance", amount: ownerTitlePremium, note: "FL promulgated rate (69O-186)", party: "buyer" },
-      { category: "Title Insurance", item: "Lender's Title Insurance", amount: lenderTitlePremium, note: "30% simultaneous issue discount", party: "buyer" },
+      ...(!isCash ? [{ category: "Title Insurance", item: "Lender's Title Insurance", amount: lenderTitlePremium, note: "30% simultaneous issue discount", party: "buyer" as const }] : []),
       { category: "Title Insurance", item: "Title Search", amount: titleSearchFee, note: "FL avg $150–$200", party: "buyer" },
       { category: "Title Insurance", item: "Title Examination Fee", amount: titleExamFee, note: "Attorney exam, FL avg $75–$125", party: "buyer" },
       { category: "Title Insurance", item: "Settlement / Closing Fee", amount: settlementFee, note: "Title company fee, FL avg $500–$700", party: "buyer" },
       // Buyer — Government
       { category: "Government", item: "Deed Recording Fee", amount: deedRec, note: `Fla. Stat. § 28.24 · ${deedPages} pages`, party: "buyer" },
-      { category: "Government", item: "Mortgage Recording Fee", amount: mortgageRec, note: `Fla. Stat. § 28.24 · ${mortgagePages} pages`, party: "buyer" },
-      { category: "Government", item: "Intangibles Tax (Mortgage)", amount: intangTax, note: "$0.35/$100 of loan · Fla. Stat. § 199.133", party: "buyer" },
-      // Buyer — Prepaids
-      { category: "Prepaids", item: `Prepaid Interest (${daysOfInterest} days)`, amount: prepaidInt, note: "From closing date to end of month", party: "buyer" },
-      { category: "Prepaids", item: "Homeowners Insurance (3 mo.)", amount: hoiPrepaid, note: `FL avg annual: ${fmt(hoiAnnual)} (post-Ian market)`, party: "buyer" },
-      { category: "Prepaids", item: "Property Tax Escrow (3 mo.)", amount: propTaxEscrow, note: "FL avg effective rate 0.93% (Tax Foundation 2025)", party: "buyer" },
+      ...(!isCash ? [
+        { category: "Government", item: "Mortgage Recording Fee", amount: mortgageRec, note: `Fla. Stat. § 28.24 · ${mortgagePages} pages`, party: "buyer" as const },
+        { category: "Government", item: "Intangibles Tax (Mortgage)", amount: intangTax, note: "$0.35/$100 of loan · Fla. Stat. § 199.133", party: "buyer" as const },
+      ] : []),
+      // Buyer — Prepaids (finance only)
+      ...(!isCash ? [
+        { category: "Prepaids", item: `Prepaid Interest (${daysOfInterest} days)`, amount: prepaidInt, note: "From closing date to end of month", party: "buyer" as const },
+        { category: "Prepaids", item: "Homeowners Insurance (3 mo.)", amount: hoiPrepaid, note: `FL avg annual: ${fmt(hoiAnnual)} (post-Ian market)`, party: "buyer" as const },
+        { category: "Prepaids", item: "Property Tax Escrow (3 mo.)", amount: propTaxEscrow, note: "FL avg effective rate 0.93% (Tax Foundation 2025)", party: "buyer" as const },
+      ] : []),
       // Buyer — Services
       { category: "Services", item: "Home Inspection", amount: inspectionFee, note: "FL avg $400–$550", party: "buyer" },
       { category: "Services", item: "Survey", amount: surveyFee, note: "FL avg $400–$550", party: "buyer" },
       ...(includeHOA ? [{ category: "Services", item: "HOA Transfer / Resale Certificate", amount: hoaFee, note: "FL avg $300–$800 · near-universal in condos", party: "buyer" as const }] : []),
-      ...(isFHA ? [{ category: "FHA", item: "Upfront Mortgage Insurance Premium", amount: fhaMIP, note: "1.75% of loan amount · FHA Handbook 4000.1", party: "buyer" as const }] : []),
+      ...(!isCash && isFHA ? [{ category: "FHA", item: "Upfront Mortgage Insurance Premium", amount: fhaMIP, note: "1.75% of loan amount · FHA Handbook 4000.1", party: "buyer" as const }] : []),
       // Seller
       { category: "Government", item: isMiamiDade ? "Doc Stamps on Deed (Miami-Dade)" : "Documentary Stamps on Deed", amount: docStampsAmt, note: isMiamiDade ? "$0.60+$0.45/$100 · Fla. Stat. § 201.02" : "$0.70/$100 · Fla. Stat. § 201.02", party: "seller" },
       ...(agentComm > 0 ? [{ category: "Commissions", item: `Agent Commissions (${commissionPct}%)`, amount: agentComm, note: "Post-NAR settlement avg 5%–5.5%", party: "seller" as const }] : []),
@@ -232,7 +239,7 @@ export function ClosingCostCalculator({ onResultChange, initialPurchasePrice, in
     }
     setResult(res)
     onResultChange?.(res)
-  }, [purchasePrice, downPct, county, isFHA, includeCommission, commissionPct, includeHOA, currentRate, onResultChange])
+  }, [purchasePrice, downPct, county, isCash, isFHA, includeCommission, commissionPct, includeHOA, currentRate, onResultChange])
 
   const handleDownload = async () => {
     if (!result) return
@@ -262,8 +269,24 @@ export function ClosingCostCalculator({ onResultChange, initialPurchasePrice, in
       </CardHeader>
       <CardContent className="space-y-5">
 
+        {/* Cash / Finance toggle */}
+        <div className="flex rounded-xl overflow-hidden border border-white/[0.08] text-sm font-medium">
+          <button
+            onClick={() => setIsCash(false)}
+            className={`flex-1 py-2 transition-colors ${!isCash ? "bg-rose-500 text-white" : "bg-white/[0.03] text-slate-400 hover:text-white hover:bg-white/[0.06]"}`}
+          >
+            Financed
+          </button>
+          <button
+            onClick={() => setIsCash(true)}
+            className={`flex-1 py-2 transition-colors ${isCash ? "bg-rose-500 text-white" : "bg-white/[0.03] text-slate-400 hover:text-white hover:bg-white/[0.06]"}`}
+          >
+            Cash
+          </button>
+        </div>
+
         {/* Inputs */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className={`grid ${isCash ? "grid-cols-1" : "grid-cols-2"} gap-4`}>
           <div className="space-y-1.5">
             <Label className="text-slate-300 text-xs">Purchase Price</Label>
             <div className="relative">
@@ -272,14 +295,16 @@ export function ClosingCostCalculator({ onResultChange, initialPurchasePrice, in
                 value={purchasePrice} onChange={(e) => setPurchasePrice(e.target.value)} />
             </div>
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-slate-300 text-xs">Down Payment</Label>
-            <div className="relative">
-              <Input className="bg-white/[0.04] border-white/[0.08] text-white pr-7 rounded-xl"
-                value={downPct} onChange={(e) => setDownPct(e.target.value)} />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">%</span>
+          {!isCash && (
+            <div className="space-y-1.5">
+              <Label className="text-slate-300 text-xs">Down Payment</Label>
+              <div className="relative">
+                <Input className="bg-white/[0.04] border-white/[0.08] text-white pr-7 rounded-xl"
+                  value={downPct} onChange={(e) => setDownPct(e.target.value)} />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">%</span>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -295,25 +320,29 @@ export function ClosingCostCalculator({ onResultChange, initialPurchasePrice, in
               ))}
             </select>
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-slate-300 text-xs">Current Interest Rate</Label>
-            <div className="relative">
-              <Input className="bg-white/[0.04] border-white/[0.08] text-white pr-7 rounded-xl"
-                value={currentRate} onChange={(e) => setCurrentRate(e.target.value)} />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">%</span>
+          {!isCash && (
+            <div className="space-y-1.5">
+              <Label className="text-slate-300 text-xs">Current Interest Rate</Label>
+              <div className="relative">
+                <Input className="bg-white/[0.04] border-white/[0.08] text-white pr-7 rounded-xl"
+                  value={currentRate} onChange={(e) => setCurrentRate(e.target.value)} />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">%</span>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Toggles */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-            <div>
-              <Label className="text-slate-300 text-sm">FHA Loan</Label>
-              <p className="text-slate-500 text-[11px]">Adds 1.75% upfront MIP</p>
+          {!isCash && (
+            <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+              <div>
+                <Label className="text-slate-300 text-sm">FHA Loan</Label>
+                <p className="text-slate-500 text-[11px]">Adds 1.75% upfront MIP</p>
+              </div>
+              <Switch checked={isFHA} onCheckedChange={setIsFHA} />
             </div>
-            <Switch checked={isFHA} onCheckedChange={setIsFHA} />
-          </div>
+          )}
           <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
             <div>
               <Label className="text-slate-300 text-sm">HOA Community</Label>
