@@ -77,15 +77,7 @@ export const DOCUMENT_DEFINITIONS: DocumentDefinition[] = [
     isConditional: false,
     transactionTypes: ["listing"],
   },
-  {
-    key: "radon_gas_disclosure",
-    name: "Radon Gas Disclosure",
-    description: "A specific written notification regarding radon gas must be provided to the buyer.",
-    category: "Listing Documents",
-    isRequired: true,
-    isConditional: false,
-    transactionTypes: ["listing"],
-  },
+
   {
     key: "copy_of_deed",
     name: "Copy of the Deed",
