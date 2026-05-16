@@ -61,6 +61,15 @@ export const DOCUMENT_DEFINITIONS: DocumentDefinition[] = [
     transactionTypes: ["listing"],
   },
   {
+    key: "hoa_condo_disclosures",
+    name: "HOA / Condo Disclosures",
+    description: "Includes the 2025 Milestone Inspection and Structural Integrity Reserve Study for condos if applicable.",
+    category: "Listing Documents",
+    isRequired: false,
+    isConditional: false,
+    transactionTypes: ["listing"],
+  },
+  {
     key: "hoa_cdd_information",
     name: "HOA / CDD Information Disclosure",
     description: "Restrictions, mandatory memberships, and fees must be disclosed per Florida Statute 720.401.",
