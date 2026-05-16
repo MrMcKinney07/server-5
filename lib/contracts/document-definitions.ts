@@ -79,16 +79,6 @@ export const DOCUMENT_DEFINITIONS: DocumentDefinition[] = [
     transactionTypes: ["listing"],
   },
 
-  {
-    key: "copy_of_deed",
-    name: "Copy of the Deed",
-    description: "Proves the seller has the legal right to list and sell the property.",
-    category: "Listing Documents",
-    isRequired: true,
-    isConditional: false,
-    transactionTypes: ["listing"],
-  },
-
   // ── Party ID (Listing) ───────────────────────────────────────
   {
     key: "seller_id",
