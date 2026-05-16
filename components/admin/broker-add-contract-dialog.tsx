@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { mutate } from "swr"
 import { toast } from "sonner"
-import { Loader2, Plus, Info } from "lucide-react"
+import { Loader2, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,

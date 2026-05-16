@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import useSWR, { mutate } from "swr"
 import { cn } from "@/lib/utils"
@@ -16,7 +16,6 @@ import {
   Clock,
   Circle,
   AlertTriangle,
-  Home,
   Users,
   Loader2,
   X,
@@ -26,7 +25,6 @@ import {
   Upload,
   ExternalLink,
 } from "lucide-react"
-import { useRef } from "react"
 import { toast } from "sonner"
 
 const fetcher = async (url: string) => {
