@@ -1,5 +1,6 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server"
 import { TopCloserLeaderboard } from "@/components/dashboard/top-closer-leaderboard"
+import { ListingLeaderboard } from "@/components/dashboard/listing-leaderboard"
 import { requireAuth } from "@/lib/auth"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -279,6 +280,37 @@ export default async function DashboardPage() {
   const endOfQuarter = new Date(now.getFullYear(), quarterStartMonth + 3, 0).toISOString().split("T")[0]
   const currentQuarter = Math.floor(now.getMonth() / 3) + 1
 
+  // Listing leaderboard — listing agreements uploaded this month
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0]
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0]
+
+  const { data: listingUploads } = await serviceClient
+    .from("contract_documents")
+    .select(`
+      contract_id,
+      uploaded_at,
+      executed_contracts!inner(agent_id, agents("Name", profile_picture_url))
+    `)
+    .eq("document_key", "listing_agreement")
+    .not("uploaded_at", "is", null)
+    .gte("uploaded_at", startOfMonth)
+    .lte("uploaded_at", endOfMonth + "T23:59:59")
+
+  const listingMap = new Map<string, { name: string; profilePicture: string | null; listingCount: number }>()
+  listingUploads?.forEach((row: any) => {
+    const agentId = row.executed_contracts?.agent_id
+    if (!agentId) return
+    const name = (row.executed_contracts?.agents as any)?.Name || "Unknown"
+    const pic = (row.executed_contracts?.agents as any)?.profile_picture_url || null
+    if (!listingMap.has(agentId)) listingMap.set(agentId, { name, profilePicture: pic, listingCount: 0 })
+    listingMap.get(agentId)!.listingCount += 1
+  })
+
+  const sortedListings = Array.from(listingMap.entries())
+    .map(([agentId, data]) => ({ agentId, ...data, isCurrentUser: agentId === agent.id }))
+    .sort((a, b) => b.listingCount - a.listingCount)
+    .slice(0, 10)
+
   const [{ data: closedContracts }, { data: closedTransactions }] = await Promise.all([
     serviceClient
       .from("executed_contracts")
@@ -450,7 +482,7 @@ export default async function DashboardPage() {
         <DashboardCalendar events={calendarEvents} agentId={agent.id} />
       </div>
 
-      {/* ROW 3: Both leaderboards side by side */}
+      {/* ROW 3: XP + Closer leaderboards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <OfficeLeaderboardHero
           leaderboard={sortedLeaderboard}
@@ -462,6 +494,16 @@ export default async function DashboardPage() {
           closers={sortedClosers}
           currentUserId={agent.id}
           quarter={currentQuarter}
+          year={now.getFullYear()}
+        />
+      </div>
+
+      {/* ROW 4: Listing leaderboard */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ListingLeaderboard
+          agents={sortedListings}
+          currentUserId={agent.id}
+          month={String(now.getMonth() + 1).padStart(2, "0")}
           year={now.getFullYear()}
         />
       </div>
