@@ -491,7 +491,15 @@ export default async function DashboardPage() {
         <DashboardCalendar events={calendarEvents} agentId={agent.id} />
       </div>
 
-      {/* ROW 3: Achievement bar */}
+      {/* ROW 3: Office leaderboard */}
+      <OfficeLeaderboardHero
+        leaderboard={sortedLeaderboard}
+        currentUserId={agent.id}
+        currentUserRank={myRank}
+        currentUserPoints={myPoints}
+      />
+
+      {/* ROW 4: Achievement bar */}
       {earnedAchievements.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
@@ -546,24 +554,14 @@ export default async function DashboardPage() {
         />
       )}
 
-      {/* ROW 4: XP + Closer leaderboards */}
+      {/* ROW 5: Closer + Listing leaderboards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <OfficeLeaderboardHero
-          leaderboard={sortedLeaderboard}
-          currentUserId={agent.id}
-          currentUserRank={myRank}
-          currentUserPoints={myPoints}
-        />
         <TopCloserLeaderboard
           closers={sortedClosers}
           currentUserId={agent.id}
           quarter={currentQuarter}
           year={now.getFullYear()}
         />
-      </div>
-
-      {/* ROW 5: Listing leaderboard */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ListingLeaderboard
           agents={sortedListings}
           currentUserId={agent.id}
