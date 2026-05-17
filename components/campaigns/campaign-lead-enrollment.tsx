@@ -34,9 +34,10 @@ interface Lead {
 interface CampaignLeadEnrollmentProps {
   campaignId: string
   campaignName: string
+  onEnrolled?: () => void
 }
 
-export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLeadEnrollmentProps) {
+export function CampaignLeadEnrollment({ campaignId, campaignName, onEnrolled }: CampaignLeadEnrollmentProps) {
   const [leads, setLeads] = useState<Lead[]>([])
   const [enrolledLeadIds, setEnrolledLeadIds] = useState<string[]>([])
   const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([])
@@ -181,6 +182,8 @@ export function CampaignLeadEnrollment({ campaignId, campaignName }: CampaignLea
       setSelectedLeadIds([])
       setSelectedTags([])
       fetchData()
+      onEnrolled?.()
+      window.dispatchEvent(new Event("campaign-enrollment-updated"))
     }
 
     setEnrolling(false)

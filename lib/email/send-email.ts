@@ -6,6 +6,7 @@ export interface EmailOptions {
   body: string
   html?: string
   from?: string
+  replyTo?: string
 }
 
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
@@ -23,6 +24,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
       subject: options.subject,
       text: options.body,
       html: options.html || options.body.replace(/\n/g, "<br>"),
+      ...(options.replyTo ? { reply_to: options.replyTo } : {}),
     })
 
     if (error) {
