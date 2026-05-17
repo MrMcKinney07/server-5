@@ -31,6 +31,7 @@ import { UserBadgeName } from "@/components/prestige/user-badge-name"
 import { getPrestigeTierInfo } from "@/lib/xp-constants"
 import { HustleStreakBadge } from "@/components/dashboard/hustle-streak-badge"
 import { DashboardCalendar, type CalendarEvent } from "@/components/dashboard/dashboard-calendar"
+import { RecommendedVideos } from "@/components/knowledge/recommended-videos"
 
 const PRESTIGE_LEVELS = [
   {
@@ -141,6 +142,7 @@ export default async function DashboardPage() {
     { data: knowledgeArticles },
     { data: appointmentNotifs },
     { data: upcomingClosings },
+    { data: recommendedVideos },
   ] = await Promise.all([
     supabase.from("leads").select("*", { count: "exact", head: true }).eq("agent_id", agent.id),
     supabase
@@ -193,6 +195,12 @@ export default async function DashboardPage() {
       .gte("expected_closing_date", threeMonthsAgo)
       .lte("expected_closing_date", threeMonthsAhead)
       .not("expected_closing_date", "is", null),
+    // Recommended videos
+    supabase
+      .from("recommended_videos")
+      .select("id, title, youtube_url, description, category, sort_order")
+      .order("sort_order", { ascending: true })
+      .limit(8),
   ])
 
   const { data: monthlyRankings } = monthlyRankingsResponse
@@ -482,6 +490,61 @@ export default async function DashboardPage() {
         <LeadPipelineWidget agentId={agent.id} />
         <DashboardCalendar events={calendarEvents} agentId={agent.id} />
       </div>
+
+      {/* ROW 3: Achievement bar */}
+      {earnedAchievements.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Award className="h-4 w-4 text-amber-500" />
+                Achievements
+                <span className="text-xs font-normal text-muted-foreground">
+                  {earnedAchievements.length}/{MILESTONES.length} unlocked
+                </span>
+              </CardTitle>
+              <Link href="/dashboard/prestige" className="text-xs text-amber-500 font-medium hover:underline">
+                View all
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-3 flex-wrap">
+              {MILESTONES.map((milestone) => {
+                const isEarned = earnedAchievements.some((a) => a.id === milestone.id)
+                const Icon = milestone.icon
+                return (
+                  <div
+                    key={milestone.id}
+                    title={`${milestone.name}: ${milestone.description}`}
+                    className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border transition-all w-[72px] ${
+                      isEarned
+                        ? "bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800"
+                        : "bg-muted/40 border-border opacity-40 grayscale"
+                    }`}
+                  >
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      isEarned ? "bg-amber-500 text-white" : "bg-muted text-muted-foreground"
+                    }`}>
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <p className="text-[10px] font-medium text-center leading-tight line-clamp-2">{milestone.name}</p>
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ROW 3b: Knowledge video showcase */}
+      {(recommendedVideos ?? []).length > 0 && (
+        <RecommendedVideos
+          videos={recommendedVideos ?? []}
+          agentId={agent.id}
+          isBroker={agent.role === "broker" || agent.role === "admin"}
+        />
+      )}
 
       {/* ROW 4: XP + Closer leaderboards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
