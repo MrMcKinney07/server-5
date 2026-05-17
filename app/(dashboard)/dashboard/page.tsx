@@ -22,9 +22,11 @@ import {
   Award,
   Medal,
   BookOpen,
+  CheckCircle2,
 } from "lucide-react"
 import Link from "next/link"
-import { LeadPipelineWidget } from "@/components/dashboard/lead-pipeline-widget"
+import { LeadActionsWidget } from "@/components/dashboard/lead-actions-widget"
+import { LeadPipelineWidget } from "@/components/leads/lead-pipeline-widget"
 import { OfficeLeaderboardHero } from "@/components/dashboard/office-leaderboard-hero"
 import { UserBadgeName } from "@/components/prestige/user-badge-name"
 import { getPrestigeTierInfo } from "@/lib/xp-constants"
@@ -476,13 +478,16 @@ export default async function DashboardPage() {
         </Card>
       </Link>
 
-      {/* ROW 2: Follow Up Tasks (left) + Calendar (right) */}
+      {/* ROW 2: Lead Pipeline (Follow-up + Upcoming only) */}
+      <LeadPipelineWidget agentId={agent.id} />
+
+      {/* ROW 3: Follow Up Tasks (left) + Calendar (right) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        <LeadPipelineWidget agentId={agent.id} />
+        <LeadActionsWidget agentId={agent.id} />
         <DashboardCalendar events={calendarEvents} agentId={agent.id} />
       </div>
 
-      {/* ROW 3: XP + Closer leaderboards */}
+      {/* ROW 4: XP + Closer leaderboards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <OfficeLeaderboardHero
           leaderboard={sortedLeaderboard}
@@ -498,7 +503,7 @@ export default async function DashboardPage() {
         />
       </div>
 
-      {/* ROW 4: Listing leaderboard */}
+      {/* ROW 5: Listing leaderboard */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ListingLeaderboard
           agents={sortedListings}
