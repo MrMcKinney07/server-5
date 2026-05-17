@@ -25,7 +25,6 @@ import {
   CheckCircle2,
 } from "lucide-react"
 import Link from "next/link"
-import { LeadActionsWidget } from "@/components/dashboard/lead-actions-widget"
 import { LeadPipelineWidget } from "@/components/leads/lead-pipeline-widget"
 import { OfficeLeaderboardHero } from "@/components/dashboard/office-leaderboard-hero"
 import { UserBadgeName } from "@/components/prestige/user-badge-name"
@@ -478,12 +477,9 @@ export default async function DashboardPage() {
         </Card>
       </Link>
 
-      {/* ROW 2: Lead Pipeline (Follow-up + Upcoming only) */}
-      <LeadPipelineWidget agentId={agent.id} />
-
-      {/* ROW 3: Follow Up Tasks (left) + Calendar (right) */}
+      {/* ROW 2: Lead Pipeline (left) + Calendar (right) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        <LeadActionsWidget agentId={agent.id} />
+        <LeadPipelineWidget agentId={agent.id} />
         <DashboardCalendar events={calendarEvents} agentId={agent.id} />
       </div>
 
