@@ -2,14 +2,8 @@
 
 import { createClient as createSupabaseClient } from "@supabase/supabase-js"
 
-// Module-level singleton — only one GoTrueClient instance per browser context
-let _client: ReturnType<typeof createSupabaseClient> | null = null
-
 function createBrowserClient(url: string, key: string) {
-  if (!_client) {
-    _client = createSupabaseClient(url, key)
-  }
-  return _client
+  return createSupabaseClient(url, key)
 }
 
 export function hasSupabaseCredentials() {

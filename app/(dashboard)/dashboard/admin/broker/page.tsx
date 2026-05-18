@@ -9,6 +9,7 @@ import { BrokerAnalytics } from "@/components/admin/broker-analytics"
 import { ExportTools } from "@/components/admin/export-tools"
 import { ImportLeadsTool } from "@/components/admin/import-leads-tool"
 import { BrokerContractsFolder } from "@/components/admin/broker-contracts-folder"
+import { LeaderboardToggles } from "@/components/admin/leaderboard-toggles"
 
 export default async function BrokerToolsPage() {
   const agent = await requireAdmin()
@@ -32,6 +33,12 @@ export default async function BrokerToolsPage() {
     .order("created_at", { ascending: false })
 
   const { data: allAgents } = await supabase.from("agents").select("id, Name, Email, Role, lifetime_xp").order("Name")
+
+  // Fetch office settings for leaderboard toggles
+  const { data: officeSettings } = await supabase.from("office_settings").select("key, value")
+  const settingsMap = Object.fromEntries((officeSettings ?? []).map((s) => [s.key, s.value]))
+  const showClosings = settingsMap["show_closings_leaderboard"] !== false
+  const showListings = settingsMap["show_listings_leaderboard"] !== false
 
   // Fetch all missions for this month
   const startOfMonth = new Date()
@@ -127,6 +134,9 @@ export default async function BrokerToolsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Leaderboard Visibility Toggles */}
+      <LeaderboardToggles showClosings={showClosings} showListings={showListings} />
 
       {/* Tabs */}
       <Tabs defaultValue="leads" className="space-y-4">
