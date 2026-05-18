@@ -1,6 +1,10 @@
 "use client"
 
-import { createBrowserClient } from "@supabase/ssr"
+import { createClient as createSupabaseClient } from "@supabase/supabase-js"
+
+function createBrowserClient(url: string, key: string) {
+  return createSupabaseClient(url, key)
+}
 
 export function hasSupabaseCredentials() {
   return !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
@@ -56,7 +60,7 @@ function createNoOpClient() {
       on: () => ({ subscribe: () => {} }),
     }),
     removeChannel: () => {},
-  } as unknown as ReturnType<typeof createBrowserClient>
+  } as unknown as ReturnType<typeof createSupabaseClient>
 }
 
 export function createClient() {

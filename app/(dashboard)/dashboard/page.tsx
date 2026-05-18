@@ -1,6 +1,4 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server"
-import { TopCloserLeaderboard } from "@/components/dashboard/top-closer-leaderboard"
-import { ListingLeaderboard } from "@/components/dashboard/listing-leaderboard"
 import { requireAuth } from "@/lib/auth"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -554,21 +552,7 @@ export default async function DashboardPage() {
         />
       )}
 
-      {/* ROW 5: Closer + Listing leaderboards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <TopCloserLeaderboard
-          closers={sortedClosers}
-          currentUserId={agent.id}
-          quarter={currentQuarter}
-          year={now.getFullYear()}
-        />
-        <ListingLeaderboard
-          agents={sortedListings}
-          currentUserId={agent.id}
-          month={String(now.getMonth() + 1).padStart(2, "0")}
-          year={now.getFullYear()}
-        />
-      </div>
+
     </div>
   )
 }
