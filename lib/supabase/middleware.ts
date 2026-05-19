@@ -9,6 +9,8 @@ export async function updateSession(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY
 
+  console.log("[v0] middleware env check — url:", !!supabaseUrl, "key:", !!supabaseAnonKey, "path:", request.nextUrl.pathname)
+
   // If Supabase credentials are not available, skip authentication
   if (!supabaseUrl || !supabaseAnonKey) {
     console.warn("[v0] Supabase credentials not found in middleware, skipping auth check")
