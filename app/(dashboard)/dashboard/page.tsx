@@ -282,12 +282,6 @@ export default async function DashboardPage() {
   const myRank = myMonthlyStats?.rank || 0
   const myPoints = myMonthlyStats?.total_xp_earned || 0
 
-  // Fetch office settings (leaderboard visibility toggles)
-  const { data: officeSettings } = await supabase.from("office_settings").select("key, value")
-  const settingsMap = Object.fromEntries((officeSettings ?? []).map((s: any) => [s.key, s.value]))
-  const showClosingsLeaderboard = settingsMap["show_closings_leaderboard"] !== false
-  const showListingsLeaderboard = settingsMap["show_listings_leaderboard"] !== false
-
   // Quarterly closer leaderboard — bypass RLS with service client
   const serviceClient = createServiceClient()
   const quarterStartMonth = Math.floor((now.getMonth()) / 3) * 3 // 0, 3, 6, or 9
@@ -560,27 +554,21 @@ export default async function DashboardPage() {
         />
       )}
 
-      {/* ROW 5: Closer + Listing leaderboards (visibility controlled by broker toggle) */}
-      {(showClosingsLeaderboard || showListingsLeaderboard) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {showClosingsLeaderboard && (
-            <TopCloserLeaderboard
-              closers={sortedClosers}
-              currentUserId={agent.id}
-              quarter={currentQuarter}
-              year={now.getFullYear()}
-            />
-          )}
-          {showListingsLeaderboard && (
-            <ListingLeaderboard
-              agents={sortedListings}
-              currentUserId={agent.id}
-              month={String(now.getMonth() + 1).padStart(2, "0")}
-              year={now.getFullYear()}
-            />
-          )}
-        </div>
-      )}
+      {/* ROW 5: Closer + Listing leaderboards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <TopCloserLeaderboard
+          closers={sortedClosers}
+          currentUserId={agent.id}
+          quarter={currentQuarter}
+          year={now.getFullYear()}
+        />
+        <ListingLeaderboard
+          agents={sortedListings}
+          currentUserId={agent.id}
+          month={String(now.getMonth() + 1).padStart(2, "0")}
+          year={now.getFullYear()}
+        />
+      </div>
     </div>
   )
 }

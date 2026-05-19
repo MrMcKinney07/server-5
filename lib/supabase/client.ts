@@ -2,8 +2,13 @@
 
 import { createClient as createSupabaseClient } from "@supabase/supabase-js"
 
+// Singleton instance to avoid multiple GoTrueClient warnings
+let browserClientInstance: ReturnType<typeof createSupabaseClient> | null = null
+
 function createBrowserClient(url: string, key: string) {
-  return createSupabaseClient(url, key)
+  if (browserClientInstance) return browserClientInstance
+  browserClientInstance = createSupabaseClient(url, key)
+  return browserClientInstance
 }
 
 export function hasSupabaseCredentials() {
