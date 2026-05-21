@@ -14,16 +14,12 @@ export interface CurrentAgent extends Agent {
 }
 
 export async function isDatabaseSetup(): Promise<boolean> {
-  const hasCreds = hasSupabaseCredentials()
-  console.log("[v0] isDatabaseSetup — hasCreds:", hasCreds)
-  if (!hasCreds) return false
+  if (!hasSupabaseCredentials()) return false
   try {
     const supabase = createServiceClient()
     const { error } = await supabase.from("agents").select("id").limit(1)
-    console.log("[v0] isDatabaseSetup — db error:", error?.code, error?.message)
     return !error || error.code !== "PGRST205"
-  } catch (e) {
-    console.log("[v0] isDatabaseSetup — caught:", e)
+  } catch {
     return false
   }
 }
@@ -39,8 +35,7 @@ export async function getCurrentAgent(): Promise<CurrentAgent | null> {
   try {
     authClient = await createClient()
     db = createServiceClient()
-  } catch (e) {
-    console.log("[v0] getCurrentAgent — createClient error:", e)
+  } catch {
     return null
   }
 
@@ -48,8 +43,6 @@ export async function getCurrentAgent(): Promise<CurrentAgent | null> {
     data: { user },
     error: authError,
   } = await authClient.auth.getUser()
-
-  console.log("[v0] getCurrentAgent — user:", user?.id, "authError:", authError?.message)
 
   if (authError || !user) {
     return null
