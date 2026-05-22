@@ -117,7 +117,7 @@ export function CapRateCalculator({ onResultChange, initialPurchasePrice, initia
 
   const handleDownloadCashOnCash = async () => {
     if (!capResult || !cocResult) return
-    await generatePDF("cashoncash", getCashOnCashRows(capResult, cocResult), "Cash-on-Cash Return Analysis")
+    await generatePDF("caprate", getCashOnCashRows(capResult, cocResult), "Cash-on-Cash Return Analysis")
   }
 
   return (
