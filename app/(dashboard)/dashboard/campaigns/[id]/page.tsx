@@ -47,6 +47,8 @@ export default async function CampaignPage({ params }: CampaignPageProps) {
   const enrollments = enrollRes.data || []
   const runs = runsRes.data || []
 
+  console.log("[v0] campaign enrollments — count:", enrollments.length, "error:", enrollRes.error?.message, "code:", enrollRes.error?.code)
+
   const activeCount = enrollments.filter((e) => e.status === "active").length
   const completedCount = enrollments.filter((e) => e.status === "completed").length
   const pausedCount = enrollments.filter((e) => e.status === "paused").length

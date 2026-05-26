@@ -99,9 +99,11 @@ export function EnrollCampaignDialog({ leadId, leadName, enrolledCampaignIds }: 
 
     const { data: enrollment, error } = await supabase
       .from("lead_campaign_enrollments")
-      .upsert(enrollmentData, { onConflict: "lead_id,campaign_id" })
+      .upsert(enrollmentData, { onConflict: "lead_id,campaign_id", ignoreDuplicates: false })
       .select()
       .single()
+
+    console.log("[v0] enrollment result — data:", enrollment?.id, "error:", error?.message, "code:", error?.code)
 
     // Log the enrollment
     if (!error) {
