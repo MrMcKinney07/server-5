@@ -103,8 +103,6 @@ export function EnrollCampaignDialog({ leadId, leadName, enrolledCampaignIds }: 
       .select()
       .single()
 
-    console.log("[v0] enrollment result — data:", enrollment?.id, "error:", error?.message, "code:", error?.code)
-
     // Log the enrollment
     if (!error) {
       await supabase.from("campaign_logs").insert({

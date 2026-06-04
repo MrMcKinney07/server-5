@@ -166,8 +166,6 @@ export function CampaignLeadEnrollment({ campaignId, campaignName, onEnrolled }:
       .from("lead_campaign_enrollments")
       .insert(enrollments)
 
-    console.log("[v0] bulk enroll result — count:", selectedLeadIds.length, "error:", error?.message, "code:", error?.code)
-
     if (error) {
       toast.error("Failed to enroll leads: " + error.message)
     } else {
