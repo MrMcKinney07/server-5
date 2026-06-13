@@ -87,6 +87,16 @@ export const DOCUMENT_DEFINITIONS: DocumentDefinition[] = [
     transactionTypes: ["buyer", "listing"],
   },
 
+  {
+    key: "addenda_other_docs",
+    name: "Addenda / Other Docs",
+    description: "Any addenda, amendments, or supplemental documents related to the transaction.",
+    category: "Required Documents",
+    isRequired: false,
+    isConditional: false,
+    transactionTypes: ["buyer", "listing"],
+  },
+
   // ── Listing-only ─────────────────────────────────────────────
   {
     key: "data_entry_form_signed",
