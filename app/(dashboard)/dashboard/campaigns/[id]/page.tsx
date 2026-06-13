@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+import { createServiceClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/auth"
 import { notFound } from "next/navigation"
 import Link from "next/link"
@@ -18,10 +18,10 @@ interface CampaignPageProps {
 
 export default async function CampaignPage({ params }: CampaignPageProps) {
   const { id } = await params
-  await requireAuth()
-  const supabase = await createClient()
+  const agent = await requireAuth()
+  const supabase = createServiceClient()
 
-  const { data: campaign } = await supabase.from("campaigns").select("*").eq("id", id).single()
+  const { data: campaign } = await supabase.from("campaigns").select("*").eq("id", id).eq("agent_id", agent.id).single()
   if (!campaign) notFound()
 
   const [stepsRes, enrollRes, runsRes] = await Promise.all([
