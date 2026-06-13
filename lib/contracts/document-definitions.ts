@@ -88,6 +88,15 @@ export const DOCUMENT_DEFINITIONS: DocumentDefinition[] = [
   },
 
   {
+    key: "lead_based_paint_disclosure",
+    name: "Lead-Based Paint Disclosure",
+    description: "Required for homes built in 1978 or earlier. Not applicable to newer construction.",
+    category: "Required Documents",
+    isRequired: false,
+    isConditional: false,
+    transactionTypes: ["buyer", "listing"],
+  },
+  {
     key: "addenda_other_docs",
     name: "Addenda / Other Docs",
     description: "Any addenda, amendments, or supplemental documents related to the transaction.",
