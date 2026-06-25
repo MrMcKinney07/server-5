@@ -35,18 +35,53 @@ export function ImportLeadsTool({ agentId }: ImportLeadsToolProps) {
   } | null>(null)
   const { toast } = useToast()
 
+  const normalizePhone = (raw: string): string => {
+    // Strip everything except digits and leading +
+    const cleaned = raw.replace(/[^\d+]/g, "")
+    // Remove leading country code +1 or 1 if 11 digits
+    const digits = cleaned.replace(/^\+?1/, "")
+    if (digits.length === 10) {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
+    }
+    // Return cleaned original if we can't normalize
+    return raw.trim()
+  }
+
+  const normalizeLeadType = (raw: string): string => {
+    const v = raw.toLowerCase().trim()
+    if (/buy/.test(v)) return "buyer"
+    if (/sell/.test(v)) return "seller"
+    if (/both|buy.*sell|sell.*buy/.test(v)) return "both"
+    if (/invest/.test(v)) return "investor"
+    if (/rent|tenant/.test(v)) return "renter"
+    return "buyer" // default
+  }
+
+  const normalizeSource = (raw: string): string => {
+    const v = raw.toLowerCase().trim()
+    if (/referral|refer/.test(v)) return "referral"
+    if (/facebook|fb|meta/.test(v)) return "fb_ads"
+    if (/zillow/.test(v)) return "zillow"
+    if (/realtor\.com|realtor/.test(v)) return "realtor"
+    if (/upnest/.test(v)) return "upnest"
+    if (/opcity/.test(v)) return "opcity"
+    if (/web|site|online/.test(v)) return "website"
+    if (/manual|self|direct/.test(v)) return "manual"
+    if (/import/.test(v)) return "import"
+    return v || "import"
+  }
+
   const parseCSV = (text: string): ParsedLead[] => {
-    const lines = text
-      .trim()
-      .split("\n")
-      .filter((line) => line.trim())
+    // Strip BOM (Excel UTF-8 exports)
+    const cleaned = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n")
+    const lines = cleaned.split("\n").filter((line) => line.trim())
     if (lines.length < 2) return []
 
-    // Detect delimiter (comma, semicolon, or tab)
+    // Detect delimiter: tab > semicolon > comma
     const firstLine = lines[0]
     const delimiter = firstLine.includes("\t") ? "\t" : firstLine.includes(";") ? ";" : ","
 
-    // Parse CSV line handling quoted values
+    // RFC-4180 compliant parser: handles quoted fields, escaped quotes (""), embedded newlines
     const parseLine = (line: string): string[] => {
       const result: string[] = []
       let current = ""
@@ -54,9 +89,14 @@ export function ImportLeadsTool({ agentId }: ImportLeadsToolProps) {
 
       for (let i = 0; i < line.length; i++) {
         const char = line[i]
-
         if (char === '"') {
-          inQuotes = !inQuotes
+          if (inQuotes && line[i + 1] === '"') {
+            // Escaped quote inside quoted field
+            current += '"'
+            i++
+          } else {
+            inQuotes = !inQuotes
+          }
         } else if (char === delimiter && !inQuotes) {
           result.push(current.trim())
           current = ""
@@ -68,72 +108,60 @@ export function ImportLeadsTool({ agentId }: ImportLeadsToolProps) {
       return result
     }
 
-    const headers = parseLine(lines[0]).map((h) => h.toLowerCase().replace(/[^a-z0-9]/g, ""))
+    // Normalize header: lowercase, strip non-alphanumeric
+    const rawHeaders = parseLine(lines[0])
+    const headers = rawHeaders.map((h) => h.toLowerCase().replace(/[^a-z0-9]/g, ""))
+
     const leads: ParsedLead[] = []
 
-    console.log("[v0] CSV Headers detected:", headers)
-
     for (let i = 1; i < lines.length; i++) {
+      if (!lines[i].trim()) continue
       const values = parseLine(lines[i])
-      const lead: ParsedLead = {
-        first_name: "",
-        last_name: "",
-      }
-
+      const lead: ParsedLead = { first_name: "", last_name: "" }
       let fullName = ""
 
       headers.forEach((header, index) => {
         const value = values[index]?.trim()
         if (!value) return
 
-        // Match first/last name patterns
-        if (header.match(/first|fname|firstname/)) {
-          lead.first_name = value
-        } else if (header.match(/last|lname|lastname|surname/)) {
-          lead.last_name = value
+        // Name fields
+        if (/^(first|fname|firstname|first_name)$/.test(header) || header.startsWith("first")) {
+          if (!lead.first_name) lead.first_name = value
+        } else if (/^(last|lname|lastname|surname|last_name)$/.test(header) || header.startsWith("last")) {
+          if (!lead.last_name) lead.last_name = value
+        } else if (header.match(/name|fullname|contactname|yourname/)) {
+          // Full name column — only use if no dedicated first/last
+          if (!fullName) fullName = value
         }
-        // Match full name columns (like "whatisyourname", "name", "fullname")
-        else if (header.match(/name|fullname/)) {
-          fullName = value
-        } else if (header.match(/email|mail/)) {
-          lead.email = value
+        // Contact fields
+        else if (header.match(/^e?mail|emailaddress/)) {
+          if (!lead.email) lead.email = value
         } else if (header.match(/phone|mobile|cell|telephone|number/)) {
-          lead.phone = value
-        } else if (header.match(/type|leadtype/)) {
-          const normalizedType = value.toLowerCase()
-          if (["buyer", "seller", "both", "investor", "renter"].includes(normalizedType)) {
-            lead.lead_type = normalizedType
-          }
-        } else if (header.match(/source/)) {
-          lead.source = value.toLowerCase()
-        } else if (header.match(/note|notes/)) {
+          if (!lead.phone) lead.phone = normalizePhone(value)
+        }
+        // Classification
+        else if (header.match(/^(type|leadtype|lead_type|clienttype)$/)) {
+          lead.lead_type = normalizeLeadType(value)
+        } else if (header.match(/source|leadsource/)) {
+          lead.source = normalizeSource(value)
+        } else if (header.match(/note|comment|description/)) {
           lead.notes = value
         }
       })
 
+      // Split full name if no dedicated first/last columns
       if (fullName && !lead.first_name) {
-        const nameParts = fullName.trim().split(/\s+/)
-        if (nameParts.length >= 2) {
-          lead.first_name = nameParts[0]
-          lead.last_name = nameParts.slice(1).join(" ")
-        } else if (nameParts.length === 1) {
-          lead.first_name = nameParts[0]
-          lead.last_name = "Contact"
-        }
+        const parts = fullName.trim().split(/\s+/)
+        lead.first_name = parts[0]
+        lead.last_name = parts.length >= 2 ? parts.slice(1).join(" ") : "Contact"
       }
 
-      // Only add if we have at least first name
       if (lead.first_name) {
-        if (!lead.last_name) {
-          lead.last_name = "Contact"
-        }
+        if (!lead.last_name) lead.last_name = "Contact"
         leads.push(lead)
-      } else {
-        console.log("[v0] Skipping invalid row:", values)
       }
     }
 
-    console.log("[v0] Parsed leads:", leads.length)
     return leads
   }
 
@@ -174,10 +202,8 @@ export function ImportLeadsTool({ agentId }: ImportLeadsToolProps) {
       console.log("[v0] File content loaded, size:", text.length)
 
       const leads = parseCSV(text)
-      console.log("[v0] Parsed", leads.length, "leads")
 
       if (leads.length === 0) {
-        console.log("[v0] No valid leads parsed")
         toast({
           title: "No Valid Leads",
           description:
@@ -188,12 +214,10 @@ export function ImportLeadsTool({ agentId }: ImportLeadsToolProps) {
         return
       }
 
-      console.log("[v0] Starting import of", leads.length, "leads for agent:", agentId)
       const supabase = createBrowserClient()
 
       for (const lead of leads) {
         try {
-          console.log("[v0] Inserting lead:", lead.first_name, lead.last_name)
           const { error } = await supabase.from("leads").insert({
             first_name: lead.first_name,
             last_name: lead.last_name,
@@ -209,19 +233,14 @@ export function ImportLeadsTool({ agentId }: ImportLeadsToolProps) {
           if (error) {
             failedCount++
             errors.push(`${lead.first_name} ${lead.last_name}: ${error.message}`)
-            console.log("[v0] Insert failed:", error)
           } else {
             successCount++
-            console.log("[v0] Insert successful for", lead.first_name)
           }
-        } catch (err) {
+        } catch {
           failedCount++
           errors.push(`${lead.first_name} ${lead.last_name}: Import error`)
-          console.log("[v0] Insert exception:", err)
         }
       }
-
-      console.log("[v0] Import completed. Success:", successCount, "Failed:", failedCount)
 
       setImportResults({
         success: successCount,
@@ -235,11 +254,9 @@ export function ImportLeadsTool({ agentId }: ImportLeadsToolProps) {
       })
 
       if (successCount > 0) {
-        console.log("[v0] Reloading page in 2 seconds")
         setTimeout(() => window.location.reload(), 2000)
       }
-    } catch (error) {
-      console.log("[v0] Import error:", error)
+    } catch {
       toast({
         title: "Import Failed",
         description: "Failed to read or parse the CSV file. Check the console for details.",
@@ -252,9 +269,10 @@ export function ImportLeadsTool({ agentId }: ImportLeadsToolProps) {
 
   const downloadTemplate = () => {
     const template = `first_name,last_name,email,phone,lead_type,source,notes
-John,Doe,john.doe@email.com,555-0100,buyer,referral,Interested in 3BR homes
-Jane,Smith,jane.smith@email.com,555-0101,seller,website,Wants to sell by June
-Bob,Johnson,bob@email.com,555-0102,both,fb_ads,First time buyer`
+John,Doe,john.doe@email.com,(555) 010-0100,buyer,referral,Interested in 3BR homes
+Jane,Smith,jane.smith@email.com,555.010.0101,seller,website,Wants to sell by June
+Bob,Johnson,bob@email.com,+1-555-010-0102,both,fb_ads,First time buyer
+Alice,Brown,alice@email.com,5550100103,investor,zillow,Looking for rental properties`
 
     const blob = new Blob([template], { type: "text/csv" })
     const url = URL.createObjectURL(blob)
@@ -281,7 +299,7 @@ Bob,Johnson,bob@email.com,555-0102,both,fb_ads,First time buyer`
             <Label htmlFor="csv-file">CSV File</Label>
             <Input id="csv-file" type="file" accept=".csv" onChange={handleFileChange} />
             <p className="text-xs text-muted-foreground">
-              Upload a CSV file with columns: first_name, last_name, email, phone, lead_type, source, notes
+              Comma, semicolon, or tab-delimited. Accepts most column name variations — see instructions for details.
             </p>
           </div>
 
@@ -332,32 +350,37 @@ Bob,Johnson,bob@email.com,555-0102,both,fb_ads,First time buyer`
         <CardContent>
           <div className="space-y-4 text-sm">
             <div>
-              <h4 className="font-medium mb-2">Required Columns:</h4>
+              <h4 className="font-medium mb-2">Required (one of):</h4>
               <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                <li>
-                  <strong>first_name</strong> - Lead's first name
-                </li>
-                <li>
-                  <strong>last_name</strong> - Lead's last name
-                </li>
+                <li><strong>first_name</strong> + <strong>last_name</strong> columns</li>
+                <li><strong>name</strong> or <strong>full_name</strong> — auto-split</li>
               </ul>
             </div>
 
             <div>
               <h4 className="font-medium mb-2">Optional Columns:</h4>
               <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                <li>email - Email address</li>
-                <li>phone - Phone number</li>
-                <li>lead_type - buyer, seller, both, investor, renter</li>
-                <li>source - realtor, upnest, opcity, fb_ads, manual, referral, website, other</li>
-                <li>notes - Additional information</li>
+                <li>email / email_address</li>
+                <li>phone / mobile / cell — any format accepted</li>
+                <li>lead_type — buyer, seller, both, investor, renter</li>
+                <li>source — referral, fb_ads, zillow, realtor, website, etc.</li>
+                <li>notes / comments</li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-medium mb-2">Supported Formats:</h4>
+              <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                <li>Comma, semicolon, or tab delimited</li>
+                <li>Excel CSV exports (UTF-8 BOM handled)</li>
+                <li>Phone: (555) 000-0000, 555.000.0000, +1-555-000-0000</li>
+                <li>Quoted fields with commas inside</li>
               </ul>
             </div>
 
             <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
               <p className="text-xs text-blue-800">
-                <strong>Tip:</strong> Download the template to see the correct format. All imported leads will be
-                assigned to the system pool for distribution.
+                <strong>Tip:</strong> Download the template for reference. Column names are flexible — the importer matches common variations automatically.
               </p>
             </div>
           </div>
