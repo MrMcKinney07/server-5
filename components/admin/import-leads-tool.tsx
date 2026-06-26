@@ -1,13 +1,11 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { FileUp, Upload, AlertCircle, CheckCircle2, Download } from "lucide-react"
+import { Upload, AlertCircle, CheckCircle2, Download } from "lucide-react"
 import { createBrowserClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 
@@ -28,6 +26,7 @@ interface ParsedLead {
 export function ImportLeadsTool({ agentId }: ImportLeadsToolProps) {
   const [file, setFile] = useState<File | null>(null)
   const [isImporting, setIsImporting] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [importResults, setImportResults] = useState<{
     success: number
     failed: number
@@ -167,34 +166,38 @@ export function ImportLeadsTool({ agentId }: ImportLeadsToolProps) {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
-    if (selectedFile) {
-      // Accept .csv regardless of MIME type — Excel exports often send text/plain or application/vnd.ms-excel
-      const isCSV =
-        selectedFile.name.endsWith(".csv") ||
-        selectedFile.name.endsWith(".txt") ||
-        selectedFile.type === "text/csv" ||
-        selectedFile.type === "text/plain" ||
-        selectedFile.type === "application/vnd.ms-excel" ||
-        selectedFile.type === ""
-      if (isCSV) {
-        setFile(selectedFile)
-        setImportResults(null)
-        toast({
-          title: "File Selected",
-          description: `${selectedFile.name} ready to import`,
-        })
-      } else {
-        toast({
-          title: "Invalid File",
-          description: "Please select a CSV file (.csv extension)",
-          variant: "destructive",
-        })
-      }
+    if (!selectedFile) return
+
+    const isCSV =
+      selectedFile.name.endsWith(".csv") ||
+      selectedFile.name.endsWith(".txt") ||
+      selectedFile.type === "text/csv" ||
+      selectedFile.type === "text/plain" ||
+      selectedFile.type === "application/vnd.ms-excel" ||
+      selectedFile.type === ""
+
+    if (!isCSV) {
+      toast({
+        title: "Invalid File",
+        description: "Please select a CSV file (.csv extension)",
+        variant: "destructive",
+      })
+      return
     }
+
+    setFile(selectedFile)
+    setImportResults(null)
+    // Auto-trigger import immediately after file selection
+    handleImportFile(selectedFile)
   }
 
-  const handleImport = async () => {
-    if (!file) return
+  const handlePickFile = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleImportFile = async (fileToImport?: File) => {
+    const target = fileToImport ?? file
+    if (!target) return
 
     setIsImporting(true)
     const errors: string[] = []
@@ -202,7 +205,7 @@ export function ImportLeadsTool({ agentId }: ImportLeadsToolProps) {
     let failedCount = 0
 
     try {
-      const text = await file.text()
+      const text = await target.text()
       const leads = parseCSV(text)
 
       if (leads.length === 0) {
@@ -291,28 +294,38 @@ Alice,Brown,alice@email.com,5550100103,investor,zillow,Looking for rental proper
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <FileUp className="h-5 w-5 text-emerald-500" />
+            <Upload className="h-5 w-5 text-emerald-500" />
             Import Leads
           </CardTitle>
           <CardDescription>Bulk upload leads from a CSV file</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="csv-file">CSV File</Label>
-            <Input id="csv-file" type="file" accept=".csv,.txt,text/csv,text/plain,application/vnd.ms-excel" onChange={handleFileChange} />
-            <p className="text-xs text-muted-foreground">
-              Comma, semicolon, or tab-delimited. Accepts most column name variations — see instructions for details.
-            </p>
-          </div>
+          {/* Hidden file input triggered programmatically */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,.txt,text/csv,text/plain,application/vnd.ms-excel"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+
+          <Button
+            variant="default"
+            onClick={handlePickFile}
+            disabled={isImporting}
+            className="w-full"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            {isImporting ? "Importing..." : file ? `Re-import: ${file.name}` : "Select CSV & Import"}
+          </Button>
+
+          {file && !isImporting && (
+            <p className="text-xs text-center text-muted-foreground">{file.name} selected</p>
+          )}
 
           <Button variant="outline" onClick={downloadTemplate} className="w-full bg-transparent">
             <Download className="h-4 w-4 mr-2" />
             Download CSV Template
-          </Button>
-
-          <Button variant="default" onClick={handleImport} disabled={!file || isImporting} className="w-full">
-            <Upload className="h-4 w-4 mr-2" />
-            {isImporting ? "Importing..." : "Import Leads"}
           </Button>
 
           {importResults && (
