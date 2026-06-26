@@ -168,7 +168,15 @@ export function ImportLeadsTool({ agentId }: ImportLeadsToolProps) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
     if (selectedFile) {
-      if (selectedFile.type === "text/csv" || selectedFile.name.endsWith(".csv")) {
+      // Accept .csv regardless of MIME type — Excel exports often send text/plain or application/vnd.ms-excel
+      const isCSV =
+        selectedFile.name.endsWith(".csv") ||
+        selectedFile.name.endsWith(".txt") ||
+        selectedFile.type === "text/csv" ||
+        selectedFile.type === "text/plain" ||
+        selectedFile.type === "application/vnd.ms-excel" ||
+        selectedFile.type === ""
+      if (isCSV) {
         setFile(selectedFile)
         setImportResults(null)
         toast({
@@ -186,11 +194,7 @@ export function ImportLeadsTool({ agentId }: ImportLeadsToolProps) {
   }
 
   const handleImport = async () => {
-    console.log("[v0] Import button clicked, file:", file?.name)
-    if (!file) {
-      console.log("[v0] No file selected")
-      return
-    }
+    if (!file) return
 
     setIsImporting(true)
     const errors: string[] = []
@@ -199,8 +203,6 @@ export function ImportLeadsTool({ agentId }: ImportLeadsToolProps) {
 
     try {
       const text = await file.text()
-      console.log("[v0] File content loaded, size:", text.length)
-
       const leads = parseCSV(text)
 
       if (leads.length === 0) {
@@ -297,7 +299,7 @@ Alice,Brown,alice@email.com,5550100103,investor,zillow,Looking for rental proper
         <CardContent className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="csv-file">CSV File</Label>
-            <Input id="csv-file" type="file" accept=".csv" onChange={handleFileChange} />
+            <Input id="csv-file" type="file" accept=".csv,.txt,text/csv,text/plain,application/vnd.ms-excel" onChange={handleFileChange} />
             <p className="text-xs text-muted-foreground">
               Comma, semicolon, or tab-delimited. Accepts most column name variations — see instructions for details.
             </p>
