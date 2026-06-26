@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -26,7 +26,6 @@ interface ParsedLead {
 export function ImportLeadsTool({ agentId }: ImportLeadsToolProps) {
   const [file, setFile] = useState<File | null>(null)
   const [isImporting, setIsImporting] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const [importResults, setImportResults] = useState<{
     success: number
     failed: number
@@ -191,10 +190,6 @@ export function ImportLeadsTool({ agentId }: ImportLeadsToolProps) {
     handleImportFile(selectedFile)
   }
 
-  const handlePickFile = () => {
-    fileInputRef.current?.click()
-  }
-
   const handleImportFile = async (fileToImport?: File) => {
     const target = fileToImport ?? file
     if (!target) return
@@ -300,24 +295,25 @@ Alice,Brown,alice@email.com,5550100103,investor,zillow,Looking for rental proper
           <CardDescription>Bulk upload leads from a CSV file</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Hidden file input triggered programmatically */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv,.txt,text/csv,text/plain,application/vnd.ms-excel"
-            onChange={handleFileChange}
-            className="hidden"
-          />
-
-          <Button
-            variant="default"
-            onClick={handlePickFile}
-            disabled={isImporting}
-            className="w-full"
+          <label
+            htmlFor="csv-upload"
+            className={`flex items-center justify-center gap-2 w-full px-4 py-2 rounded-md text-sm font-medium cursor-pointer transition-colors
+              ${isImporting
+                ? "bg-muted text-muted-foreground pointer-events-none"
+                : "bg-primary text-primary-foreground hover:bg-primary/90"
+              }`}
           >
-            <Upload className="h-4 w-4 mr-2" />
+            <Upload className="h-4 w-4" />
             {isImporting ? "Importing..." : file ? `Re-import: ${file.name}` : "Select CSV & Import"}
-          </Button>
+            <input
+              id="csv-upload"
+              type="file"
+              accept=".csv,.txt"
+              onChange={handleFileChange}
+              disabled={isImporting}
+              className="sr-only"
+            />
+          </label>
 
           {file && !isImporting && (
             <p className="text-xs text-center text-muted-foreground">{file.name} selected</p>
