@@ -36,6 +36,7 @@ interface ParsedLead {
 export function ImportLeadsTool({ agentId, open, onClose, onImportComplete }: ImportLeadsToolProps) {
   const [file, setFile] = useState<File | null>(null)
   const [isImporting, setIsImporting] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
   const [importResults, setImportResults] = useState<{
     success: number
     failed: number
@@ -215,8 +216,34 @@ export function ImportLeadsTool({ agentId, open, onClose, onImportComplete }: Im
     if (!selectedFile) return
     setFile(selectedFile)
     handleImportFile(selectedFile)
-    // Reset input so the same file can be re-selected
     e.target.value = ""
+  }
+
+  const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+    if (isImporting) return
+    const dropped = e.dataTransfer.files?.[0]
+    if (!dropped) return
+    if (!dropped.name.endsWith(".csv") && !dropped.name.endsWith(".txt")) {
+      toast({ title: "Invalid File", description: "Please drop a CSV file.", variant: "destructive" })
+      return
+    }
+    setFile(dropped)
+    handleImportFile(dropped)
+  }
+
+  const handleDragOver = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!isImporting) setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
   }
 
   const downloadTemplate = () => {
@@ -232,21 +259,29 @@ export function ImportLeadsTool({ agentId, open, onClose, onImportComplete }: Im
 
   const content = (
     <div className="space-y-4">
-      {/* File picker — label wraps input so click works in all environments */}
+      {/* Drop zone — click or drag & drop */}
       <label
         htmlFor="csv-upload-input"
-        className={`flex items-center justify-center gap-2 w-full px-4 py-3 rounded-md text-sm font-medium border-2 border-dashed transition-colors ${
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        className={`flex flex-col items-center justify-center gap-2 w-full px-4 py-8 rounded-lg border-2 border-dashed text-sm font-medium transition-colors ${
           isImporting
             ? "border-muted bg-muted/30 text-muted-foreground cursor-not-allowed pointer-events-none"
+            : isDragging
+            ? "border-primary bg-primary/10 text-primary cursor-copy"
             : "border-primary/40 bg-primary/5 text-primary hover:bg-primary/10 cursor-pointer"
         }`}
       >
-        <Upload className="h-4 w-4 shrink-0" />
-        {isImporting
-          ? `Importing${file ? ` ${file.name}` : ""}...`
-          : file
-          ? `Re-select or pick new file`
-          : "Click to select CSV file"}
+        <Upload className="h-6 w-6 shrink-0" />
+        <span>
+          {isImporting
+            ? `Importing${file ? ` "${file.name}"` : ""}...`
+            : isDragging
+            ? "Drop your CSV here"
+            : "Click to select or drag & drop a CSV"}
+        </span>
+        <span className="text-xs text-muted-foreground font-normal">.csv files only</span>
         <input
           id="csv-upload-input"
           type="file"
