@@ -20,7 +20,7 @@ interface ImportLeadsToolProps {
   // Dialog mode (used from leads-view)
   open?: boolean
   onClose?: () => void
-  onImportComplete?: () => void
+  onImportComplete?: (importedIds: string[]) => void
 }
 
 interface ParsedLead {
@@ -168,10 +168,11 @@ export function ImportLeadsTool({ agentId, open, onClose, onImportComplete }: Im
       }
 
       const supabase = createBrowserClient()
+      const importedIds: string[] = []
 
       for (const lead of leads) {
         try {
-          const { error } = await supabase.from("leads").insert({
+          const { data, error } = await supabase.from("leads").insert({
             first_name: lead.first_name,
             last_name: lead.last_name,
             email: lead.email || null,
@@ -181,12 +182,13 @@ export function ImportLeadsTool({ agentId, open, onClose, onImportComplete }: Im
             status: "new",
             agent_id: agentId,
             notes: lead.notes || null,
-          })
+          }).select("id").single()
           if (error) {
             failedCount++
             errors.push(`${lead.first_name} ${lead.last_name}: ${error.message}`)
           } else {
             successCount++
+            if (data?.id) importedIds.push(data.id)
           }
         } catch {
           failedCount++
@@ -199,7 +201,7 @@ export function ImportLeadsTool({ agentId, open, onClose, onImportComplete }: Im
       if (successCount > 0) {
         toast({ title: "Import Complete", description: `${successCount} leads imported successfully.` })
         if (onImportComplete) {
-          setTimeout(() => onImportComplete(), 1500)
+          setTimeout(() => onImportComplete(importedIds), 1500)
         } else {
           setTimeout(() => window.location.reload(), 1500)
         }

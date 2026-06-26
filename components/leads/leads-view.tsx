@@ -71,6 +71,7 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
     timeline: "",
   })
   const [importDialogOpen, setImportDialogOpen] = useState(false)
+  const [recentlyImportedIds, setRecentlyImportedIds] = useState<Set<string>>(new Set())
   const [completingId, setCompletingId] = useState<string | null>(null)
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set())
   const router = useRouter()
@@ -202,13 +203,20 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
       onClick={(e) => handleRowClick(lead.id, e)}
     >
       <TableCell>
-        <Link
-          href={`/dashboard/leads/${lead.id}`}
-          className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {lead.first_name} {lead.last_name}
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/dashboard/leads/${lead.id}`}
+            className="font-medium text-cyan-400 hover:text-cyan-300 hover:underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {lead.first_name} {lead.last_name}
+          </Link>
+          {recentlyImportedIds.has(lead.id) && (
+            <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-xs px-1.5 py-0">
+              New
+            </Badge>
+          )}
+        </div>
       </TableCell>
       <TableCell>
         <div className="flex flex-col gap-1">
@@ -675,8 +683,9 @@ export function LeadsView({ leads, agentId, needsFollowUp }: LeadsViewProps) {
         open={importDialogOpen}
         onClose={() => setImportDialogOpen(false)}
         agentId={agentId}
-        onImportComplete={() => {
+        onImportComplete={(importedIds) => {
           setImportDialogOpen(false)
+          setRecentlyImportedIds(new Set(importedIds))
           router.refresh()
         }}
       />
