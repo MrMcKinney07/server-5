@@ -1,8 +1,16 @@
 import { requireAuth } from "@/lib/auth"
-import { ComingSoon } from "@/components/ui/coming-soon"
+import { MarketingMarketplace } from "@/components/marketing/marketing-marketplace"
 
 export default async function MarketingPage() {
-  await requireAuth()
+  const agent = await requireAuth()
 
-  return <ComingSoon title="Marketing" description="Marketing tools and resources are on their way. Check back soon." />
+  return (
+    <MarketingMarketplace
+      agentId={agent.id}
+      agentName={agent.Name || ""}
+      agentPhone={agent.Phone || ""}
+      agentEmail={agent.Email || ""}
+      agentPhotoUrl={agent.profile_picture_url || undefined}
+    />
+  )
 }

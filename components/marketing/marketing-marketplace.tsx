@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { MarketingFiles } from "./marketing-files"
+import { PrintStore } from "@/components/marketing/print-store"
 
 interface TerritoryListing {
   id: string
@@ -535,7 +536,21 @@ const COLOR_SCHEMES = [
   { id: "teal-coral", name: "Teal & Coral", primary: "#0d9488", secondary: "#fb7185" },
 ]
 
-export function MarketingMarketplace() {
+interface MarketingMarketplaceProps {
+  agentId?: string
+  agentName?: string
+  agentPhone?: string
+  agentEmail?: string
+  agentPhotoUrl?: string
+}
+
+export function MarketingMarketplace({
+  agentId = "",
+  agentName = "",
+  agentPhone = "",
+  agentEmail = "",
+  agentPhotoUrl,
+}: MarketingMarketplaceProps) {
   const [activeTab, setActiveTab] = useState("physical")
   const [selectedTerritory, setSelectedTerritory] = useState<TerritoryListing | null>(null)
   const [selectedVA, setSelectedVA] = useState<VAPackage | null>(null)
@@ -874,68 +889,14 @@ export function MarketingMarketplace() {
         </TabsContent>
 
         {/* PHYSICAL MATERIALS TAB */}
-        <TabsContent value="physical" className="space-y-8 mt-8">
-          <div>
-            <h2 className="text-2xl font-bold text-white mb-2">Physical Marketing Materials</h2>
-            <p className="text-slate-400">Professional signs, cards, flyers, and more</p>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {PHYSICAL_PRODUCTS.map((product) => (
-              <Card
-                key={product.id}
-                className={`group relative overflow-hidden transition-all duration-300 hover:scale-105 flex flex-col ${
-                  product.popular ? "ring-2 ring-primary/50 shadow-lg shadow-primary/20" : ""
-                }`}
-              >
-                {/* Product Image */}
-                <div className="relative h-44 overflow-hidden">
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                  {product.popular && (
-                    <Badge className="absolute top-3 right-3 bg-primary text-white z-10">Popular</Badge>
-                  )}
-                  <Badge variant="outline" className="absolute top-3 left-3 bg-black/50 backdrop-blur-sm border-white/20 text-white z-10 capitalize">
-                    {product.category}
-                  </Badge>
-                  <div className="absolute bottom-3 left-4">
-                    <p className="text-lg font-bold text-white drop-shadow">{product.name}</p>
-                  </div>
-                </div>
-
-                <div className="relative flex-1 p-5 space-y-4 flex flex-col">
-                  <p className="text-sm text-slate-400">{product.description}</p>
-
-                  <div className="space-y-2 bg-white/5 rounded-lg p-3">
-                    {product.features.map((feature, i) => (
-                      <div key={i} className="flex items-start gap-2 text-sm">
-                        <Check className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
-                        <span className="text-slate-300">{feature}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="space-y-3 mt-auto pt-4 border-t border-white/10">
-                    <div>
-                      <div className="text-3xl font-bold text-white">${product.price}</div>
-                      <p className="text-sm text-slate-400">{product.quantity}</p>
-                    </div>
-                    <Button
-                      className="w-full"
-                      onClick={() => setCustomizeProduct(product)}
-                    >
-                      <Palette className="h-4 w-4 mr-2" />
-                      Customize & Order
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
+        <TabsContent value="physical" className="mt-8">
+          <PrintStore
+            agentId={agentId}
+            agentName={agentName}
+            agentPhone={agentPhone}
+            agentEmail={agentEmail}
+            agentPhotoUrl={agentPhotoUrl}
+          />
         </TabsContent>
 
         {/* MY FILES TAB */}
