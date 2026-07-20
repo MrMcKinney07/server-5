@@ -29,54 +29,28 @@ interface BrokerAddContractDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
+const defaultForm = {
+  agent_id: "",
+  transaction_type: "buyer",
+  property_address: "",
+  client_name: "",
+  contract_date: new Date().toISOString().split("T")[0],
+  expected_closing_date: "",
+  sale_price: "",
+  commission_type: "percent" as "percent" | "dollar",
+  commission_value: "",
+  notes: "",
+  is_referral: false,
+  referral_agent_name: "",
+  referral_fee: "",
+}
+
 export function BrokerAddContractDialog({ agents, open, onOpenChange }: BrokerAddContractDialogProps) {
   const [loading, setLoading] = useState(false)
-  const [form, setForm] = useState({
-    agent_id: "",
-    transaction_type: "buyer",
-    property_address: "",
-    client_name: "",
-    contract_date: new Date().toISOString().split("T")[0],
-    expected_closing_date: "",
-    sale_price: "",
-    commission_type: "percent" as "percent" | "dollar",
-    commission_value: "",
-    notes: "",
-  })
+  const [form, setForm] = useState(defaultForm)
 
   function resetForm() {
-    setForm({
-      agent_id: "",
-      transaction_type: "buyer",
-      property_address: "",
-      client_name: "",
-      contract_date: new Date().toISOString().split("T")[0],
-      expected_closing_date: "",
-      sale_price: "",
-      commission_type: "percent",
-    commission_value: "",
-    notes: "",
-    is_referral: false,
-    referral_agent_name: "",
-    referral_fee: "",
-  })
-
-  function resetForm() {
-    setForm({
-      agent_id: "",
-      transaction_type: "buyer",
-      property_address: "",
-      client_name: "",
-      contract_date: new Date().toISOString().split("T")[0],
-      expected_closing_date: "",
-      sale_price: "",
-      commission_type: "percent" as "percent" | "dollar",
-      commission_value: "",
-      notes: "",
-      is_referral: false,
-      referral_agent_name: "",
-      referral_fee: "",
-    })
+    setForm({ ...defaultForm, contract_date: new Date().toISOString().split("T")[0] })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -201,7 +175,7 @@ export function BrokerAddContractDialog({ agents, open, onOpenChange }: BrokerAd
                 step="1000"
                 value={form.sale_price}
                 onChange={(e) => setForm((p) => ({ ...p, sale_price: e.target.value }))}
-                placeholder="500,000"
+                placeholder="500000"
                 className="pl-7 bg-white/5 border-white/10 text-white placeholder:text-slate-500"
               />
             </div>
@@ -237,7 +211,7 @@ export function BrokerAddContractDialog({ agents, open, onOpenChange }: BrokerAd
                   step={form.commission_type === "percent" ? "0.1" : "100"}
                   value={form.commission_value}
                   onChange={(e) => setForm((p) => ({ ...p, commission_value: e.target.value }))}
-                  placeholder={form.commission_type === "percent" ? "3.0" : "15,000"}
+                  placeholder={form.commission_type === "percent" ? "3.0" : "15000"}
                   className={`bg-white/5 border-white/10 text-white placeholder:text-slate-500 ${form.commission_type === "dollar" ? "pl-7" : ""}`}
                 />
                 {form.commission_type === "percent" && (

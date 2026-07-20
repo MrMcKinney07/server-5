@@ -1,4 +1,4 @@
-import { createClient, createServiceClient } from "@/lib/supabase/server"
+import { createServiceClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/auth"
 import { CampaignCards } from "@/components/campaigns/campaign-cards"
 import { CampaignTemplatesGallery } from "@/components/campaigns/campaign-templates-gallery"

@@ -30,8 +30,8 @@ export function CreateCampaignDialog() {
   // Schedule settings
   const [sendTime, setSendTime] = useState("10:30")
   const [sendDays, setSendDays] = useState<string[]>(["mon", "tue", "wed", "thu", "fri"])
-  const [quietHoursStart, setQuietHoursStart] = useState("09:00")
-  const [quietHoursEnd, setQuietHoursEnd] = useState("19:00")
+  const [quietHoursStart, setQuietHoursStart] = useState("20:00")
+  const [quietHoursEnd, setQuietHoursEnd] = useState("08:00")
   // Advanced settings
   const [stopOnReply, setStopOnReply] = useState(true)
   const [throttlePerMinute, setThrottlePerMinute] = useState(10)

@@ -30,6 +30,7 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+
   const supabaseRef = useRef(createClient())
   const supabase = supabaseRef.current
 
@@ -39,7 +40,9 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
       return
     }
     setLoading(true)
-    const today = new Date().toISOString().split("T")[0]
+    // Use local end-of-day to avoid UTC midnight cutting off today's tasks for US timezones
+    const now = new Date()
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
 
     const { data, error } = await supabaseRef.current
       .from("activities")
@@ -55,7 +58,8 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
       `)
       .eq("agent_id", agentId)
       .eq("completed", false)
-      .lte("due_at", `${today}T23:59:59`)
+      .not("due_at", "is", null)
+      .lte("due_at", endOfToday.toISOString())
       .order("due_at", { ascending: true })
 
     if (!error && data) {
@@ -191,6 +195,7 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
           <span className="text-red-400 font-medium">Overdue: {overdueTasks.length} tasks</span>
           <span className="text-slate-400 font-medium">Total: {totalTasks} actions</span>
         </div>
+
       </CardHeader>
 
       <CardContent className="space-y-3 max-h-[400px] overflow-y-auto">

@@ -72,8 +72,6 @@ export function EnrollCampaignDialog({ leadId, leadName, enrolledCampaignIds }: 
       .eq("id", leadId)
       .single()
 
-    console.log("[v0] Lead check:", { lead, leadError, leadId })
-
     if (leadError || !lead) {
       toast.error("Could not verify lead ownership: " + (leadError?.message || "Lead not found"))
       setLoading(false)
@@ -88,8 +86,6 @@ export function EnrollCampaignDialog({ leadId, leadName, enrolledCampaignIds }: 
       .eq("step_number", 1)
       .maybeSingle()
 
-    console.log("[v0] First step:", firstStep)
-
     const nextRunAt = new Date()
     nextRunAt.setHours(nextRunAt.getHours() + (firstStep?.delay_hours || 0))
 
@@ -101,15 +97,11 @@ export function EnrollCampaignDialog({ leadId, leadName, enrolledCampaignIds }: 
       next_run_at: nextRunAt.toISOString(),
     }
 
-    console.log("[v0] Attempting enrollment insert:", enrollmentData)
-
     const { data: enrollment, error } = await supabase
       .from("lead_campaign_enrollments")
-      .insert(enrollmentData)
+      .upsert(enrollmentData, { onConflict: "lead_id,campaign_id", ignoreDuplicates: false })
       .select()
       .single()
-
-    console.log("[v0] Enrollment result:", { enrollment, error })
 
     // Log the enrollment
     if (!error) {

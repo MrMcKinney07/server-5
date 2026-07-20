@@ -24,14 +24,24 @@ import {
   Plus,
   Upload,
   ExternalLink,
+  Home,
 } from "lucide-react"
 import { toast } from "sonner"
 
 const fetcher = async (url: string) => {
   const res = await fetch(url, { credentials: "include" })
-  if (!res.ok) return null
+  console.log("[v0] broker contracts fetch — status:", res.status, "ok:", res.ok)
+  if (!res.ok) {
+    const text = await res.text()
+    console.log("[v0] broker contracts fetch error body:", text)
+    throw new Error(`API error ${res.status}: ${text}`)
+  }
   const ct = res.headers.get("content-type") ?? ""
-  if (!ct.includes("application/json")) return null
+  if (!ct.includes("application/json")) {
+    const text = await res.text()
+    console.log("[v0] broker contracts non-JSON response:", text.slice(0, 200))
+    throw new Error("Non-JSON response")
+  }
   return res.json()
 }
 
@@ -511,7 +521,8 @@ interface BrokerContractsFolderProps {
 }
 
 export function BrokerContractsFolder({ agents = [] }: BrokerContractsFolderProps) {
-  const { data, isLoading } = useSWR("/api/broker/contracts", fetcher, { revalidateOnFocus: true })
+  const { data, isLoading, error } = useSWR("/api/broker/contracts", fetcher, { revalidateOnFocus: true })
+  console.log("[v0] broker contracts — data:", data, "error:", error, "isLoading:", isLoading)
   const [addOpen, setAddOpen] = useState(false)
 
   const groups: AgentGroup[] = data?.grouped ?? []
@@ -528,6 +539,15 @@ export function BrokerContractsFolder({ agents = [] }: BrokerContractsFolderProp
         {[1, 2, 3].map((i) => (
           <div key={i} className="h-16 rounded-xl border border-white/[0.06] bg-white/[0.02] animate-pulse" />
         ))}
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-xl border border-rose-500/20 bg-rose-500/[0.05] px-4 py-4 text-sm text-rose-400">
+        <p className="font-medium mb-1">Failed to load contracts</p>
+        <p className="text-rose-400/70 text-xs">{error.message}</p>
       </div>
     )
   }

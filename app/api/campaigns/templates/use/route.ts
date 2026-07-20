@@ -16,8 +16,8 @@ export async function POST(request: Request) {
       name,
       sendTime = "10:30:00",
       sendDays = ["monday", "tuesday", "wednesday", "thursday", "friday"],
-      quietHoursStart = "09:00:00",
-      quietHoursEnd = "19:00:00",
+      quietHoursStart = "20:00:00",
+      quietHoursEnd = "08:00:00",
       throttlePerMinute = 10,
     } = body
 

@@ -273,6 +273,8 @@ Return ONLY the personalized message, nothing else.
       subject: subject || `Message from ${agentName}`,
       body: content,
       from: fromAddress,
+      // Always set replyTo to the agent's real email so leads can reply directly
+      replyTo: agentEmail || undefined,
     })
     result.email = sent
   }

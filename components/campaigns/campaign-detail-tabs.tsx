@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
+import { createBrowserClient } from "@/lib/supabase/client"
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts"
 import { CampaignTimelineBuilder } from "@/components/campaigns/campaign-timeline-builder"
 import { CampaignEnrollmentsList } from "@/components/campaigns/campaign-enrollments-list"
@@ -225,8 +226,27 @@ function AnalyticsTab({ runs, enrollments }: { runs: CampaignRun[]; enrollments:
   )
 }
 
-export function CampaignDetailTabs({ campaign, steps, enrollments, runs = [] }: CampaignDetailTabsProps) {
+export function CampaignDetailTabs({ campaign, steps, enrollments: initialEnrollments, runs = [] }: CampaignDetailTabsProps) {
   const [activeTab, setActiveTab] = useState("analytics")
+  const [enrollments, setEnrollments] = useState(initialEnrollments)
+  const supabase = createBrowserClient()
+
+  const refreshEnrollments = useCallback(async () => {
+    const { data } = await supabase
+      .from("lead_campaign_enrollments")
+      .select("*, lead:leads(first_name, last_name, email, phone)")
+      .eq("campaign_id", campaign.id)
+      .order("created_at", { ascending: false })
+      .limit(100)
+    if (data) setEnrollments(data as typeof initialEnrollments)
+  }, [campaign.id, supabase])
+
+  // Also listen for the window event so tab counter and analytics update immediately
+  useEffect(() => {
+    const handler = () => refreshEnrollments()
+    window.addEventListener("campaign-enrollment-updated", handler)
+    return () => window.removeEventListener("campaign-enrollment-updated", handler)
+  }, [refreshEnrollments])
 
   return (
     <div className="space-y-5">
@@ -254,7 +274,7 @@ export function CampaignDetailTabs({ campaign, steps, enrollments, runs = [] }: 
       )}
       {activeTab === "enrollments" && (
         <div className="space-y-6">
-          <CampaignLeadEnrollment campaignId={campaign.id} campaignName={campaign.name} />
+          <CampaignLeadEnrollment campaignId={campaign.id} campaignName={campaign.name} onEnrolled={refreshEnrollments} />
           <CampaignEnrollmentsList enrollments={enrollments} />
         </div>
       )}

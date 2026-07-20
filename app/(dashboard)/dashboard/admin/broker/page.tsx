@@ -9,6 +9,8 @@ import { BrokerAnalytics } from "@/components/admin/broker-analytics"
 import { ExportTools } from "@/components/admin/export-tools"
 import { ImportLeadsTool } from "@/components/admin/import-leads-tool"
 import { BrokerContractsFolder } from "@/components/admin/broker-contracts-folder"
+import { TemplateManager } from "@/components/admin/template-manager"
+import { Package } from "lucide-react"
 
 export default async function BrokerToolsPage() {
   const agent = await requireAdmin()
@@ -130,7 +132,7 @@ export default async function BrokerToolsPage() {
 
       {/* Tabs */}
       <Tabs defaultValue="leads" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5 lg:w-[620px]">
+        <TabsList className="grid w-full grid-cols-6 lg:w-[740px]">
           <TabsTrigger value="leads">All Leads</TabsTrigger>
           <TabsTrigger value="contracts" className="flex items-center gap-1.5">
             <FileSignature className="h-3.5 w-3.5" />
@@ -139,6 +141,10 @@ export default async function BrokerToolsPage() {
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="export">Export</TabsTrigger>
           <TabsTrigger value="import">Import</TabsTrigger>
+          <TabsTrigger value="print-store" className="flex items-center gap-1.5">
+            <Package className="h-3.5 w-3.5" />
+            Print Store
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="leads">
