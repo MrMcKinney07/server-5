@@ -109,7 +109,7 @@ export function PrintStore({ agentId, agentName, agentPhone, agentEmail, agentPh
         <div>
           <h2 className="text-xl font-semibold text-white">Print Store</h2>
           <p className="text-sm text-white/50 mt-0.5">
-            Pre-approved templates — customize and order with dropship delivery via 4over
+            Pre-approved templates — customize and order with direct delivery via 4over
           </p>
         </div>
         <div className="flex items-center gap-2 text-white/40">
