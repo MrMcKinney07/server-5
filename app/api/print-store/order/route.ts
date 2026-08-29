@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/server"
 import { getCurrentAgent, requireAdmin } from "@/lib/auth"
 import { put } from "@vercel/blob"
 import { uploadFileTo4over, submit4overOrder, has4overCredentials } from "@/lib/4over/client"
+import { getStripe, getStripeProductPrice } from "@/lib/stripe"
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,12 +14,15 @@ export async function POST(request: NextRequest) {
 
     const templateId = formData.get("template_id") as string
     const quantity = parseInt(formData.get("quantity") as string) || 1
-    const totalPrice = parseFloat(formData.get("total_price") as string) || 0
+    const clientTotalPrice = parseFloat(formData.get("total_price") as string) || 0
     const customization = JSON.parse((formData.get("customization") as string) || "{}")
     const shippingAddress = JSON.parse((formData.get("shipping_address") as string) || "{}")
     const previewImageFile = formData.get("preview_image") as File | null
 
     if (!templateId) return NextResponse.json({ error: "Missing template_id" }, { status: 400 })
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100000) {
+      return NextResponse.json({ error: "Invalid quantity" }, { status: 400 })
+    }
 
     const db = createServiceClient()
 
@@ -30,6 +34,15 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (!template) return NextResponse.json({ error: "Template not found" }, { status: 404 })
+
+    const quantityOption = Array.isArray(template.quantity_options)
+      ? template.quantity_options.find((option: { qty: number }) => option.qty === quantity)
+      : null
+    const unitPrice = Number(quantityOption?.price ?? template.price)
+    const totalPrice = unitPrice
+    if (!Number.isFinite(totalPrice) || totalPrice <= 0 || (clientTotalPrice > 0 && Math.abs(clientTotalPrice - totalPrice) > 0.01)) {
+      return NextResponse.json({ error: "Price or quantity does not match this product" }, { status: 400 })
+    }
 
     // Upload customized preview to Blob
     let previewUrl = ""
@@ -58,6 +71,27 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (orderError) return NextResponse.json({ error: orderError.message }, { status: 500 })
+
+    const origin = request.headers.get("origin") || new URL(request.url).origin
+    const stripe = getStripe()
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items: [{
+        price_data: {
+          currency: "usd",
+          product_data: { name: `${template.name} — ${quantity.toLocaleString()} units` },
+          unit_amount: getStripeProductPrice(totalPrice),
+        },
+        quantity: 1,
+      }],
+      customer_email: shippingAddress.email || agent.Email || undefined,
+      metadata: { order_id: order.id, template_id: templateId, agent_id: agent.id },
+      success_url: `${origin}/dashboard/marketing?checkout=success`,
+      cancel_url: `${origin}/dashboard/marketing?checkout=cancelled`,
+      integration_identifier: `marketing_store_${Math.random().toString(36).slice(2, 10)}`,
+    })
+
+    return NextResponse.json({ order, checkoutUrl: session.url })
 
     // Submit to 4over if credentials are configured and template has UUIDs
     if (

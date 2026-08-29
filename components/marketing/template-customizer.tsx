@@ -222,12 +222,8 @@ export function TemplateCustomizer({
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Order failed")
 
-      setOrderComplete(true)
-      toast({
-        title: "Order Placed!",
-        description: data.warning || `Your order of ${selectedQty} has been submitted for fulfillment.`,
-      })
-      setTimeout(() => onOrderComplete(), 2500)
+      if (!data.checkoutUrl) throw new Error("Unable to start Stripe checkout")
+      window.location.assign(data.checkoutUrl)
     } catch (err: any) {
       toast({ title: "Order Failed", description: err.message, variant: "destructive" })
     } finally {
@@ -241,7 +237,7 @@ export function TemplateCustomizer({
         <CheckCircle2 className="h-16 w-16 text-emerald-400" />
         <h2 className="text-xl font-semibold text-white">Order Placed!</h2>
         <p className="text-white/50 text-sm max-w-xs">
-          Your order has been submitted to 4over for fulfillment. You&apos;ll receive a confirmation shortly.
+          Your personalized marketing piece is ready to move forward. You&apos;ll receive a confirmation shortly.
         </p>
       </div>
     )

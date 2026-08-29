@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { TemplateCustomizer } from "@/components/marketing/template-customizer"
-import { ShoppingBag, Package, AlertCircle } from "lucide-react"
+import { ShoppingBag, AlertCircle } from "lucide-react"
 
 export interface PrintTemplate {
   id: string
@@ -109,12 +109,8 @@ export function PrintStore({ agentId, agentName, agentPhone, agentEmail, agentPh
         <div>
           <h2 className="text-xl font-semibold text-white">Print Store</h2>
           <p className="text-sm text-white/50 mt-0.5">
-            Pre-approved templates — customize and order with dropship delivery via 4over
+            Explore polished, ready-to-personalize marketing materials for your business.
           </p>
-        </div>
-        <div className="flex items-center gap-2 text-white/40">
-          <Package className="h-4 w-4" />
-          <span className="text-xs">Fulfilled by 4over</span>
         </div>
       </div>
 

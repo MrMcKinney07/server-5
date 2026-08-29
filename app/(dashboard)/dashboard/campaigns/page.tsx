@@ -1,4 +1,4 @@
-import { createServiceClient } from "@/lib/supabase/server"
+import { createClient, createServiceClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/auth"
 import { CampaignCards } from "@/components/campaigns/campaign-cards"
 import { CampaignTemplatesGallery } from "@/components/campaigns/campaign-templates-gallery"
@@ -36,7 +36,7 @@ export default async function CampaignsPage() {
 
     const enriched = await Promise.all(
       filteredCampaigns.map(async (campaign) => {
-        const [stepsRes, enrollRes, emailSentRes, smsSentRes] = await Promise.all([
+        const [stepsRes, enrollRes] = await Promise.all([
           supabase
             .from("campaign_steps")
             .select("id", { count: "exact", head: true })
@@ -45,20 +45,10 @@ export default async function CampaignsPage() {
             .from("lead_campaign_enrollments")
             .select("id, status")
             .eq("campaign_id", campaign.id),
-          supabase
-            .from("campaign_logs")
-            .select("id", { count: "exact", head: true })
-            .eq("campaign_id", campaign.id)
-            .eq("event", "email_sent"),
-          supabase
-            .from("campaign_logs")
-            .select("id", { count: "exact", head: true })
-            .eq("campaign_id", campaign.id)
-            .eq("event", "sms_sent"),
         ])
 
         const enrollments = enrollRes.data || []
-        const totalSent = (emailSentRes.count || 0) + (smsSentRes.count || 0)
+        const totalSent = 0
         const totalDelivered = totalSent
         const totalClicks = 0
         const totalReplies = 0
