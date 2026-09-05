@@ -35,10 +35,10 @@ export default async function ContactPage({ params }: ContactPageProps) {
     supabase.from("leads").select("*").eq("contact_id", id).order("created_at", { ascending: false }),
     supabase
       .from("activities")
-      .select("*, agent:agents(full_name, email)")
+      .select("*, agent:agents(full_name:Name, email:Email)")
       .eq("contact_id", id)
       .order("created_at", { ascending: false }),
-    supabase.from("agents").select("id, full_name, email").eq("is_active", true),
+    supabase.from("agents").select("id, full_name:Name, email:Email").eq("is_active", true),
     supabase.from("campaign_enrollments").select("*, campaign:campaigns(*)").eq("contact_id", id),
     supabase.from("campaigns").select("*").eq("is_active", true),
     supabase.from("properties").select("*").eq("status", "active").order("created_at", { ascending: false }).limit(20),
@@ -48,7 +48,9 @@ export default async function ContactPage({ params }: ContactPageProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">{(contact as Contact).full_name}</h1>
+          <h1 className="text-2xl font-semibold">
+            {`${(contact as Contact).first_name} ${(contact as Contact).last_name}`}
+          </h1>
           <p className="text-sm text-muted-foreground">Contact details and activity history</p>
         </div>
         <div className="flex items-center gap-2">

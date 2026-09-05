@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Mail, MessageSquare, Plus, Copy, Pencil, Trash2, Check } from "lucide-react"
 import { toast } from "sonner"
+import { useConfirm } from "@/hooks/use-confirm"
 
 type Template = {
   id: string
@@ -141,6 +142,7 @@ Best,
 ]
 
 export default function TemplatesPage() {
+  const confirm = useConfirm()
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -222,10 +224,23 @@ export default function TemplatesPage() {
     setDialogOpen(true)
   }
 
-  const handleDelete = (id: string) => {
-    const updated = templates.filter((t) => t.id !== id)
-    saveTemplates(updated)
-    toast.success("Template deleted")
+  const handleDelete = async (id: string) => {
+    const target = templates.find((t) => t.id === id)
+    if (!target) return
+    if (
+      !(await confirm({
+        title: "Delete template?",
+        description: `"${target.name}" will be removed.`,
+        confirmText: "Delete",
+        destructive: true,
+      }))
+    )
+      return
+    const previous = templates
+    saveTemplates(templates.filter((t) => t.id !== id))
+    toast.success("Template deleted", {
+      action: { label: "Undo", onClick: () => saveTemplates(previous) },
+    })
   }
 
   const handleCopy = (template: Template) => {

@@ -1,17 +1,35 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
 import { Trophy, Medal, Award } from "lucide-react"
 import type { MonthlyAgentStats, Agent } from "@/lib/types/database"
 
 interface RankingWithAgent extends MonthlyAgentStats {
-  agent: Pick<Agent, "id" | "full_name" | "email" | "segment"> | null
+  agent: Pick<Agent, "id" | "full_name" | "email"> | null
 }
 
 interface RankingsTableProps {
   rankings: RankingWithAgent[]
 }
 
-function RankBadge({ rank }: { rank: number }) {
+// English ordinal suffix, correctly handling the 11–13 exceptions.
+function ordinal(n: number): string {
+  const mod100 = n % 100
+  if (mod100 >= 11 && mod100 <= 13) return `${n}th`
+  switch (n % 10) {
+    case 1:
+      return `${n}st`
+    case 2:
+      return `${n}nd`
+    case 3:
+      return `${n}rd`
+    default:
+      return `${n}th`
+  }
+}
+
+function RankBadge({ rank }: { rank: number | null }) {
+  if (!rank || rank < 1) {
+    return <span className="text-muted-foreground">—</span>
+  }
   if (rank === 1) {
     return (
       <div className="flex items-center gap-2">
@@ -36,7 +54,7 @@ function RankBadge({ rank }: { rank: number }) {
       </div>
     )
   }
-  return <span className="text-muted-foreground">{rank}th</span>
+  return <span className="text-muted-foreground">{ordinal(rank)}</span>
 }
 
 export function RankingsTable({ rankings }: RankingsTableProps) {
@@ -59,7 +77,6 @@ export function RankingsTable({ rankings }: RankingsTableProps) {
           <TableRow>
             <TableHead className="w-20">Rank</TableHead>
             <TableHead>Agent</TableHead>
-            <TableHead>Segment</TableHead>
             <TableHead className="text-right">Total Points</TableHead>
           </TableRow>
         </TableHeader>
@@ -75,13 +92,8 @@ export function RankingsTable({ rankings }: RankingsTableProps) {
                   <p className="text-sm text-muted-foreground">{ranking.agent?.email}</p>
                 </div>
               </TableCell>
-              <TableCell>
-                <Badge variant={ranking.agent?.segment === "seasoned" ? "default" : "secondary"}>
-                  {ranking.agent?.segment || "—"}
-                </Badge>
-              </TableCell>
               <TableCell className="text-right">
-                <span className="text-lg font-semibold text-foreground">{ranking.total_points}</span>
+                <span className="text-lg font-semibold text-foreground">{ranking.total_xp_earned}</span>
                 <span className="text-sm text-muted-foreground ml-1">pts</span>
               </TableCell>
             </TableRow>

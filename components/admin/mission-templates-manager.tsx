@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Plus, Pencil, Trash2, Target } from "lucide-react"
+import { useConfirm } from "@/hooks/use-confirm"
 
 interface MissionTemplatesManagerProps {
   templates: MissionTemplate[]
@@ -35,6 +36,7 @@ const categoryColors: Record<string, string> = {
 }
 
 export function MissionTemplatesManager({ templates }: MissionTemplatesManagerProps) {
+  const confirm = useConfirm()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState<MissionTemplate | null>(null)
   const [isLoading, setIsLoading] = useState(false)

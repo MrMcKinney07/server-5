@@ -33,7 +33,7 @@ export function PodDashboard({ team, members, memberStats, recentMissions, curre
     return total > 0 ? Math.round((completed / total) * 100) : 0
   }
 
-  const totalPoints = memberStats.reduce((sum, s) => sum + (s.total_points || 0), 0)
+  const totalPoints = memberStats.reduce((sum, s) => sum + (s.total_xp_earned || 0), 0)
   const avgCompletion =
     members.length > 0
       ? Math.round(members.reduce((sum, m) => sum + getAgentMissionCompletion(m.id), 0) / members.length)
@@ -123,7 +123,7 @@ export function PodDashboard({ team, members, memberStats, recentMissions, curre
                       <Badge variant="outline">{member.segment}</Badge>
                     </TableCell>
                     <TableCell>{stats?.rank || "-"}</TableCell>
-                    <TableCell>{stats?.total_points || 0}</TableCell>
+                    <TableCell>{stats?.total_xp_earned || 0}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Progress value={completion} className="h-2 w-24" />

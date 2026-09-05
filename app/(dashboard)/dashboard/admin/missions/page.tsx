@@ -47,7 +47,6 @@ export default async function AdminMissionsPage() {
           </Link>
         </CardContent>
       </Card>
-      {/* </CHANGE> */}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <MissionTemplatesManager templates={templates || []} />

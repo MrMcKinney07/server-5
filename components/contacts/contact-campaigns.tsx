@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Pause, Play, X } from "lucide-react"
 import type { Campaign, CampaignEnrollment } from "@/lib/types/database"
+import { useConfirm } from "@/hooks/use-confirm"
 
 interface ContactCampaignsProps {
   contactId: string
@@ -24,6 +25,7 @@ export function ContactCampaigns({ contactId, agentId, enrollments, availableCam
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const supabase = createBrowserClient()
+  const confirm = useConfirm()
 
   // Filter out campaigns the contact is already enrolled in
   const unenrolledCampaigns = availableCampaigns.filter(
@@ -52,7 +54,7 @@ export function ContactCampaigns({ contactId, agentId, enrollments, availableCam
   }
 
   async function unenroll(enrollmentId: string) {
-    if (!confirm("Remove this contact from the campaign?")) return
+    if (!(await confirm({ title: "Remove from campaign?", description: "This contact will be removed from the campaign.", confirmText: "Remove", destructive: true }))) return
     await supabase.from("campaign_enrollments").delete().eq("id", enrollmentId)
     router.refresh()
   }

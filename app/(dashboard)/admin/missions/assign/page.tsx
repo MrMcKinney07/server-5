@@ -17,9 +17,8 @@ export default async function MissionAssignPage() {
     `)
     .order("name")
 
-  // Fetch all active agents
-  const { data: agents, error: agentsError } = await supabase.from("agents").select("*").order("full_name")
-  console.log("[v0] Agents fetched:", agents?.length, "error:", agentsError?.message)
+  // Fetch all agents
+  const { data: agents, error: agentsError } = await supabase.from("agents").select("*").order("Name")
 
   return (
     <div className="space-y-6">
@@ -27,6 +26,15 @@ export default async function MissionAssignPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Assign Missions</h1>
         <p className="text-muted-foreground">Generate weekly mission schedules for agents</p>
       </div>
+
+      {agentsError && (
+        <div
+          role="alert"
+          className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
+          Failed to load agents: {agentsError.message}. Try refreshing the page.
+        </div>
+      )}
 
       <MissionAssignmentForm missionSets={missionSets ?? []} agents={agents ?? []} />
     </div>

@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createClient, hasSupabaseCredentials } from "@/lib/supabase/client"
+import { useConfirm } from "@/hooks/use-confirm"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
@@ -73,6 +74,7 @@ function ChannelIcon({ channel }: { channel?: string }) {
 
 export function CampaignCards({ campaigns }: CampaignCardsProps) {
   const router = useRouter()
+  const confirm = useConfirm()
 
   async function toggleActive(id: string, current: boolean) {
     if (!hasSupabaseCredentials()) return
@@ -82,7 +84,7 @@ export function CampaignCards({ campaigns }: CampaignCardsProps) {
   }
 
   async function deleteCampaign(id: string) {
-    if (!confirm("Delete this campaign? All steps and enrollments will also be removed.")) return
+    if (!(await confirm({ title: "Delete campaign?", description: "All steps and enrollments will also be removed.", confirmText: "Delete", destructive: true }))) return
     if (!hasSupabaseCredentials()) return
     const supabase = createClient()
     await supabase.from("campaigns").delete().eq("id", id)

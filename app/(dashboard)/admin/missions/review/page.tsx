@@ -12,10 +12,10 @@ export default async function AdminMissionReviewPage() {
     redirect("/auth/login")
   }
 
-  // Check if user is broker
+  // Check if user is an admin or broker
   const { data: agent } = await supabase.from("agents").select("Role").eq("id", user.id).single()
 
-  if (!agent || agent.Role !== "broker") {
+  if (!agent || (agent.Role !== "broker" && agent.Role !== "admin")) {
     redirect("/dashboard")
   }
 

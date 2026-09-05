@@ -11,6 +11,7 @@ export interface CurrentAgent extends Agent {
   lifetime_xp: number
   prestige_tier: number
   prestige_icon_url: string | null
+  profile_picture_url: string | null
 }
 
 export async function isDatabaseSetup(): Promise<boolean> {

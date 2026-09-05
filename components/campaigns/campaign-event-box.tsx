@@ -84,6 +84,7 @@ export function CampaignEventBox({
 }: CampaignEventBoxProps) {
   const router = useRouter()
   const supabase = createBrowserClient()
+  const confirm = useConfirm()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [expanded, setExpanded] = useState(isNew)
@@ -289,7 +290,7 @@ export function CampaignEventBox({
   const handleDelete = async () => {
     if (!step) return
 
-    if (!confirm("Are you sure you want to delete this event?")) return
+    if (!(await confirm({ title: "Delete event?", description: "This event will be permanently deleted.", confirmText: "Delete", destructive: true }))) return
 
     const { error: deleteError } = await supabase.from("campaign_steps").delete().eq("id", step.id)
 

@@ -1,15 +1,10 @@
 import { createServerClient } from "@/lib/supabase/server"
-import { requireAuth } from "@/lib/auth"
-import { redirect } from "next/navigation"
+import { requireAdmin } from "@/lib/auth"
 import { CommissionPlansManager } from "@/components/admin/commission-plans-manager"
 
 export default async function AdminCommissionPlansPage() {
+  await requireAdmin()
   const supabase = await createServerClient()
-  const agent = await requireAuth()
-
-  if (!agent || agent.role !== "broker") {
-    redirect("/dashboard")
-  }
 
   const { data: commissionPlans } = await supabase
     .from("commission_plans")

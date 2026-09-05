@@ -1,22 +1,17 @@
 import { createServerClient } from "@/lib/supabase/server"
-import { requireAuth } from "@/lib/auth"
-import { redirect } from "next/navigation"
+import { requireAdmin } from "@/lib/auth"
 import { RecruitingPipeline } from "@/components/admin/recruiting/recruiting-pipeline"
 
 export default async function AdminRecruitingPage() {
+  await requireAdmin()
   const supabase = await createServerClient()
-  const agent = await requireAuth()
-
-  if (!agent || agent.role !== "admin") {
-    redirect("/dashboard")
-  }
 
   const { data: recruits } = await supabase
     .from("recruits")
     .select("*, sponsor_agent:agents!recruits_sponsor_agent_id_fkey(*)")
     .order("created_at", { ascending: false })
 
-  const { data: agents } = await supabase.from("agents").select("*").eq("is_active", true).order("full_name")
+  const { data: agents } = await supabase.from("agents").select("*").eq("is_active", true).order("Name")
 
   return (
     <div className="space-y-6">

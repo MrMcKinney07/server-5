@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Pause, Play, X, Users, Search, CheckCircle2, Clock, AlertCircle } from "lucide-react"
 import { format } from "date-fns"
+import { useConfirm } from "@/hooks/use-confirm"
 
 interface Enrollment {
   id: string
@@ -51,6 +52,7 @@ const statusConfig = {
 
 export function CampaignEnrollmentsList({ enrollments }: CampaignEnrollmentsListProps) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [search, setSearch] = useState("")
   const [loadingId, setLoadingId] = useState<string | null>(null)
 
@@ -65,7 +67,7 @@ export function CampaignEnrollmentsList({ enrollments }: CampaignEnrollmentsList
   }
 
   async function unenroll(enrollmentId: string) {
-    if (!confirm("Remove this lead from the campaign?")) return
+    if (!(await confirm({ title: "Remove from campaign?", description: "This lead will be removed from the campaign.", confirmText: "Remove", destructive: true }))) return
     if (!hasSupabaseCredentials()) return
     setLoadingId(enrollmentId)
     const supabase = createClient()

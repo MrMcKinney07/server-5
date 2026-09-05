@@ -14,8 +14,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Gift, Plus, Pencil, Trash2, Upload, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useConfirm } from "@/hooks/use-confirm"
 
 export function PrizesManager() {
+  const confirm = useConfirm()
   const [prizes, setPrizes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [editingPrize, setEditingPrize] = useState<any>(null)
@@ -83,7 +85,7 @@ export function PrizesManager() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Are you sure you want to delete this prize?")) return
+    if (!(await confirm({ title: "Delete prize?", description: "This prize will be permanently removed.", confirmText: "Delete", destructive: true }))) return
 
     const { error } = await supabase.from("rewards_prizes").delete().eq("id", id)
 

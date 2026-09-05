@@ -8,7 +8,14 @@ import { SubmitContractDialog } from "@/components/contracts/submit-contract-dia
 import { ContractsList } from "@/components/contracts/contracts-list"
 import { FileSignature, Plus, FileText, Clock, CheckCircle2, AlertTriangle } from "lucide-react"
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json())
+const fetcher = async (url: string) => {
+  const res = await fetch(url)
+  const body = await res.json().catch(() => null)
+  if (!res.ok || (body && body.error)) {
+    throw new Error(body?.error || `Request failed (${res.status})`)
+  }
+  return body
+}
 
 export default function ContractsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -81,13 +88,14 @@ export default function ContractsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-2">
+      <div role="group" aria-label="Filter contracts by status" className="flex items-center gap-2">
         {(["all", "active", "closed", "cancelled"] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
+            aria-pressed={filter === f}
             className={cn(
-              "px-3 py-1.5 text-xs rounded-lg border capitalize transition-all",
+              "px-3 py-1.5 text-xs rounded-lg border capitalize transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/40",
               filter === f
                 ? "bg-cyan-500/10 border-cyan-500/20 text-cyan-400"
                 : "border-white/[0.06] text-slate-400 hover:text-white hover:bg-white/[0.04]",

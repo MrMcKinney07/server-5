@@ -28,41 +28,10 @@ import Link from "next/link"
 import { LeadPipelineWidget } from "@/components/leads/lead-pipeline-widget"
 import { OfficeLeaderboardHero } from "@/components/dashboard/office-leaderboard-hero"
 import { UserBadgeName } from "@/components/prestige/user-badge-name"
-import { getPrestigeTierInfo } from "@/lib/xp-constants"
+import { getPrestigeTierInfo, getPrestigeTier, getLevelFromXP } from "@/lib/xp-constants"
 import { HustleStreakBadge } from "@/components/dashboard/hustle-streak-badge"
 import { DashboardCalendar, type CalendarEvent } from "@/components/dashboard/dashboard-calendar"
 import { RecommendedVideos } from "@/components/knowledge/recommended-videos"
-
-const PRESTIGE_LEVELS = [
-  {
-    name: "Bronze",
-    minPoints: 0,
-    icon: Shield,
-    color: "text-amber-700",
-    bg: "bg-amber-50",
-  },
-  {
-    name: "Silver",
-    minPoints: 150,
-    icon: Star,
-    color: "text-slate-500",
-    bg: "bg-slate-50",
-  },
-  {
-    name: "Gold",
-    minPoints: 350,
-    icon: Trophy,
-    color: "text-yellow-500",
-    bg: "bg-yellow-50",
-  },
-  {
-    name: "Platinum",
-    minPoints: 600,
-    icon: Crown,
-    color: "text-cyan-400",
-    bg: "bg-cyan-50",
-  },
-]
 
 const MILESTONES = [
   { id: "first_mission", name: "First Steps", description: "Complete your first mission", requirement: 1, icon: Star },
@@ -104,22 +73,6 @@ const MILESTONES = [
     type: "points",
   },
 ]
-
-function getPrestigeLevel(points: number) {
-  let level = PRESTIGE_LEVELS[0]
-  for (const l of PRESTIGE_LEVELS) {
-    if (points >= l.minPoints) level = l
-  }
-  return level
-}
-
-function getPrestigeTier(lifetimeXP: number) {
-  // Prestige levels: Bronze 1-9 (0-90), Silver 10-24 (100-240), Gold 25-49 (250-490), etc.
-  // Each level = 10 XP
-  const levelIndex = Math.floor(lifetimeXP / 10)
-  const level = PRESTIGE_LEVELS.find((l) => levelIndex >= l.minPoints / 10) || PRESTIGE_LEVELS[0]
-  return { levelIndex, level }
-}
 
 export default async function DashboardPage() {
   const agent = await requireAuth()
@@ -268,7 +221,7 @@ export default async function DashboardPage() {
     id: entry.agent_id,
     name: entry.agents?.Name || `Agent ${entry.agent_id?.slice(0, 6) || "Unknown"}`,
     points: entry.total_xp_earned || 0,
-    level: getPrestigeTier(entry.agents?.lifetime_xp || 1).level,
+    level: getLevelFromXP(entry.agents?.lifetime_xp || 0),
     profilePicture: entry.agents?.profile_picture_url || null,
   }))
 
@@ -379,9 +332,7 @@ export default async function DashboardPage() {
     })
   })
 
-  const myPrestige = getPrestigeLevel(myPoints)
-  const PrestigeIcon = myPrestige.icon
-  const prestigeTierInfo = getPrestigeTierInfo(agent.lifetime_xp || 0)
+  const prestigeTierInfo = getPrestigeTierInfo(getPrestigeTier(agent.lifetime_xp || 0))
 
   const completedMissions =
     todayMissionSet?.daily_mission_items?.filter((m: any) => m.status === "completed").length || 0
@@ -400,7 +351,8 @@ export default async function DashboardPage() {
           <div className="flex items-center gap-4">
             <UserBadgeName
               name={agent.full_name || "Agent"}
-              prestigeTier={agent.lifetime_xp || 0}
+              avatarUrl={agent.profile_picture_url}
+              prestigeTier={getPrestigeTier(agent.lifetime_xp || 0)}
               size="lg"
               showName={false}
             />
@@ -524,8 +476,10 @@ export default async function DashboardPage() {
                 return (
                   <div
                     key={milestone.id}
+                    tabIndex={0}
                     title={`${milestone.name}: ${milestone.description}`}
-                    className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border transition-all w-[72px] ${
+                    aria-label={`${milestone.name}: ${milestone.description}. ${isEarned ? "Unlocked" : "Locked"}`}
+                    className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border transition-all w-[72px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                       isEarned
                         ? "bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800"
                         : "bg-muted/40 border-border opacity-40 grayscale"

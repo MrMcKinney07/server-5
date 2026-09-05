@@ -289,6 +289,28 @@ export interface AgentAnnualSummaryWithAgent extends AgentAnnualSummary {
   agent?: Agent
 }
 
+// Deployed shape of public.monthly_agent_stats (unique on agent_id, month_year)
+export interface MonthlyAgentStats {
+  id: string
+  agent_id: string
+  month_year: string
+  missions_completed: number
+  total_xp_earned: number
+  rank: number | null
+  created_at: string
+  updated_at: string
+}
+
+export interface AgentDailyMission {
+  id: string
+  agent_id: string
+  mission_date: string
+  mission1_completed: boolean
+  mission2_completed: boolean
+  mission3_completed: boolean
+  created_at?: string
+}
+
 // Recruiting & Pod Structure types
 export interface Team {
   id: string

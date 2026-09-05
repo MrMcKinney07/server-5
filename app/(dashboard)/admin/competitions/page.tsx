@@ -1,22 +1,17 @@
 import { createServerClient } from "@/lib/supabase/server"
-import { requireAuth } from "@/lib/auth"
-import { redirect } from "next/navigation"
+import { requireAdmin } from "@/lib/auth"
 import { AdminCompetitionsManager } from "@/components/admin/competitions/admin-competitions-manager"
 
 export default async function AdminCompetitionsPage() {
+  await requireAdmin()
   const supabase = await createServerClient()
-  const agent = await requireAuth()
-
-  if (!agent || agent.role !== "admin") {
-    redirect("/dashboard")
-  }
 
   const { data: competitions } = await supabase
     .from("competitions")
     .select("*")
     .order("start_date", { ascending: false })
 
-  const { data: agents } = await supabase.from("agents").select("*").eq("is_active", true).order("full_name")
+  const { data: agents } = await supabase.from("agents").select("*").eq("is_active", true).order("Name")
 
   return (
     <div className="space-y-6">

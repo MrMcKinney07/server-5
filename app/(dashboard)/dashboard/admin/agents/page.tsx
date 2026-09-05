@@ -18,8 +18,6 @@ export default async function AdminAgentsPage() {
     )
     .order("created_at", { ascending: false })
 
-  console.log("[v0] Fetched agents from database:", agents?.length, agents)
-
   const activeCount = agents?.filter((a) => a.is_active)?.length || 0
   const inactiveCount = (agents?.length || 0) - activeCount
   const recentSignIns =

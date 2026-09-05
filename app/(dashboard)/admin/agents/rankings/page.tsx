@@ -14,18 +14,19 @@ export default async function AdminRankingsPage() {
   const nyDate = new Date(nowInNY)
   const year = nyDate.getFullYear()
   const month = nyDate.getMonth() + 1
+  const monthYear = `${year}-${String(month).padStart(2, "0")}`
 
-  // Fetch current month's rankings with agent info
+  // Fetch current month's rankings with agent info.
+  // agents has no lowercase full_name/email columns, so alias the real Name/Email columns.
   const { data: rankings } = await supabase
     .from("monthly_agent_stats")
     .select(
       `
       *,
-      agent:agents(id, full_name, email, segment)
+      agent:agents(id, full_name:Name, email:Email)
     `,
     )
-    .eq("year", year)
-    .eq("month", month)
+    .eq("month_year", monthYear)
     .order("rank", { ascending: true })
 
   const monthName = new Date(year, month - 1).toLocaleString("en-US", { month: "long" })
