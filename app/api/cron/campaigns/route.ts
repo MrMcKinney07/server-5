@@ -262,8 +262,36 @@ Return ONLY the personalized message, nothing else.
   const campaignChannel = campaign.channel || "EMAIL"
   const stepType = step.type || "email"
 
+  // Accumulate a log row per attempted action so the recorded event reflects the
+  // ACTUAL send outcome. Previously every step logged `${stepType}_sent`
+  // unconditionally, so failed sends were counted as successes and no failure was
+  // ever recorded — the send helpers return false (not throw) on failure.
+  const logRows: {
+    lead_id: string | null
+    campaign_id: string
+    step_id: string
+    event: string
+    info: Record<string, unknown>
+  }[] = []
+  const baseLog = {
+    lead_id: enrollmentType === "lead" ? enrollment.lead_id : null,
+    campaign_id: enrollment.campaign_id,
+    step_id: step.id,
+  }
+  const logInfo: Record<string, unknown> = {
+    step_number: nextStepNumber,
+    ai_personalized: step.ai_personalize,
+    channel: campaignChannel,
+    enrollment_type: enrollmentType,
+    // campaign_logs has no contact_id column, so keep it in info for contact runs
+    ...(enrollmentType === "contact" ? { contact_id: enrollment.contact_id } : {}),
+  }
+
+  const wantEmail = stepType === "email" || campaignChannel === "EMAIL" || campaignChannel === "BOTH"
+  const wantSms = stepType === "sms" || campaignChannel === "SMS" || campaignChannel === "BOTH"
+
   // Execute based on step type and channel
-  if ((stepType === "email" || campaignChannel === "EMAIL" || campaignChannel === "BOTH") && recipient?.email) {
+  if (wantEmail && recipient?.email) {
     // Send from agent's email if available, otherwise fallback to default
     const fromAddress = agentEmail
       ? `${agentName} <${agentEmail}>`
@@ -277,9 +305,10 @@ Return ONLY the personalized message, nothing else.
       replyTo: agentEmail || undefined,
     })
     result.email = sent
+    logRows.push({ ...baseLog, event: sent ? "email_sent" : "email_failed", info: logInfo })
   }
 
-  if ((stepType === "sms" || campaignChannel === "SMS" || campaignChannel === "BOTH") && recipient?.phone) {
+  if (wantSms && recipient?.phone) {
     // Include agent's phone number in the SMS body signature
     const smsBody = agentPhone
       ? `${content}\n\nReply or call: ${agentPhone}`
@@ -289,6 +318,7 @@ Return ONLY the personalized message, nothing else.
       body: smsBody,
     })
     result.sms = sent
+    logRows.push({ ...baseLog, event: sent ? "sms_sent" : "sms_failed", info: logInfo })
   }
 
   if (stepType === "task") {
@@ -304,21 +334,21 @@ Return ONLY the personalized message, nothing else.
       completed: false,
     })
     result.task = true
+    logRows.push({ ...baseLog, event: "task_sent", info: logInfo })
   }
 
-  // Log the step execution
-  await supabase.from("campaign_logs").insert({
-    lead_id: enrollmentType === "lead" ? enrollment.lead_id : null,
-    campaign_id: enrollment.campaign_id,
-    step_id: step.id,
-    event: `${stepType}_sent`,
-    info: {
-      step_number: nextStepNumber,
-      ai_personalized: step.ai_personalize,
-      channel: campaignChannel,
-      enrollment_type: enrollmentType,
-    },
-  })
+  // A messaging step with no reachable address would otherwise vanish silently —
+  // record it so it is visible in the activity log rather than looking "sent".
+  if (logRows.length === 0) {
+    logRows.push({
+      ...baseLog,
+      event: "skipped_no_contact",
+      info: { ...logInfo, reason: wantEmail && !recipient?.email ? "missing_email" : wantSms && !recipient?.phone ? "missing_phone" : "no_channel" },
+    })
+  }
+
+  // Log the step execution (one row per attempted channel)
+  await supabase.from("campaign_logs").insert(logRows)
 
   // Check if there is a next step to run (step after the one we just sent)
   const { data: nextStep } = await supabase
