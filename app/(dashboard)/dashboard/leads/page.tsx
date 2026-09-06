@@ -20,18 +20,15 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
 
   const { data: leads } = await query
 
-  // Get leads that need follow-up (next_follow_up is today or past)
-  const today = new Date().toISOString().split("T")[0]
-  const needsFollowUp =
-    leads?.filter((lead) => lead.next_follow_up && new Date(lead.next_follow_up) <= new Date(today + "T23:59:59")) || []
+  // Single source of truth: a follow-up is "due" if it falls on or before the end of today.
+  // Both the header count and the list use this same predicate so they never disagree.
+  const endOfToday = new Date(new Date().toISOString().split("T")[0] + "T23:59:59")
+  const isDue = (lead: Lead) => !!lead.next_follow_up && new Date(lead.next_follow_up) <= endOfToday
 
-  const followUpCount = leads?.filter(
-    (lead) => lead.next_follow_up && new Date(lead.next_follow_up) <= new Date()
-  ).length || 0
-
-  const upcomingCount = leads?.filter(
-    (lead) => lead.next_follow_up && new Date(lead.next_follow_up) > new Date()
-  ).length || 0
+  const needsFollowUp = leads?.filter(isDue) || []
+  const followUpCount = needsFollowUp.length
+  const upcomingCount =
+    leads?.filter((lead) => lead.next_follow_up && new Date(lead.next_follow_up) > endOfToday).length || 0
 
   return (
     <div className="space-y-6">

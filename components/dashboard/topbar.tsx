@@ -40,7 +40,7 @@ export function DashboardTopbar({ agent }: DashboardTopbarProps) {
         <UserBadgeName
           name={agent.full_name || agent.email || "Agent"}
           email={agent.email}
-          avatarUrl={null}
+          avatarUrl={agent.profile_picture_url}
           prestigeTier={agent.prestige_tier || 1}
           showName={false}
           size="md"

@@ -3,15 +3,17 @@ import { notFound } from "next/navigation"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { MapPin, Bed, Bath, Square, ExternalLink } from "lucide-react"
+import { TrackView } from "@/components/property-view/track-view"
 
-export default async function PropertyViewPage({ params }: { params: { id: string } }) {
+export default async function PropertyViewPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const supabase = await createServerClient()
 
   // Fetch the saved property
   const { data: property } = await supabase
     .from("saved_properties")
-    .select("*, agent:agents(full_name, Email, phone)")
-    .eq("id", params.id)
+    .select("*, agent:agents(full_name:Name, Email, phone:Phone)")
+    .eq("id", id)
     .single()
 
   if (!property) {
@@ -20,58 +22,7 @@ export default async function PropertyViewPage({ params }: { params: { id: strin
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `
-            // Track property view session
-            let sessionId = null;
-            let startTime = Date.now();
-
-            async function startSession() {
-              const res = await fetch('/api/property-view-session', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  propertyId: '${params.id}',
-                  action: 'start'
-                })
-              });
-              const data = await res.json();
-              sessionId = data.sessionId;
-            }
-
-            async function endSession() {
-              if (!sessionId) return;
-              const duration = Math.floor((Date.now() - startTime) / 1000);
-              await fetch('/api/property-view-session', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  sessionId,
-                  action: 'end',
-                  duration
-                })
-              });
-            }
-
-            // Start tracking
-            startSession();
-
-            // End session on page unload
-            window.addEventListener('beforeunload', endSession);
-
-            // Also track visibility changes
-            document.addEventListener('visibilitychange', () => {
-              if (document.hidden) {
-                endSession();
-              } else {
-                startTime = Date.now();
-                startSession();
-              }
-            });
-          `,
-        }}
-      />
+      <TrackView propertyId={id} />
 
       <div className="container max-w-4xl mx-auto px-4 py-12">
         <Card className="overflow-hidden">

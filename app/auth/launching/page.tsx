@@ -27,6 +27,30 @@ export default function LaunchingPage() {
   const [progress, setProgress] = useState(0)
   const [fireworks, setFireworks] = useState<Firework[]>([])
   const [showFinale, setShowFinale] = useState(false)
+  // Random decorative layers are generated only after mount to avoid SSR/client
+  // hydration mismatches from Math.random() running during render.
+  const [decor, setDecor] = useState<{
+    stars: { top: number; left: number; opacity: number; dur: number; delay: number; z: number }[]
+    particles: { top: number; left: number; delay: number }[]
+  } | null>(null)
+
+  useEffect(() => {
+    setDecor({
+      stars: Array.from({ length: 50 }, () => ({
+        top: Math.random() * 100,
+        left: Math.random() * 100,
+        opacity: Math.random() * 0.8 + 0.2,
+        dur: Math.random() * 2 + 1,
+        delay: Math.random() * 2,
+        z: Math.random() * 100,
+      })),
+      particles: Array.from({ length: 20 }, () => ({
+        top: Math.random() * 100,
+        left: Math.random() * 100,
+        delay: Math.random() * 2,
+      })),
+    })
+  }, [])
 
   const createFirework = useCallback(() => {
     const particles = Array.from({ length: 12 }, () => ({
@@ -199,28 +223,28 @@ export default function LaunchingPage() {
           style={{ animation: "float3d 2s ease-in-out infinite" }}
         />
 
-        {Array.from({ length: 50 }).map((_, i) => (
+        {decor?.stars.map((star, i) => (
           <div
             key={i}
             className="absolute w-1 h-1 bg-white rounded-full"
             style={{
-              top: `${Math.random() * 100}%`,
-              left: `${Math.random() * 100}%`,
-              opacity: Math.random() * 0.8 + 0.2,
-              animation: `twinkle ${Math.random() * 2 + 1}s ease-in-out ${Math.random() * 2}s infinite`,
-              transform: `translateZ(${Math.random() * 100}px)`,
+              top: `${star.top}%`,
+              left: `${star.left}%`,
+              opacity: star.opacity,
+              animation: `twinkle ${star.dur}s ease-in-out ${star.delay}s infinite`,
+              transform: `translateZ(${star.z}px)`,
             }}
           />
         ))}
 
-        {Array.from({ length: 20 }).map((_, i) => (
+        {decor?.particles.map((particle, i) => (
           <div
             key={`particle-${i}`}
             className="absolute w-2 h-2 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full"
             style={{
-              top: `${Math.random() * 100}%`,
-              left: `${Math.random() * 100}%`,
-              animation: `flyToCenter 2s ease-in ${Math.random() * 2}s infinite`,
+              top: `${particle.top}%`,
+              left: `${particle.left}%`,
+              animation: `flyToCenter 2s ease-in ${particle.delay}s infinite`,
             }}
           />
         ))}

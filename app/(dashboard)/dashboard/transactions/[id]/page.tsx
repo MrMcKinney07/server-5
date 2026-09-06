@@ -27,15 +27,15 @@ export default async function TransactionPage({ params }: TransactionPageProps) 
     notFound()
   }
 
-  // Check access
-  if (agent.role !== "admin" && transaction.agent_id !== agent.id) {
+  // Check access — admins and brokers may view any transaction; agents only their own.
+  if (agent.role !== "admin" && agent.role !== "broker" && transaction.agent_id !== agent.id) {
     notFound()
   }
 
   // Get activities related to the contact
   const { data: activities } = await supabase
     .from("activities")
-    .select("*, agent:agents(full_name, email)")
+    .select("*, agent:agents(full_name:Name, email:Email)")
     .eq("contact_id", transaction.contact_id)
     .order("created_at", { ascending: false })
     .limit(10)

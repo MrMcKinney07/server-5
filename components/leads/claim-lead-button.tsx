@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Clock, CheckCircle, AlertCircle } from "lucide-react"
 import type { Lead } from "@/lib/types/database"
+import { toast } from "sonner"
 
 interface ClaimLeadButtonProps {
   lead: Lead
@@ -60,10 +61,10 @@ export function ClaimLeadButton({ lead, currentAgentId }: ClaimLeadButtonProps) 
         throw new Error(data.error || "Failed to claim lead")
       }
 
+      toast.success("Lead claimed")
       router.refresh()
     } catch (error) {
-      console.error("Error claiming lead:", error)
-      alert(error instanceof Error ? error.message : "Failed to claim lead")
+      toast.error(error instanceof Error ? error.message : "Failed to claim lead")
     } finally {
       setIsLoading(false)
     }

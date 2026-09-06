@@ -78,7 +78,7 @@ export function FavoritePropertyButton({ propertyId, contacts, agentId }: Favori
               <SelectContent>
                 {contacts.map((contact) => (
                   <SelectItem key={contact.id} value={contact.id}>
-                    {contact.full_name}
+                    {`${contact.first_name} ${contact.last_name}`}
                   </SelectItem>
                 ))}
               </SelectContent>

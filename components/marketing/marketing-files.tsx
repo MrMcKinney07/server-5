@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select"
 import { Upload, Download, Trash2, File, FileText, Image, Search } from "lucide-react"
 import useSWR from "swr"
+import { useConfirm } from "@/hooks/use-confirm"
 
 interface MarketingFile {
   id: string
@@ -55,6 +56,7 @@ const fetcher = async (url: string) => {
 }
 
 export function MarketingFiles() {
+  const confirm = useConfirm()
   const [uploading, setUploading] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
@@ -113,7 +115,7 @@ export function MarketingFiles() {
   }
 
   const handleDelete = async (fileId: string, filename: string) => {
-    if (!confirm("Delete this file?")) return
+    if (!(await confirm({ title: "Delete file?", description: "This file will be permanently deleted.", confirmText: "Delete", destructive: true }))) return
 
     try {
       const response = await fetch("/api/marketing-files/delete", {

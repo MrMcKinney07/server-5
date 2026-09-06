@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { createBrowserClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,6 +10,8 @@ import {
   format,
   startOfMonth,
   endOfMonth,
+  startOfWeek,
+  endOfWeek,
   eachDayOfInterval,
   isSameMonth,
   isSameDay,
@@ -36,7 +38,7 @@ export default function CalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createBrowserClient()
+  const supabase = useMemo(() => createBrowserClient(), [])
 
   useEffect(() => {
     async function fetchEvents() {
@@ -142,12 +144,12 @@ export default function CalendarPage() {
     fetchEvents()
   }, [currentMonth, supabase])
 
+  // Render whole weeks so the month grid always aligns Sun–Sat with no gaps.
   const days = eachDayOfInterval({
-    start: startOfMonth(currentMonth),
-    end: endOfMonth(currentMonth),
+    start: startOfWeek(startOfMonth(currentMonth)),
+    end: endOfWeek(endOfMonth(currentMonth)),
   })
 
-  const startDay = startOfMonth(currentMonth).getDay()
   const selectedEvents = selectedDate ? events.filter((e) => isSameDay(e.date, selectedDate)) : []
 
   const getEventIcon = (type: string) => {
@@ -204,30 +206,28 @@ export default function CalendarPage() {
             </div>
 
             {/* Calendar Days */}
-            <div className="grid grid-cols-7 gap-1">
-              {/* Empty cells for start of month */}
-              {Array.from({ length: startDay }).map((_, i) => (
-                <div key={`empty-${i}`} className="h-24 bg-gray-50 rounded-lg" />
-              ))}
-
-              {/* Days */}
+            <div role="grid" aria-label={`${format(currentMonth, "MMMM yyyy")} calendar`} className="grid grid-cols-7 gap-1">
               {days.map((day) => {
                 const dayEvents = events.filter((e) => isSameDay(e.date, day))
                 const isSelected = selectedDate && isSameDay(day, selectedDate)
+                const inMonth = isSameMonth(day, currentMonth)
 
                 return (
                   <button
                     key={day.toISOString()}
+                    role="gridcell"
+                    aria-label={`${format(day, "EEEE, MMMM d, yyyy")}${dayEvents.length > 0 ? `, ${dayEvents.length} event${dayEvents.length !== 1 ? "s" : ""}` : ""}`}
+                    aria-selected={!!isSelected}
                     onClick={() => setSelectedDate(day)}
-                    className={`h-24 p-1 rounded-lg border transition-all text-left ${
+                    className={`h-24 p-1 rounded-lg border transition-all text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                       isSelected
-                        ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200"
-                        : "border-gray-100 hover:border-gray-300 hover:bg-gray-50"
-                    } ${isToday(day) ? "bg-amber-50" : ""}`}
+                        ? "border-primary bg-primary/10 ring-2 ring-primary/30"
+                        : "border-border hover:border-muted-foreground/40 hover:bg-muted/50"
+                    } ${isToday(day) ? "bg-amber-500/10" : ""} ${!inMonth ? "opacity-50" : ""}`}
                   >
                     <div
                       className={`text-sm font-medium mb-1 ${
-                        isToday(day) ? "text-amber-600" : !isSameMonth(day, currentMonth) ? "text-gray-400" : ""
+                        isToday(day) ? "text-amber-400" : !inMonth ? "text-muted-foreground/50" : "text-foreground"
                       }`}
                     >
                       {format(day, "d")}
@@ -238,7 +238,7 @@ export default function CalendarPage() {
                           key={event.id}
                           className={`${event.color} text-white text-xs px-1 py-0.5 rounded truncate`}
                         >
-                          {event.title.substring(0, 15)}...
+                          {event.title}
                         </div>
                       ))}
                       {dayEvents.length > 3 && (
@@ -270,7 +270,7 @@ export default function CalendarPage() {
                   {selectedEvents.map((event) => (
                     <div
                       key={event.id}
-                      className="p-3 rounded-lg border bg-gray-50 hover:bg-gray-100 transition-colors"
+                      className="p-3 rounded-lg border bg-muted/40 hover:bg-muted/60 transition-colors"
                     >
                       <div className="flex items-start gap-3">
                         <div className={`p-2 rounded-lg ${event.color} text-white`}>{getEventIcon(event.type)}</div>

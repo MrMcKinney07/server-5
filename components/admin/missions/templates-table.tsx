@@ -10,6 +10,7 @@ import { MoreHorizontal, Pencil, Trash2 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import type { MissionTemplate } from "@/lib/types/database"
 import { EditTemplateDialog } from "./edit-template-dialog"
+import { useConfirm } from "@/hooks/use-confirm"
 
 interface MissionTemplatesTableProps {
   templates: MissionTemplate[]
@@ -17,10 +18,11 @@ interface MissionTemplatesTableProps {
 
 export function MissionTemplatesTable({ templates }: MissionTemplatesTableProps) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [editingTemplate, setEditingTemplate] = useState<MissionTemplate | null>(null)
 
   async function handleDelete(id: string) {
-    if (!confirm("Are you sure you want to delete this template?")) return
+    if (!(await confirm({ title: "Delete template?", description: "This template will be permanently removed.", confirmText: "Delete", destructive: true }))) return
 
     const supabase = createClient()
     await supabase.from("mission_templates").delete().eq("id", id)

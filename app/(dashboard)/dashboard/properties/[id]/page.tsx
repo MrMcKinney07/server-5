@@ -27,9 +27,9 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
   const supabase = await createClient()
   const { data: contacts } = await supabase
     .from("contacts")
-    .select("id, full_name")
-    .eq("primary_agent_id", agent.id)
-    .order("full_name")
+    .select("id, first_name, last_name")
+    .eq("agent_id", agent.id)
+    .order("last_name")
 
   return (
     <div className="space-y-6">

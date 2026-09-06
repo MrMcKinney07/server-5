@@ -10,6 +10,7 @@ import {
   Sparkles, Clock, Zap, Calendar, CalendarDays, Paperclip, Link2, ImageIcon,
 } from "lucide-react"
 import { AddStepDialog } from "./add-step-dialog"
+import { useConfirm } from "@/hooks/use-confirm"
 
 interface CampaignStep {
   id: string
@@ -73,9 +74,10 @@ function getCumulativeDelay(steps: CampaignStep[], idx: number): number {
 
 export function CampaignStepsList({ steps, campaignId }: CampaignStepsListProps) {
   const router = useRouter()
+  const confirm = useConfirm()
 
   async function deleteStep(stepId: string) {
-    if (!confirm("Delete this step?")) return
+    if (!(await confirm({ title: "Delete step?", description: "This step will be removed from the campaign.", confirmText: "Delete", destructive: true }))) return
     if (!hasSupabaseCredentials()) return
     const supabase = createClient()
     await supabase.from("campaign_steps").delete().eq("id", stepId)

@@ -89,15 +89,17 @@ export default function MoneyMathPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 flex-wrap">
+      <div role="tablist" aria-label="Calculators" className="flex gap-2 flex-wrap">
         {TABS.map((tab) => {
           const isActive = activeTab === tab.id
           return (
             <button
               key={tab.id}
+              role="tab"
+              aria-selected={isActive}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border",
+                "flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 isActive ? tab.activeClass : "border-white/[0.06] text-slate-400 hover:text-white hover:bg-white/[0.04]"
               )}
             >

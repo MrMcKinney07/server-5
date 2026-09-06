@@ -1,15 +1,10 @@
 import { createServerClient } from "@/lib/supabase/server"
-import { requireAuth } from "@/lib/auth"
-import { redirect } from "next/navigation"
+import { requireAdmin } from "@/lib/auth"
 import { AdminKnowledgeManager } from "@/components/admin/knowledge/admin-knowledge-manager"
 
 export default async function AdminKnowledgePage() {
+  await requireAdmin()
   const supabase = await createServerClient()
-  const agent = await requireAuth()
-
-  if (!agent || agent.role !== "broker") {
-    redirect("/dashboard")
-  }
 
   const { data: articles } = await supabase
     .from("knowledge_articles")

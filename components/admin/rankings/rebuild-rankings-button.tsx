@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { RefreshCw } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 export function RebuildRankingsButton() {
   const router = useRouter()
@@ -22,10 +23,10 @@ export function RebuildRankingsButton() {
         throw new Error(data.error || "Failed to rebuild rankings")
       }
 
+      toast.success("Rankings rebuilt")
       router.refresh()
     } catch (error) {
-      console.error("Failed to rebuild rankings:", error)
-      alert(error instanceof Error ? error.message : "Failed to rebuild rankings")
+      toast.error(error instanceof Error ? error.message : "Failed to rebuild rankings")
     } finally {
       setLoading(false)
     }

@@ -1,4 +1,4 @@
-import { createServiceClient } from "@/lib/supabase/server"
+import { createClient, createServiceClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/auth"
 import { CampaignCards } from "@/components/campaigns/campaign-cards"
 import { CampaignTemplatesGallery } from "@/components/campaigns/campaign-templates-gallery"
@@ -24,10 +24,6 @@ export default async function CampaignsPage() {
         .order("name"),
     ])
 
-    console.log("[v0] campaignsRes error:", campaignsRes.error?.message)
-    console.log("[v0] templatesRes error:", templatesRes.error?.message)
-    console.log("[v0] campaigns count:", campaignsRes.data?.length)
-
     const campaigns = campaignsRes.data || []
     const filteredCampaigns =
       agent.Role === "broker"
@@ -36,7 +32,7 @@ export default async function CampaignsPage() {
 
     const enriched = await Promise.all(
       filteredCampaigns.map(async (campaign) => {
-        const [stepsRes, enrollRes, emailSentRes, smsSentRes] = await Promise.all([
+        const [stepsRes, enrollRes, logsRes] = await Promise.all([
           supabase
             .from("campaign_steps")
             .select("id", { count: "exact", head: true })
@@ -45,24 +41,18 @@ export default async function CampaignsPage() {
             .from("lead_campaign_enrollments")
             .select("id, status")
             .eq("campaign_id", campaign.id),
-          supabase
-            .from("campaign_logs")
-            .select("id", { count: "exact", head: true })
-            .eq("campaign_id", campaign.id)
-            .eq("event", "email_sent"),
-          supabase
-            .from("campaign_logs")
-            .select("id", { count: "exact", head: true })
-            .eq("campaign_id", campaign.id)
-            .eq("event", "sms_sent"),
+          // Only send/failure events exist in campaign_logs; delivered/clicks/replies are not tracked.
+          supabase.from("campaign_logs").select("event").eq("campaign_id", campaign.id),
         ])
 
         const enrollments = enrollRes.data || []
-        const totalSent = (emailSentRes.count || 0) + (smsSentRes.count || 0)
-        const totalDelivered = totalSent
-        const totalClicks = 0
-        const totalReplies = 0
-        const totalFailed = 0
+        const logs = logsRes.data || []
+        const totalSent = logs.filter((l) => l.event === "email_sent" || l.event === "sms_sent").length
+        const totalFailed = logs.filter(
+          (l) =>
+            typeof l.event === "string" &&
+            (l.event.includes("fail") || l.event.includes("error") || l.event.includes("bounce")),
+        ).length
 
         return {
           ...campaign,
@@ -71,12 +61,13 @@ export default async function CampaignsPage() {
           activeCount: enrollments.filter((e) => e.status === "active").length,
           completedCount: enrollments.filter((e) => e.status === "completed").length,
           totalSent,
-          totalDelivered,
-          totalClicks,
-          totalReplies,
+          // Not tracked in campaign_logs — surfaced as "—" in the UI rather than fake zeros.
+          totalDelivered: 0,
+          totalClicks: 0,
+          totalReplies: 0,
           totalFailed,
-          deliveryRate: totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : null,
-          replyRate: totalSent > 0 ? Math.round((totalReplies / totalSent) * 100) : null,
+          deliveryRate: null,
+          replyRate: null,
           activityCount: totalSent,
         }
       }),
@@ -87,11 +78,10 @@ export default async function CampaignsPage() {
     // Aggregate stats
     const totalEnrolled = enriched.reduce((s, c) => s + c.enrollmentsCount, 0)
     const totalSentAll = enriched.reduce((s, c) => s + c.totalSent, 0)
-    const totalRepliesAll = enriched.reduce((s, c) => s + c.totalReplies, 0)
-    const totalDeliveredAll = enriched.reduce((s, c) => s + c.totalDelivered, 0)
+    const totalFailedAll = enriched.reduce((s, c) => s + c.totalFailed, 0)
     const activeCampaigns = enriched.filter((c) => c.is_active).length
-    const overallDeliveryRate = totalSentAll > 0 ? Math.round((totalDeliveredAll / totalSentAll) * 100) : null
-    const overallReplyRate = totalSentAll > 0 ? Math.round((totalRepliesAll / totalSentAll) * 100) : null
+    // Delivered/reply tracking is not available, so these rates stay null and render as "—".
+    const overallReplyRate = null
 
     const stats = [
       {
@@ -115,7 +105,12 @@ export default async function CampaignsPage() {
       {
         label: "Messages Sent",
         value: totalSentAll.toLocaleString(),
-        sub: overallDeliveryRate !== null ? `${overallDeliveryRate}% delivery rate` : "no sends yet",
+        sub:
+          totalSentAll > 0
+            ? totalFailedAll > 0
+              ? `${totalFailedAll.toLocaleString()} failed`
+              : "email + SMS sends"
+            : "no sends yet",
         icon: Send,
         color: "text-emerald-400",
         bg: "bg-emerald-500/10 border-emerald-500/20",
@@ -124,7 +119,7 @@ export default async function CampaignsPage() {
       {
         label: "Reply Rate",
         value: overallReplyRate !== null ? `${overallReplyRate}%` : "—",
-        sub: `${totalRepliesAll.toLocaleString()} total replies`,
+        sub: "reply tracking unavailable",
         icon: TrendingUp,
         color: "text-amber-400",
         bg: "bg-amber-500/10 border-amber-500/20",
@@ -232,7 +227,6 @@ export default async function CampaignsPage() {
       const d = (error as { digest?: string }).digest
       if (d?.startsWith("NEXT_REDIRECT")) throw error
     }
-    console.log("[v0] Campaigns page error:", error instanceof Error ? error.message : JSON.stringify(error))
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">

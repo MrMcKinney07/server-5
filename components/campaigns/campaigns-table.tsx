@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createBrowserClient } from "@/lib/supabase/client"
+import { useConfirm } from "@/hooks/use-confirm"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -83,6 +84,7 @@ function TypeBadge({ type }: { type?: string }) {
 export function CampaignsTable({ campaigns }: CampaignsTableProps) {
   const router = useRouter()
   const supabase = createBrowserClient()
+  const confirm = useConfirm()
 
   async function toggleActive(id: string, currentValue: boolean) {
     await supabase.from("campaigns").update({ is_active: !currentValue }).eq("id", id)
@@ -90,7 +92,14 @@ export function CampaignsTable({ campaigns }: CampaignsTableProps) {
   }
 
   async function deleteCampaign(id: string) {
-    if (!confirm("Are you sure you want to delete this campaign? This will also delete all steps and enrollments.")) {
+    if (
+      !(await confirm({
+        title: "Delete campaign?",
+        description: "This will also delete all steps and enrollments.",
+        confirmText: "Delete",
+        destructive: true,
+      }))
+    ) {
       return
     }
     await supabase.from("campaigns").delete().eq("id", id)

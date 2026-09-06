@@ -1,4 +1,3 @@
-import { createClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/auth"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { AgentProfileForm } from "@/components/settings/agent-profile-form"
@@ -6,7 +5,6 @@ import { ChangePasswordForm } from "@/components/settings/change-password-form"
 
 export default async function SettingsPage() {
   const agent = await requireAuth()
-  const supabase = await createClient()
 
   return (
     <div className="space-y-6">

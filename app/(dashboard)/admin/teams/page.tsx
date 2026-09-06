@@ -1,22 +1,17 @@
 import { createServerClient } from "@/lib/supabase/server"
-import { requireAuth } from "@/lib/auth"
-import { redirect } from "next/navigation"
+import { requireAdmin } from "@/lib/auth"
 import { TeamsManagement } from "@/components/admin/teams/teams-management"
 
 export default async function AdminTeamsPage() {
+  await requireAdmin()
   const supabase = await createServerClient()
-  const agent = await requireAuth()
-
-  if (!agent || agent.role !== "admin") {
-    redirect("/dashboard")
-  }
 
   const { data: teams } = await supabase
     .from("teams")
     .select("*, leader:agents!teams_leader_agent_id_fkey(*)")
     .order("name")
 
-  const { data: agents } = await supabase.from("agents").select("*").eq("is_active", true).order("full_name")
+  const { data: agents } = await supabase.from("agents").select("*").eq("is_active", true).order("Name")
 
   // Get team members
   const teamsWithMembers = await Promise.all(

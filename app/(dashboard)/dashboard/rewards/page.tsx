@@ -101,7 +101,7 @@ export default async function RewardsPage() {
         </TabsContent>
 
         <TabsContent value="prizes" className="space-y-6">
-          <PrizesShowcase agentXP={currentAgentXP} />
+          <PrizesShowcase bankXP={currentAgentXP} agentId={agent.id} />
         </TabsContent>
       </Tabs>
     </div>

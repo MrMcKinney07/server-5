@@ -10,6 +10,7 @@ import { MoreHorizontal, Pencil, Trash2 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import type { MissionSetWithItems, MissionTemplate } from "@/lib/types/database"
 import { EditSetDialog } from "./edit-set-dialog"
+import { useConfirm } from "@/hooks/use-confirm"
 
 interface MissionSetsTableProps {
   sets: MissionSetWithItems[]
@@ -18,10 +19,11 @@ interface MissionSetsTableProps {
 
 export function MissionSetsTable({ sets, templates }: MissionSetsTableProps) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [editingSet, setEditingSet] = useState<MissionSetWithItems | null>(null)
 
   async function handleDelete(id: string) {
-    if (!confirm("Are you sure you want to delete this mission set?")) return
+    if (!(await confirm({ title: "Delete mission set?", description: "This mission set will be permanently removed.", confirmText: "Delete", destructive: true }))) return
 
     const supabase = createClient()
     await supabase.from("mission_sets").delete().eq("id", id)

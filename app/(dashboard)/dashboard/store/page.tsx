@@ -105,7 +105,7 @@ export default async function StorePage() {
               <p className="text-gray-600">
                 Phone: (469) 555-0100
                 <br />
-                Email: office@mckinnyone.com
+                Email: office@mckinneyone.com
               </p>
             </div>
             <div className="space-y-2">
@@ -146,10 +146,29 @@ export default async function StorePage() {
               <CardContent>
                 <div className="flex items-center justify-between">
                   <span className="text-2xl font-bold text-emerald-600">${item.price}</span>
-                  <Button disabled={!item.inStock} className="bg-blue-600 hover:bg-blue-700">
-                    <ShoppingBag className="h-4 w-4 mr-2" />
-                    Order
-                  </Button>
+                  {item.inStock ? (
+                    <Button asChild className="bg-blue-600 hover:bg-blue-700">
+                      <a
+                        href={`mailto:office@mckinneyone.com?subject=${encodeURIComponent(
+                          `Supply Order: ${item.name}`,
+                        )}&body=${encodeURIComponent(
+                          `I'd like to order the following supply:\n\n` +
+                            `Item: ${item.name} ($${item.price})\n` +
+                            `Quantity: 1\n\n` +
+                            `Agent: ${agent.full_name ?? ""}\n` +
+                            `Email: ${agent.email ?? ""}`,
+                        )}`}
+                      >
+                        <ShoppingBag className="h-4 w-4 mr-2" />
+                        Order
+                      </a>
+                    </Button>
+                  ) : (
+                    <Button disabled className="bg-blue-600 hover:bg-blue-700">
+                      <ShoppingBag className="h-4 w-4 mr-2" />
+                      Order
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -170,8 +189,20 @@ export default async function StorePage() {
           <p className="text-gray-600 mb-4">
             Contact the office to request custom branded materials, bulk discounts, or specialty items not listed here.
           </p>
-          <Button variant="outline" className="border-amber-500 text-amber-700 hover:bg-amber-50 bg-transparent">
-            Submit Request
+          <Button
+            asChild
+            variant="outline"
+            className="border-amber-500 text-amber-700 hover:bg-amber-50 bg-transparent"
+          >
+            <a
+              href={`mailto:office@mckinneyone.com?subject=${encodeURIComponent(
+                "Custom Materials Request",
+              )}&body=${encodeURIComponent(
+                `Agent: ${agent.full_name ?? ""}\nEmail: ${agent.email ?? ""}\n\nRequest details:\n`,
+              )}`}
+            >
+              Submit Request
+            </a>
           </Button>
         </CardContent>
       </Card>

@@ -36,6 +36,7 @@ import {
   ImageIcon,
 } from "lucide-react"
 import type { PrintTemplate } from "@/components/marketing/print-store"
+import { useConfirm } from "@/hooks/use-confirm"
 
 const CATEGORIES = [
   { value: "business_cards", label: "Business Cards" },
@@ -100,6 +101,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 export function TemplateManager() {
   const { toast } = useToast()
+  const confirm = useConfirm()
   const [activeTab, setActiveTab] = useState<"templates" | "orders">("templates")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -185,7 +187,7 @@ export function TemplateManager() {
   }
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Remove "${name}" from the store?`)) return
+    if (!(await confirm({ title: "Remove from store?", description: `"${name}" will be removed from the store.`, confirmText: "Remove", destructive: true }))) return
     try {
       const res = await fetch("/api/print-store/templates", {
         method: "DELETE",

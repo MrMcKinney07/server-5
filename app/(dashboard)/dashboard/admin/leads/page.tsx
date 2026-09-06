@@ -9,14 +9,10 @@ export default async function AdminLeadsPage() {
   const admin = await requireAdmin()
   const supabase = await createClient()
 
-  const { data: leads, error: leadsError } = await supabase
+  const { data: leads } = await supabase
     .from("leads")
     .select("*")
     .order("created_at", { ascending: false })
-
-  console.log("[v0] Admin leads page - Leads count:", leads?.length)
-  console.log("[v0] Admin leads page - Leads error:", leadsError)
-  console.log("[v0] Admin leads page - Sample leads:", leads?.slice(0, 2))
 
   // Get agent mapping
   const { data: agents } = await supabase.from("agents").select("id, Name, Email")
@@ -30,7 +26,7 @@ export default async function AdminLeadsPage() {
   // Get active agents for assignment
   const { data: activeAgents } = await supabase
     .from("agents")
-    .select("id, Name as full_name, Email as email, Role")
+    .select("id, full_name:Name, email:Email, Role")
     .eq("is_active", true)
     .neq("Role", "broker")
     .order("Name")

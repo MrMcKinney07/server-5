@@ -12,7 +12,7 @@ interface UserBadgeNameProps {
   size?: "sm" | "md" | "lg"
 }
 
-export function UserBadgeName({ name, email, prestigeTier, showName = true, size = "md" }: UserBadgeNameProps) {
+export function UserBadgeName({ name, email, avatarUrl, prestigeTier, showName = true, size = "md" }: UserBadgeNameProps) {
   const tierInfo = getPrestigeTierInfo(prestigeTier)
 
   const sizeClasses = {
@@ -30,8 +30,8 @@ export function UserBadgeName({ name, email, prestigeTier, showName = true, size
           className={`${classes.logo} rounded-full bg-gradient-to-br from-slate-800 to-slate-900 p-1 ring-2 ring-slate-700 shadow-lg`}
         >
           <Image
-            src={tierInfo.icon || "/placeholder.svg"}
-            alt={tierInfo.name}
+            src={avatarUrl || tierInfo.icon || "/placeholder.svg"}
+            alt={avatarUrl ? name : tierInfo.name}
             width={48}
             height={48}
             className="w-full h-full rounded-full object-cover"

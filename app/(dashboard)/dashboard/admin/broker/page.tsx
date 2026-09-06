@@ -192,6 +192,21 @@ export default async function BrokerToolsPage() {
         <TabsContent value="import">
           <ImportLeadsTool agentId={agent.id} />
         </TabsContent>
+
+        <TabsContent value="print-store">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5 text-cyan-500" />
+                Print Store
+              </CardTitle>
+              <CardDescription>Manage print templates and marketing materials for the team</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TemplateManager />
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
   )

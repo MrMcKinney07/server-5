@@ -76,22 +76,22 @@ export default async function LeadPage({ params }: LeadPageProps) {
   const budgetDisplay = formatBudget(lead.budget_min, lead.budget_max)
 
   const statusColors: Record<string, string> = {
-    new: "bg-blue-100 text-blue-800",
-    contacted: "bg-purple-100 text-purple-800",
-    qualified: "bg-emerald-100 text-emerald-800",
-    nurturing: "bg-amber-100 text-amber-800",
-    active: "bg-green-100 text-green-800",
-    under_contract: "bg-indigo-100 text-indigo-800",
-    closed_won: "bg-emerald-100 text-emerald-800",
-    closed_lost: "bg-red-100 text-red-800",
+    new: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+    contacted: "bg-purple-500/10 text-purple-400 border-purple-500/20",
+    qualified: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+    nurturing: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+    active: "bg-green-500/10 text-green-400 border-green-500/20",
+    under_contract: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
+    closed_won: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+    closed_lost: "bg-red-500/10 text-red-400 border-red-500/20",
   }
 
   const typeColors: Record<string, string> = {
-    buyer: "bg-blue-50 text-blue-700",
-    seller: "bg-emerald-50 text-emerald-700",
-    both: "bg-amber-50 text-amber-700",
-    investor: "bg-purple-50 text-purple-700",
-    renter: "bg-gray-50 text-gray-700",
+    buyer: "bg-blue-500/10 text-blue-400",
+    seller: "bg-emerald-500/10 text-emerald-400",
+    both: "bg-amber-500/10 text-amber-400",
+    investor: "bg-purple-500/10 text-purple-400",
+    renter: "bg-muted text-muted-foreground",
   }
 
   const { data: propertyViews } = await supabase
@@ -123,7 +123,9 @@ export default async function LeadPage({ params }: LeadPageProps) {
             <h1 className="text-2xl font-semibold">
               {lead.first_name} {lead.last_name}
             </h1>
-            <Badge className={statusColors[lead.status] || "bg-gray-100"}>{lead.status.replace("_", " ")}</Badge>
+            <Badge className={statusColors[lead.status] || "bg-muted text-muted-foreground"}>
+              {lead.status.replace(/_/g, " ")}
+            </Badge>
             <Badge variant="outline" className={typeColors[lead.lead_type] || ""}>
               {lead.lead_type}
             </Badge>
@@ -220,7 +222,7 @@ export default async function LeadPage({ params }: LeadPageProps) {
                 <User className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <p className="text-xs text-muted-foreground">Source</p>
-                  <p className="text-sm font-medium capitalize">{lead.source.replace("_", " ")}</p>
+                  <p className="text-sm font-medium capitalize">{lead.source.replace(/_/g, " ")}</p>
                 </div>
               </div>
             </CardContent>
@@ -254,14 +256,16 @@ export default async function LeadPage({ params }: LeadPageProps) {
                 enrollments.map((enrollment) => (
                   <div
                     key={enrollment.id}
-                    className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100 hover:border-blue-200 transition-colors"
+                    className="flex items-center justify-between p-3 bg-white/[0.03] rounded-lg border border-white/[0.08] hover:border-white/[0.14] transition-colors"
                   >
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-sm font-medium text-foreground">
                         {enrollment.campaign?.name || "Unknown Campaign"}
                       </p>
                       {enrollment.campaign?.description && (
-                        <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{enrollment.campaign.description}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                          {enrollment.campaign.description}
+                        </p>
                       )}
                       <div className="flex items-center gap-2 mt-1">
                         <Badge variant="outline" className="text-xs">
@@ -315,10 +319,10 @@ export default async function LeadPage({ params }: LeadPageProps) {
 
           {/* Follow-up Alert */}
           {lead.next_follow_up && new Date(lead.next_follow_up) <= new Date() && (
-            <Card className="border-red-200 bg-red-50">
+            <Card className="border-red-500/30 bg-red-500/10">
               <CardHeader className="pb-2">
-                <CardTitle className="text-red-700 text-lg">Follow-up Due</CardTitle>
-                <CardDescription className="text-red-600">
+                <CardTitle className="text-red-400 text-lg">Follow-up Due</CardTitle>
+                <CardDescription className="text-red-400/80">
                   Scheduled for {new Date(lead.next_follow_up).toLocaleDateString()}
                 </CardDescription>
               </CardHeader>

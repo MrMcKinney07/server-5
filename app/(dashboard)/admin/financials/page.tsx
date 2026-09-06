@@ -1,7 +1,9 @@
 import { createServiceClient } from "@/lib/supabase/server"
 import { BrokerRevenueDashboard } from "@/components/admin/financials/broker-revenue-dashboard"
+import { requireAdmin } from "@/lib/auth"
 
 export default async function AdminFinancialsPage() {
+  await requireAdmin()
   const supabase = createServiceClient()
   const currentYear = new Date().getFullYear()
   const startOfYear = `${currentYear}-01-01`

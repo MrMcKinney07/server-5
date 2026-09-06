@@ -21,10 +21,16 @@ export default async function CampaignPage({ params }: CampaignPageProps) {
   const agent = await requireAuth()
   const supabase = createServiceClient()
 
-  const { data: campaign } = await supabase.from("campaigns").select("*").eq("id", id).eq("agent_id", agent.id).single()
+  // Try owner_id first, fall back to agent_id for older schema
+  const { data: campaign } = await supabase
+    .from("campaigns")
+    .select("*")
+    .eq("id", id)
+    .or(`owner_id.eq.${agent.id},agent_id.eq.${agent.id}`)
+    .single()
   if (!campaign) notFound()
 
-  const [stepsRes, enrollRes, runsRes] = await Promise.all([
+  const [stepsRes, enrollRes, logsRes] = await Promise.all([
     supabase
       .from("campaign_steps")
       .select("*")
@@ -36,28 +42,29 @@ export default async function CampaignPage({ params }: CampaignPageProps) {
       .eq("campaign_id", id)
       .order("created_at", { ascending: false })
       .limit(100),
-    supabase
-      .from("campaign_runs")
-      .select("*")
-      .eq("campaign_id", id)
-      .order("created_at", { ascending: false }),
+    // campaign_logs only records send/failure events — no delivery/click/reply tracking.
+    supabase.from("campaign_logs").select("event").eq("campaign_id", id),
   ])
 
   const steps = stepsRes.data || []
   const enrollments = enrollRes.data || []
-  const runs = runsRes.data || []
+  const logs = logsRes.data || []
 
   const activeCount = enrollments.filter((e) => e.status === "active").length
   const completedCount = enrollments.filter((e) => e.status === "completed").length
-  const pausedCount = enrollments.filter((e) => e.status === "paused").length
 
-  const totalSent = runs.reduce((s, r) => s + (r.sent || 0), 0)
-  const totalDelivered = runs.reduce((s, r) => s + (r.delivered || 0), 0)
-  const totalReplies = runs.reduce((s, r) => s + (r.replies || 0), 0)
-  const totalClicks = runs.reduce((s, r) => s + (r.clicks || 0), 0)
-  const totalFailed = runs.reduce((s, r) => s + (r.failed || 0), 0)
-  const deliveryRate = totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : null
-  const replyRate = totalSent > 0 ? Math.round((totalReplies / totalSent) * 100) : null
+  const totalSent = logs.filter((l) => l.event === "email_sent" || l.event === "sms_sent").length
+  const totalFailed = logs.filter(
+    (l) =>
+      typeof l.event === "string" &&
+      (l.event.includes("fail") || l.event.includes("error") || l.event.includes("bounce")),
+  ).length
+  // Not tracked — rendered as "—" by CampaignEnrollmentStats.
+  const totalDelivered = 0
+  const totalReplies = 0
+  const totalClicks = 0
+  const deliveryRate = null
+  const replyRate = null
   const channelLabel =
     campaign.channel === "SMS" ? "SMS" :
     campaign.channel === "BOTH" ? "Email + SMS" : "Email"
@@ -118,7 +125,7 @@ export default async function CampaignPage({ params }: CampaignPageProps) {
       />
 
       {/* Tabbed content */}
-      <CampaignDetailTabs campaign={campaign} steps={steps} enrollments={enrollments} runs={runs} />
+      <CampaignDetailTabs campaign={campaign} steps={steps} enrollments={enrollments} runs={[]} />
     </div>
   )
 }
