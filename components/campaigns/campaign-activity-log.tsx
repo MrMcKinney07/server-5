@@ -28,6 +28,7 @@ const eventConfig: Record<string, { label: string; icon: React.ElementType; clas
   email_failed: { label: "Email Failed", icon: XCircle, class: "text-red-400 bg-red-500/10 border-red-500/20", dot: "bg-red-400" },
   sms_failed: { label: "SMS Failed", icon: XCircle, class: "text-red-400 bg-red-500/10 border-red-500/20", dot: "bg-red-400" },
   skipped_no_contact: { label: "Skipped (no contact info)", icon: Clock, class: "text-amber-400 bg-amber-500/10 border-amber-500/20", dot: "bg-amber-400" },
+  send_gave_up: { label: "Gave up after retries", icon: XCircle, class: "text-red-400 bg-red-500/10 border-red-500/20", dot: "bg-red-400" },
   completed: { label: "Completed", icon: CheckCircle2, class: "text-slate-400 bg-slate-500/10 border-slate-500/20", dot: "bg-slate-400" },
   campaign_completed: { label: "Completed", icon: CheckCircle2, class: "text-slate-400 bg-slate-500/10 border-slate-500/20", dot: "bg-slate-400" },
   enrolled: { label: "Enrolled", icon: Zap, class: "text-violet-400 bg-violet-500/10 border-violet-500/20", dot: "bg-violet-400" },

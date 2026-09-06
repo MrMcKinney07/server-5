@@ -4,6 +4,11 @@ import { NextResponse } from "next/server"
 import { sendEmail } from "@/lib/email/send-email"
 import { sendSms } from "@/lib/sms/send-sms"
 
+// Bounded retry for failed sends: try a step up to MAX_SEND_ATTEMPTS times with
+// increasing backoff before giving up and moving on. Index by attempts-so-far.
+const MAX_SEND_ATTEMPTS = 3
+const RETRY_BACKOFF_HOURS = [1, 4, 12]
+
 export async function GET(request: Request) {
   // Verify cron secret
   const authHeader = request.headers.get("authorization")
@@ -32,7 +37,8 @@ export async function GET(request: Request) {
         campaign_id,
         current_step,
         status,
-        next_run_at
+        next_run_at,
+        step_attempts
       `)
       .eq("status", "active")
       .lte("next_run_at", now.toISOString())
@@ -51,7 +57,8 @@ export async function GET(request: Request) {
         campaign_id,
         current_step,
         status,
-        next_run_at
+        next_run_at,
+        step_attempts
       `)
       .eq("status", "active")
       .lte("next_run_at", now.toISOString())
@@ -350,6 +357,38 @@ Return ONLY the personalized message, nothing else.
   // Log the step execution (one row per attempted channel)
   await supabase.from("campaign_logs").insert(logRows)
 
+  // Determine whether this step is a retryable failure. Only actual send attempts
+  // that produced no success are retryable — a step with no reachable address
+  // (skipped_no_contact) or a task step won't improve on retry, so those advance.
+  const hadSendAttempt = (wantEmail && !!recipient?.email) || (wantSms && !!recipient?.phone)
+  const anySuccess = result.email || result.sms
+  const attemptsSoFar = enrollment.step_attempts || 0
+
+  if (hadSendAttempt && !anySuccess) {
+    const attemptsNow = attemptsSoFar + 1
+    if (attemptsNow < MAX_SEND_ATTEMPTS) {
+      // Stay on the same step, back off, and try again on a later cron tick.
+      const backoffHours = RETRY_BACKOFF_HOURS[Math.min(attemptsSoFar, RETRY_BACKOFF_HOURS.length - 1)]
+      await supabase
+        .from(tableName)
+        .update({
+          next_run_at: new Date(Date.now() + backoffHours * 60 * 60 * 1000).toISOString(),
+          step_attempts: attemptsNow,
+          status: "active",
+        })
+        .eq("id", enrollment.id)
+      return result
+    }
+
+    // Exhausted retries — record that we gave up on this step, then advance past it
+    // so the enrollment is not stuck forever on an unreachable step.
+    await supabase.from("campaign_logs").insert({
+      ...baseLog,
+      event: "send_gave_up",
+      info: { ...logInfo, attempts: attemptsNow },
+    })
+  }
+
   // Check if there is a next step to run (step after the one we just sent)
   const { data: nextStep } = await supabase
     .from("campaign_steps")
@@ -363,13 +402,15 @@ Return ONLY the personalized message, nothing else.
     ? new Date(Date.now() + (nextStep!.delay_hours || 24) * 60 * 60 * 1000).toISOString()
     : null
 
-  // Update enrollment — only complete when there are truly no more steps
+  // Advance to the next step and reset the per-step attempt counter.
+  // Only complete when there are truly no more steps.
   await supabase
     .from(tableName)
     .update({
       current_step: nextStepNumber,
       next_run_at: nextRunAt,
       status: hasMoreSteps ? "active" : "completed",
+      step_attempts: 0,
     })
     .eq("id", enrollment.id)
 
