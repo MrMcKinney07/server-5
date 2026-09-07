@@ -145,9 +145,11 @@ export default function TemplatesPage() {
   const confirm = useConfirm()
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [agentId, setAgentId] = useState<string | null>(null)
   const supabase = createBrowserClient()
 
   // Form state
@@ -158,55 +160,100 @@ export default function TemplatesPage() {
   const [formBody, setFormBody] = useState("")
 
   useEffect(() => {
-    // Load templates from localStorage (in a real app, this would be from database)
-    const saved = localStorage.getItem("crm_templates")
-    if (saved) {
-      setTemplates(JSON.parse(saved))
-    } else {
-      // Initialize with default templates
-      const initialTemplates = DEFAULT_TEMPLATES.map((t, i) => ({
-        ...t,
-        id: `template-${i}`,
-        created_at: new Date().toISOString(),
-      }))
-      setTemplates(initialTemplates)
-      localStorage.setItem("crm_templates", JSON.stringify(initialTemplates))
+    let active = true
+
+    async function load() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) {
+        if (active) setLoading(false)
+        return
+      }
+      if (active) setAgentId(user.id)
+
+      const { data, error } = await supabase
+        .from("message_templates")
+        .select("id, name, type, category, subject, body, created_at")
+        .order("created_at", { ascending: true })
+
+      if (error) {
+        if (active) setLoading(false)
+        toast.error("Failed to load templates")
+        return
+      }
+
+      // Seed the default library the first time an agent has no templates.
+      if (!data || data.length === 0) {
+        const seed = DEFAULT_TEMPLATES.map((t) => ({ ...t, agent_id: user.id }))
+        const { data: inserted, error: seedError } = await supabase
+          .from("message_templates")
+          .insert(seed)
+          .select("id, name, type, category, subject, body, created_at")
+        if (active) {
+          setTemplates(!seedError && inserted ? (inserted as Template[]) : [])
+          setLoading(false)
+        }
+        return
+      }
+
+      if (active) {
+        setTemplates(data as Template[])
+        setLoading(false)
+      }
     }
-    setLoading(false)
-  }, [])
 
-  const saveTemplates = (newTemplates: Template[]) => {
-    setTemplates(newTemplates)
-    localStorage.setItem("crm_templates", JSON.stringify(newTemplates))
-  }
+    load()
+    return () => {
+      active = false
+    }
+  }, [supabase])
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formName || !formBody) {
       toast.error("Please fill in all required fields")
       return
     }
+    if (!agentId) {
+      toast.error("You must be signed in to save templates")
+      return
+    }
+
+    setSaving(true)
+    const payload = {
+      name: formName,
+      type: formType,
+      category: formCategory,
+      subject: formType === "email" ? formSubject : null,
+      body: formBody,
+    }
 
     if (editingTemplate) {
-      // Update existing
-      const updated = templates.map((t) =>
-        t.id === editingTemplate.id
-          ? { ...t, name: formName, type: formType, category: formCategory, subject: formSubject, body: formBody }
-          : t,
-      )
-      saveTemplates(updated)
+      const { data, error } = await supabase
+        .from("message_templates")
+        .update(payload)
+        .eq("id", editingTemplate.id)
+        .select("id, name, type, category, subject, body, created_at")
+        .single()
+      setSaving(false)
+      if (error || !data) {
+        toast.error("Failed to update template")
+        return
+      }
+      setTemplates((prev) => prev.map((t) => (t.id === editingTemplate.id ? (data as Template) : t)))
       toast.success("Template updated")
     } else {
-      // Create new
-      const newTemplate: Template = {
-        id: `template-${Date.now()}`,
-        name: formName,
-        type: formType,
-        category: formCategory,
-        subject: formSubject,
-        body: formBody,
-        created_at: new Date().toISOString(),
+      const { data, error } = await supabase
+        .from("message_templates")
+        .insert({ ...payload, agent_id: agentId })
+        .select("id, name, type, category, subject, body, created_at")
+        .single()
+      setSaving(false)
+      if (error || !data) {
+        toast.error("Failed to create template")
+        return
       }
-      saveTemplates([...templates, newTemplate])
+      setTemplates((prev) => [...prev, data as Template])
       toast.success("Template created")
     }
 
@@ -237,10 +284,14 @@ export default function TemplatesPage() {
     )
       return
     const previous = templates
-    saveTemplates(templates.filter((t) => t.id !== id))
-    toast.success("Template deleted", {
-      action: { label: "Undo", onClick: () => saveTemplates(previous) },
-    })
+    setTemplates((prev) => prev.filter((t) => t.id !== id))
+    const { error } = await supabase.from("message_templates").delete().eq("id", id)
+    if (error) {
+      setTemplates(previous)
+      toast.error("Failed to delete template")
+      return
+    }
+    toast.success("Template deleted")
   }
 
   const handleCopy = (template: Template) => {
