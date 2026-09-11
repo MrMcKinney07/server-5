@@ -404,7 +404,9 @@ export default function TemplatesPage() {
               >
                 Cancel
               </Button>
-              <Button onClick={handleSave}>{editingTemplate ? "Update" : "Create"} Template</Button>
+              <Button onClick={handleSave} disabled={saving}>
+            {saving ? "Saving..." : `${editingTemplate ? "Update" : "Create"} Template`}
+          </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
