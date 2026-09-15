@@ -183,7 +183,7 @@ export function MissionAssignmentForm({ missionSets, agents }: MissionAssignment
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
+                <Calendar mode="single" selected={startDate} onSelect={setStartDate} autoFocus />
               </PopoverContent>
             </Popover>
           </CardContent>

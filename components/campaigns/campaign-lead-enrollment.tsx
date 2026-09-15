@@ -101,7 +101,7 @@ export function CampaignLeadEnrollment({ campaignId, campaignName, onEnrolled }:
       lead.tags?.forEach((tag: string) => tags.add(tag))
     })
 
-    setLeads(leadsData || [])
+    setLeads((leadsData as unknown as Lead[]) || [])
     setEnrolledLeadIds(enrollmentsData?.map((e) => e.lead_id) || [])
     setAllTags(Array.from(tags).sort())
     setLoading(false)

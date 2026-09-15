@@ -3,7 +3,7 @@ import { Resend } from "resend"
 export interface EmailOptions {
   to: string
   subject: string
-  body: string
+  body?: string
   html?: string
   from?: string
   replyTo?: string
@@ -23,7 +23,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
       to: options.to,
       subject: options.subject,
       text: options.body,
-      html: options.html || options.body.replace(/\n/g, "<br>"),
+      html: options.html || (options.body ? options.body.replace(/\n/g, "<br>") : ""),
       ...(options.replyTo ? { reply_to: options.replyTo } : {}),
     })
 

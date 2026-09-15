@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
 import { Mail, Phone, Pencil, Save, X } from "lucide-react"
 
 interface ContactDetailsProps {
@@ -21,10 +20,11 @@ interface ContactDetailsProps {
 export function ContactDetails({ contact, agents, currentAgentId }: ContactDetailsProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [fullName, setFullName] = useState(contact.full_name)
+  const [firstName, setFirstName] = useState(contact.first_name)
+  const [lastName, setLastName] = useState(contact.last_name)
   const [email, setEmail] = useState(contact.email || "")
   const [phone, setPhone] = useState(contact.phone || "")
-  const [primaryAgentId, setPrimaryAgentId] = useState(contact.primary_agent_id || "")
+  const [primaryAgentId, setPrimaryAgentId] = useState(contact.agent_id || "")
   const router = useRouter()
 
   const handleSave = async () => {
@@ -34,10 +34,11 @@ export function ContactDetails({ contact, agents, currentAgentId }: ContactDetai
     await supabase
       .from("contacts")
       .update({
-        full_name: fullName,
+        first_name: firstName,
+        last_name: lastName,
         email: email || null,
         phone: phone || null,
-        primary_agent_id: primaryAgentId || null,
+        agent_id: primaryAgentId || null,
       })
       .eq("id", contact.id)
 
@@ -63,8 +64,12 @@ export function ContactDetails({ contact, agents, currentAgentId }: ContactDetai
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-2">
-            <Label>Full Name</Label>
-            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
+            <Label>First Name</Label>
+            <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Last Name</Label>
+            <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
           </div>
           <div className="grid gap-2">
             <Label>Email</Label>
@@ -117,18 +122,6 @@ export function ContactDetails({ contact, agents, currentAgentId }: ContactDetai
             <a href={`tel:${contact.phone}`} className="text-sm hover:underline">
               {contact.phone}
             </a>
-          </div>
-        )}
-        {contact.tags && contact.tags.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">Tags</p>
-            <div className="flex flex-wrap gap-1">
-              {contact.tags.map((tag) => (
-                <Badge key={tag} variant="secondary">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
           </div>
         )}
       </CardContent>

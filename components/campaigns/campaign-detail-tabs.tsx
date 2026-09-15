@@ -270,7 +270,7 @@ export function CampaignDetailTabs({ campaign, steps, enrollments: initialEnroll
 
       {activeTab === "analytics" && <AnalyticsTab runs={runs} enrollments={enrollments} />}
       {activeTab === "sequence" && (
-        <CampaignTimelineBuilder steps={steps} campaignId={campaign.id} />
+        <CampaignTimelineBuilder steps={steps as never} campaignId={campaign.id} />
       )}
       {activeTab === "enrollments" && (
         <div className="space-y-6">
@@ -279,7 +279,7 @@ export function CampaignDetailTabs({ campaign, steps, enrollments: initialEnroll
         </div>
       )}
       {activeTab === "activity" && <CampaignActivityLog campaignId={campaign.id} />}
-      {activeTab === "settings" && <CampaignDetails campaign={campaign} />}
+      {activeTab === "settings" && <CampaignDetails campaign={campaign as never} />}
     </div>
   )
 }

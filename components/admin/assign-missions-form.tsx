@@ -96,7 +96,7 @@ export function AssignMissionsForm({ templates, agents }: AssignMissionsFormProp
                 mode="single"
                 selected={missionDate}
                 onSelect={(d) => d && setMissionDate(d)}
-                initialFocus
+                autoFocus
                 disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
               />
             </PopoverContent>

@@ -92,7 +92,7 @@ export function BrokerRevenueDashboard({ data }: { data: FinancialsData }) {
                 <XAxis dataKey="name" className="text-xs" />
                 <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} className="text-xs" />
                 <Tooltip
-                  formatter={(value: number) => fmt(value)}
+                  formatter={(value) => fmt(Number(value))}
                   contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
                 />
                 <Legend />

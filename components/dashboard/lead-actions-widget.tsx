@@ -63,7 +63,7 @@ export function LeadActionsWidget({ agentId }: LeadActionsWidgetProps) {
       .order("due_at", { ascending: true })
 
     if (!error && data) {
-      setTasks(data as Task[])
+      setTasks(data as unknown as Task[])
     }
 
     setLoading(false)

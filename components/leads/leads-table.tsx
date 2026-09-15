@@ -48,7 +48,7 @@ export function LeadsTable({ leads, currentAgentId }: LeadsTableProps) {
             <TableRow key={lead.id}>
               <TableCell>
                 <Link href={`/dashboard/leads/${lead.id}`} className="font-medium hover:underline">
-                  {lead.contact.full_name}
+                  {`${lead.contact.first_name} ${lead.contact.last_name}`}
                 </Link>
                 {lead.contact.email && <p className="text-xs text-muted-foreground">{lead.contact.email}</p>}
               </TableCell>

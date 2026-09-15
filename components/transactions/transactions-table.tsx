@@ -61,12 +61,12 @@ export function TransactionsTable({ transactions, isAdmin }: TransactionsTablePr
               </TableCell>
               <TableCell>
                 <Link href={`/dashboard/contacts/${transaction.contact_id}`} className="hover:underline">
-                  {transaction.contact.full_name}
+                  {`${transaction.contact.first_name} ${transaction.contact.last_name}`}
                 </Link>
               </TableCell>
               <TableCell>
                 {transaction.property ? (
-                  <Link href={`/dashboard/properties/${transaction.property_id}`} className="hover:underline">
+                  <Link href={`/dashboard/properties/${transaction.property.id}`} className="hover:underline">
                     {transaction.property.address}
                   </Link>
                 ) : (

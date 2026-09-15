@@ -1,6 +1,6 @@
 // Database types for McKinney One CRM
 
-export type AgentRole = "agent" | "broker"
+export type AgentRole = "agent" | "broker" | "admin"
 export type AgentSegment = "new" | "seasoned"
 
 export interface Agent {
@@ -15,6 +15,16 @@ export interface Agent {
   created_at: string
   team_id?: string | null
   exp?: number
+  // Raw agents-table columns (quoted/capitalized in Postgres). Present on rows
+  // selected with `select("*")`; queries that need lowercase alias them explicitly.
+  Name?: string | null
+  Email?: string | null
+  Phone?: string | null
+  Role?: string
+  lifetime_xp?: number
+  profile_picture_url?: string | null
+  prestige_tier?: number
+  prestige_icon_url?: string | null
 }
 
 export type ContactType = "buyer" | "seller" | "both" | "investor" | "referral" | "other"
@@ -46,6 +56,9 @@ export type LeadStatus =
   | "under_contract"
   | "closed_won"
   | "closed_lost"
+  | "assigned"
+  | "claimed"
+  | "unclaimed_expired"
 export type LeadType = "buyer" | "seller" | "both" | "investor" | "renter"
 
 export interface Lead {
@@ -68,9 +81,25 @@ export interface Lead {
   last_contacted_at: string | null
   created_at: string
   updated_at: string
+  assigned_agent_id: string | null
+  assigned_at: string | null
+  claim_expires_at: string | null
+  claimed_at: string | null
+  failed_claim_attempts: number
+  tags: string[]
 }
 
-export type ActivityType = "call" | "email" | "text" | "meeting" | "showing" | "note" | "task" | "follow_up"
+export type ActivityType =
+  | "call"
+  | "email"
+  | "text"
+  | "meeting"
+  | "showing"
+  | "note"
+  | "task"
+  | "follow_up"
+  | "status_change"
+  | "other"
 
 export interface Activity {
   id: string
@@ -86,6 +115,8 @@ export interface Activity {
   created_at: string
 }
 
+export type MissionSegment = "new" | "seasoned" | "all"
+
 export interface MissionTemplate {
   id: string
   title: string
@@ -95,6 +126,32 @@ export interface MissionTemplate {
   requires_photo: boolean
   is_active: boolean
   created_at: string
+  segment: MissionSegment
+  active_days: number[]
+  min_days_active: number
+  xp_reward: number
+}
+
+// Mission sets (weekly grouping of templates) targeted to an agent segment.
+export type MissionSetSegment = "new" | "seasoned" | "custom"
+
+export interface MissionSet {
+  id: string
+  name: string
+  description: string | null
+  segment: MissionSetSegment
+  created_at: string
+}
+
+export interface MissionSetItem {
+  id: string
+  mission_set_id: string
+  mission_template_id: string
+  weight: number
+}
+
+export interface MissionSetWithItems extends MissionSet {
+  items?: MissionSetItem[]
 }
 
 export interface AgentMission {
@@ -115,7 +172,15 @@ export interface AgentMissionWithTemplate extends AgentMission {
 }
 
 export type TransactionType = "buy" | "sell" | "dual" | "lease"
-export type TransactionStatus = "pending" | "under_contract" | "closed" | "cancelled" | "fell_through"
+export type TransactionStatus =
+  | "new"
+  | "in_progress"
+  | "pending_broker_review"
+  | "pending"
+  | "under_contract"
+  | "closed"
+  | "cancelled"
+  | "fell_through"
 
 export interface Transaction {
   id: string
@@ -134,6 +199,7 @@ export interface Transaction {
   closing_date: string | null
   contract_date: string | null
   notes: string | null
+  broker_notes: string | null
   created_at: string
   updated_at: string
 }
@@ -311,6 +377,12 @@ export interface AgentDailyMission {
   created_at?: string
 }
 
+export interface AgentDailyMissionWithTemplates extends AgentDailyMission {
+  mission1_template?: MissionTemplate | null
+  mission2_template?: MissionTemplate | null
+  mission3_template?: MissionTemplate | null
+}
+
 // Recruiting & Pod Structure types
 export interface Team {
   id: string
@@ -435,4 +507,32 @@ export interface CompetitionEntry {
 export interface CompetitionEntryWithDetails extends CompetitionEntry {
   competition?: Competition
   agent?: Agent
+}
+
+// Drip / broadcast campaigns
+export interface Campaign {
+  id: string
+  owner_id: string
+  name: string
+  description: string | null
+  is_active: boolean
+  type: string
+  channel: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CampaignEnrollment {
+  id: string
+  campaign_id: string
+  contact_id: string
+  status: string
+  current_step: number
+  next_run_at: string | null
+  is_paused: boolean
+  step_attempts: number
+  created_at: string
+  // Not stored on campaign_enrollments today; present only on enriched query results.
+  completed_at?: string | null
+  last_step_executed?: number | null
 }

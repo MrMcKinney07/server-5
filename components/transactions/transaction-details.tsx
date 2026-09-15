@@ -1,6 +1,5 @@
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { User, Home, FileText, Calendar } from "lucide-react"
 import type { Transaction, Contact, Property, Agent, Lead, Activity } from "@/lib/types/database"
 
@@ -27,7 +26,7 @@ export function TransactionDetails({ transaction, activities }: TransactionDetai
           </CardHeader>
           <CardContent>
             <Link href={`/dashboard/contacts/${transaction.contact_id}`} className="font-medium hover:underline">
-              {transaction.contact.full_name}
+              {`${transaction.contact.first_name} ${transaction.contact.last_name}`}
             </Link>
             {transaction.contact.email && <p className="text-sm text-muted-foreground">{transaction.contact.email}</p>}
             {transaction.contact.phone && <p className="text-sm text-muted-foreground">{transaction.contact.phone}</p>}
@@ -43,7 +42,7 @@ export function TransactionDetails({ transaction, activities }: TransactionDetai
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Link href={`/dashboard/properties/${transaction.property_id}`} className="font-medium hover:underline">
+              <Link href={`/dashboard/properties/${transaction.property.id}`} className="font-medium hover:underline">
                 {transaction.property.address}
               </Link>
               <p className="text-sm text-muted-foreground">
@@ -71,21 +70,6 @@ export function TransactionDetails({ transaction, activities }: TransactionDetai
           </Card>
         )}
 
-        {transaction.external_system && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">External System</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Badge variant="outline" className="capitalize">
-                {transaction.external_system}
-              </Badge>
-              {transaction.external_id && (
-                <p className="text-sm text-muted-foreground mt-2">ID: {transaction.external_id}</p>
-              )}
-            </CardContent>
-          </Card>
-        )}
       </div>
 
       <Card>
