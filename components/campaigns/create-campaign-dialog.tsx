@@ -107,7 +107,11 @@ export function CreateCampaignDialog() {
 
     if (data?.id) {
       // Get agent information for welcome email
-      const { data: agentData } = await supabase.from("agents").select("full_name, email").eq("id", user.id).single()
+      const { data: agentData } = await supabase
+        .from("agents")
+        .select("full_name:Name, email:Email")
+        .eq("id", user.id)
+        .single()
 
       if (agentData?.email) {
         // Send welcome email in background (don't block UI)
