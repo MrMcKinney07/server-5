@@ -21,13 +21,12 @@ export default async function CampaignPage({ params }: CampaignPageProps) {
   const agent = await requireAuth()
   const supabase = createServiceClient()
 
-  // Try owner_id first, fall back to agent_id for older schema
-  const { data: campaign } = await supabase
-    .from("campaigns")
-    .select("*")
-    .eq("id", id)
-    .or(`owner_id.eq.${agent.id},agent_id.eq.${agent.id}`)
-    .single()
+  // Brokers can view any campaign; everyone else is scoped to campaigns they own.
+  const campaignQuery = supabase.from("campaigns").select("*").eq("id", id)
+  if (agent.Role !== "broker") {
+    campaignQuery.eq("owner_id", agent.id)
+  }
+  const { data: campaign } = await campaignQuery.single()
   if (!campaign) notFound()
 
   const [stepsRes, enrollRes, logsRes] = await Promise.all([
