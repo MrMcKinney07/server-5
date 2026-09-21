@@ -163,7 +163,7 @@ export default async function DashboardPage() {
     .eq("daily_mission_sets.user_id", agent.id)
     .eq("status", "completed")
 
-  let leaderboardData = monthlyRankings || []
+  let leaderboardData: any[] = monthlyRankings || []
   if (!leaderboardData || leaderboardData.length === 0) {
     const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0]
     const endOfMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split("T")[0]

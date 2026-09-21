@@ -2,11 +2,11 @@ import { type NextRequest, NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/auth"
 import { createClient } from "@/lib/supabase/server"
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await requireAdmin()
     const supabase = await createClient()
-    const { id } = params
+    const { id } = await params
 
     // Get agent's email
     const { data: agent } = await supabase.from("agents").select("Email").eq("id", id).single()
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     // Send password reset email via Supabase Auth
     const { error } = await supabase.auth.resetPasswordForEmail(agent.Email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/auth/reset-password`,
+      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin}/auth/reset-password`,
     })
 
     if (error) {

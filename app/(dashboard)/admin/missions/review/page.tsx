@@ -1,6 +1,6 @@
 import { createServerClient } from "@/lib/supabase/server"
 import { requireAdmin } from "@/lib/auth"
-import { MissionReviewList } from "@/components/admin/missions/mission-review-list"
+import { MissionReviewList, type MissionReview } from "@/components/admin/missions/mission-review-list"
 
 export default async function AdminMissionReviewPage() {
   await requireAdmin()
@@ -45,7 +45,7 @@ export default async function AdminMissionReviewPage() {
         <p className="text-muted-foreground mt-2">Review photos submitted by agents for completed missions</p>
       </div>
 
-      <MissionReviewList missions={completedMissions || []} />
+      <MissionReviewList missions={(completedMissions as unknown as MissionReview[]) || []} />
     </div>
   )
 }

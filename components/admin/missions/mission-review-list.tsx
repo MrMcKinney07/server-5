@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CheckCircle2, Calendar, User, Zap, ImageIcon } from "lucide-react"
 
-interface MissionReview {
+export interface MissionReview {
   id: string
   status: string
   completed_at: string

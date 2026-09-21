@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const supabase = await createClient()
-    const { id } = params
+    const { id } = await params
     const { newAgentId, reason, adminId } = await request.json()
 
     if (!newAgentId) {
@@ -62,7 +62,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
         contact_id: currentLead.contact_id,
         lead_id: id,
         agent_id: newAgentId,
-        type: "reassignment",
+        activity_type: "reassignment",
         description,
       })
     }

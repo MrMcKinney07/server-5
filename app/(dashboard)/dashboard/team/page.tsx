@@ -95,7 +95,7 @@ export default async function TeamDashboardPage() {
         <PodDashboard
           team={team}
           members={members || []}
-          memberStats={memberStats || []}
+          memberStats={memberStats as never}
           recentMissions={recentMissions || []}
           currentAgent={agent}
         />

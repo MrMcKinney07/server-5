@@ -2,11 +2,11 @@ import { type NextRequest, NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/auth"
 import { createClient } from "@/lib/supabase/server"
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const admin = await requireAdmin()
     const supabase = await createClient()
-    const { id } = params
+    const { id } = await params
     const { reason } = await request.json()
 
     // Prevent self-disable

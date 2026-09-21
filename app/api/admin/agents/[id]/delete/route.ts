@@ -1,8 +1,9 @@
 import { createServerClient, createServiceClient } from "@/lib/supabase/server"
 import { type NextRequest, NextResponse } from "next/server"
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params
     const supabase = await createServerClient()
 
     // Get current user to verify admin/broker role
@@ -22,7 +23,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     }
 
     // Get the agent to delete
-    const { data: agentToDelete } = await supabase.from("agents").select("id, Email, Name").eq("id", params.id).single()
+    const { data: agentToDelete } = await supabase.from("agents").select("id, Email, Name").eq("id", id).single()
 
     if (!agentToDelete) {
       return NextResponse.json({ error: "Agent not found" }, { status: 404 })
@@ -32,7 +33,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     const serviceSupabase = createServiceClient()
 
     // Delete from agents table first
-    const { error: deleteAgentError } = await serviceSupabase.from("agents").delete().eq("id", params.id)
+    const { error: deleteAgentError } = await serviceSupabase.from("agents").delete().eq("id", id)
 
     if (deleteAgentError) {
       console.error("[v0] Error deleting agent record:", deleteAgentError)
@@ -40,7 +41,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     }
 
     // Delete from auth.users
-    const { error: deleteAuthError } = await serviceSupabase.auth.admin.deleteUser(params.id)
+    const { error: deleteAuthError } = await serviceSupabase.auth.admin.deleteUser(id)
 
     if (deleteAuthError) {
       console.error("[v0] Error deleting auth user:", deleteAuthError)

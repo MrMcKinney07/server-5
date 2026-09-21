@@ -2,11 +2,11 @@ import { type NextRequest, NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/auth"
 import { createClient } from "@/lib/supabase/server"
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await requireAdmin()
     const supabase = await createClient()
-    const { id } = params
+    const { id } = await params
     const { notes } = await request.json()
 
     const { error } = await supabase.from("agents").update({ notes }).eq("id", id)
