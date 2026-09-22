@@ -4,7 +4,7 @@ import { useState, useRef } from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ChevronDown, Upload, Clock, Circle, Plus, X, Loader2, CheckCircle2 } from "lucide-react"
+import { ChevronDown, Upload, Clock, Circle, Plus, X, Loader2, CheckCircle2, ExternalLink } from "lucide-react"
 
 interface ContractDocument {
   id: string
@@ -16,6 +16,22 @@ interface ContractDocument {
   file_name: string | null
   is_required: boolean
   is_conditional: boolean
+}
+
+function ViewFileLink({ fileUrl }: { fileUrl: string }) {
+  return (
+    <a
+      href={fileUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className="shrink-0 inline-flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+      title="View file"
+    >
+      <ExternalLink className="h-3 w-3" />
+      View
+    </a>
+  )
 }
 
 interface DealSpecificDoc {
@@ -61,7 +77,7 @@ function DocRow({
 }: {
   doc: ContractDocument
   contractId: string
-  onUpdate: (key: string, status: string, progress: number) => void
+  onUpdate: (key: string, status: string, progress: number, fileUrl?: string | null, fileName?: string | null) => void
 }) {
   const [loading, setLoading] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -71,20 +87,18 @@ function DocRow({
     if (!file) return
     setLoading(true)
     try {
-      // Mark as uploaded (file_name stored, no actual cloud upload in this version)
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("document_key", doc.document_key)
+      formData.append("status", "uploaded")
+
       const res = await fetch(`/api/contracts/${contractId}/documents`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          document_key: doc.document_key,
-          status: "uploaded",
-          file_name: file.name,
-          file_url: null,
-        }),
+        body: formData,
       })
       const data = await res.json()
-      onUpdate(doc.document_key, "uploaded", data.progress ?? 0)
+      onUpdate(doc.document_key, "uploaded", data.progress ?? 0, data.file_url ?? null, data.file_name ?? null)
     } finally {
       setLoading(false)
       if (fileRef.current) fileRef.current.value = ""
@@ -118,6 +132,7 @@ function DocRow({
           <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
         ) : (
           <>
+            {doc.file_url && <ViewFileLink fileUrl={doc.file_url} />}
             {doc.status === "not_uploaded" && (
               <>
                 <input ref={fileRef} type="file" className="hidden" onChange={handleFileChange} />
@@ -154,7 +169,7 @@ function CategorySection({
   category: string
   docs: ContractDocument[]
   contractId: string
-  onUpdate: (key: string, status: string, progress: number) => void
+  onUpdate: (key: string, status: string, progress: number, fileUrl?: string | null, fileName?: string | null) => void
 }) {
   const [open, setOpen] = useState(true)
   const requiredDocs = docs.filter((d) => d.is_required)
@@ -214,9 +229,18 @@ export function DocumentChecklist({
   const [dealLoading, setDealLoading] = useState(false)
   const dealFileRef = useRef<HTMLInputElement>(null)
 
-  function handleUpdate(key: string, status: string, progress: number) {
+  function handleUpdate(key: string, status: string, progress: number, fileUrl?: string | null, fileName?: string | null) {
     setDocuments((prev) =>
-      prev.map((d) => (d.document_key === key ? { ...d, status: status as ContractDocument["status"] } : d))
+      prev.map((d) =>
+        d.document_key === key
+          ? {
+              ...d,
+              status: status as ContractDocument["status"],
+              ...(fileUrl !== undefined ? { file_url: fileUrl } : {}),
+              ...(fileName !== undefined ? { file_name: fileName } : {}),
+            }
+          : d
+      )
     )
     onProgressUpdate(progress)
 
@@ -234,16 +258,30 @@ export function DocumentChecklist({
     if (!newDocName.trim()) return
     setDealLoading(true)
     try {
-      const res = await fetch(`/api/contracts/${contractId}/documents`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ document_name: newDocName.trim() }),
-      })
+      const file = dealFileRef.current?.files?.[0]
+      let res: Response
+      if (file) {
+        const formData = new FormData()
+        formData.append("file", file)
+        formData.append("document_name", newDocName.trim())
+        res = await fetch(`/api/contracts/${contractId}/documents`, {
+          method: "POST",
+          credentials: "include",
+          body: formData,
+        })
+      } else {
+        res = await fetch(`/api/contracts/${contractId}/documents`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ document_name: newDocName.trim() }),
+        })
+      }
       const data = await res.json()
       setDealDocs((prev) => [...prev, data])
       setNewDocName("")
       setAddingDeal(false)
+      if (dealFileRef.current) dealFileRef.current.value = ""
     } finally {
       setDealLoading(false)
     }
@@ -285,35 +323,50 @@ export function DocumentChecklist({
                   <span className="text-sm text-white">{doc.document_name}</span>
                   {doc.file_name && <p className="text-xs text-slate-500 mt-0.5">{doc.file_name}</p>}
                 </div>
+                {doc.file_url && <ViewFileLink fileUrl={doc.file_url} />}
               </div>
             ))}
 
             {addingDeal && (
-              <div className="flex items-center gap-2">
-                <Input
-                  value={newDocName}
-                  onChange={(e) => setNewDocName(e.target.value)}
-                  placeholder="Document name (e.g. Inspection Report)"
-                  onKeyDown={(e) => e.key === "Enter" && handleAddDealDoc()}
-                  className="bg-white/[0.04] border-white/10 text-white placeholder:text-slate-500 text-sm h-8"
-                  autoFocus
-                />
-                <Button
-                  size="sm"
-                  onClick={handleAddDealDoc}
-                  disabled={dealLoading || !newDocName.trim()}
-                  className="h-8 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 border border-cyan-500/20 shrink-0"
-                >
-                  {dealLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Add"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => { setAddingDeal(false); setNewDocName("") }}
-                  className="h-8 w-8 p-0 text-slate-500 hover:text-white"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={newDocName}
+                    onChange={(e) => setNewDocName(e.target.value)}
+                    placeholder="Document name (e.g. Inspection Report)"
+                    onKeyDown={(e) => e.key === "Enter" && handleAddDealDoc()}
+                    className="bg-white/[0.04] border-white/10 text-white placeholder:text-slate-500 text-sm h-8"
+                    autoFocus
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleAddDealDoc}
+                    disabled={dealLoading || !newDocName.trim()}
+                    className="h-8 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 border border-cyan-500/20 shrink-0"
+                  >
+                    {dealLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Add"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => { setAddingDeal(false); setNewDocName("") }}
+                    className="h-8 w-8 p-0 text-slate-500 hover:text-white"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input ref={dealFileRef} type="file" className="hidden" />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => dealFileRef.current?.click()}
+                    className="h-7 px-2 text-xs border-white/10 text-slate-300 hover:text-white hover:bg-white/5"
+                  >
+                    <Upload className="h-3 w-3 mr-1" />
+                    Attach file (optional)
+                  </Button>
+                </div>
               </div>
             )}
           </div>

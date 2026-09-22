@@ -151,6 +151,18 @@ function DocApprovalRow({ doc, contractId }: { doc: ContractDoc; contractId: str
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
+        {doc.file_url && (
+          <a
+            href={doc.file_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+            title="View file"
+          >
+            <ExternalLink className="h-3 w-3" />
+            View
+          </a>
+        )}
         <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full border flex items-center gap-1", badge.className)}>
           {badge.icon}
           {badge.label}
