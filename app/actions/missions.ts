@@ -13,8 +13,9 @@ async function getAgentDaysActive(userId: string): Promise<number> {
 }
 
 async function isNewAgent(userId: string): Promise<boolean> {
-  const days = await getAgentDaysActive(userId)
-  return days <= 180 // within 6 months
+  // Missions are always auto-assigned — manual mission selection is disabled
+  // for all agents, regardless of tenure.
+  return true
 }
 
 export async function autoAssignMissionsIfNeeded() {

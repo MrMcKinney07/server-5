@@ -1,6 +1,4 @@
-import { createClient, createServiceClient } from "@/lib/supabase/server"
-import { TopCloserLeaderboard } from "@/components/dashboard/top-closer-leaderboard"
-import { ListingLeaderboard } from "@/components/dashboard/listing-leaderboard"
+import { createClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/auth"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -235,81 +233,6 @@ export default async function DashboardPage() {
   const myRank = myMonthlyStats?.rank || 0
   const myPoints = myMonthlyStats?.total_xp_earned || 0
 
-  // Quarterly closer leaderboard — bypass RLS with service client
-  const serviceClient = createServiceClient()
-  const quarterStartMonth = Math.floor((now.getMonth()) / 3) * 3 // 0, 3, 6, or 9
-  const startOfQuarter = new Date(now.getFullYear(), quarterStartMonth, 1).toISOString().split("T")[0]
-  const endOfQuarter = new Date(now.getFullYear(), quarterStartMonth + 3, 0).toISOString().split("T")[0]
-  const currentQuarter = Math.floor(now.getMonth() / 3) + 1
-
-  // Listing leaderboard — listing agreements uploaded this month
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0]
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0]
-
-  const { data: listingUploads } = await serviceClient
-    .from("contract_documents")
-    .select(`
-      contract_id,
-      uploaded_at,
-      executed_contracts!inner(agent_id, agents("Name", profile_picture_url))
-    `)
-    .eq("document_key", "listing_agreement")
-    .not("uploaded_at", "is", null)
-    .gte("uploaded_at", startOfMonth)
-    .lte("uploaded_at", endOfMonth + "T23:59:59")
-
-  const listingMap = new Map<string, { name: string; profilePicture: string | null; listingCount: number }>()
-  listingUploads?.forEach((row: any) => {
-    const agentId = row.executed_contracts?.agent_id
-    if (!agentId) return
-    const name = (row.executed_contracts?.agents as any)?.Name || "Unknown"
-    const pic = (row.executed_contracts?.agents as any)?.profile_picture_url || null
-    if (!listingMap.has(agentId)) listingMap.set(agentId, { name, profilePicture: pic, listingCount: 0 })
-    listingMap.get(agentId)!.listingCount += 1
-  })
-
-  const sortedListings = Array.from(listingMap.entries())
-    .map(([agentId, data]) => ({ agentId, ...data, isCurrentUser: agentId === agent.id }))
-    .sort((a, b) => b.listingCount - a.listingCount)
-    .slice(0, 10)
-
-  const [{ data: closedContracts }, { data: closedTransactions }] = await Promise.all([
-    serviceClient
-      .from("executed_contracts")
-      .select("agent_id, sale_price, agents(Name, profile_picture_url)")
-      .eq("status", "closed")
-      .gte("contract_date", startOfQuarter)
-      .lte("contract_date", endOfQuarter),
-    serviceClient
-      .from("transactions")
-      .select("agent_id, sale_price, agents(Name, profile_picture_url)")
-      .eq("status", "closed")
-      .gte("contract_date", startOfQuarter)
-      .lte("contract_date", endOfQuarter),
-  ])
-
-  const closerMap = new Map<string, { name: string; profilePicture: string | null; closedCount: number; closedVolume: number }>()
-  const processClosing = (row: any) => {
-    const id = row.agent_id
-    if (!id) return
-    const agentName = (row.agents as any)?.Name || "Unknown"
-    const pic = (row.agents as any)?.profile_picture_url || null
-    const price = Number(row.sale_price) || 0
-    if (!closerMap.has(id)) {
-      closerMap.set(id, { name: agentName, profilePicture: pic, closedCount: 0, closedVolume: 0 })
-    }
-    const entry = closerMap.get(id)!
-    entry.closedCount += 1
-    entry.closedVolume += price
-    if (!entry.profilePicture && pic) entry.profilePicture = pic
-  }
-  closedContracts?.forEach(processClosing)
-  closedTransactions?.forEach(processClosing)
-  const sortedClosers = Array.from(closerMap.entries())
-    .map(([agentId, data]) => ({ agentId, ...data, isCurrentUser: agentId === agent.id }))
-    .sort((a, b) => b.closedCount !== a.closedCount ? b.closedCount - a.closedCount : b.closedVolume - a.closedVolume)
-    .slice(0, 10)
-
   // Build calendar events
   const calendarEvents: CalendarEvent[] = []
   appointmentNotifs?.forEach((n) => {
@@ -375,7 +298,15 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* ROW 1: Today's Missions */}
+      {/* ROW 1: Office leaderboard */}
+      <OfficeLeaderboardHero
+        leaderboard={sortedLeaderboard}
+        currentUserId={agent.id}
+        currentUserRank={myRank}
+        currentUserPoints={myPoints}
+      />
+
+      {/* ROW 2: Today's Missions */}
       <Link href="/dashboard/missions" className="block">
         <Card className="hover:shadow-md transition-shadow cursor-pointer">
           <CardHeader className="pb-3">
@@ -437,19 +368,11 @@ export default async function DashboardPage() {
         </Card>
       </Link>
 
-      {/* ROW 2: Lead Pipeline (left) + Calendar (right) */}
+      {/* ROW 3: Lead Pipeline (left) + Calendar (right) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         <LeadPipelineWidget agentId={agent.id} />
         <DashboardCalendar events={calendarEvents} agentId={agent.id} />
       </div>
-
-      {/* ROW 3: Office leaderboard */}
-      <OfficeLeaderboardHero
-        leaderboard={sortedLeaderboard}
-        currentUserId={agent.id}
-        currentUserRank={myRank}
-        currentUserPoints={myPoints}
-      />
 
       {/* ROW 4: Achievement bar */}
       {earnedAchievements.length > 0 && (
@@ -507,22 +430,6 @@ export default async function DashboardPage() {
           isBroker={agent.role === "broker" || agent.role === "admin"}
         />
       )}
-
-      {/* ROW 5: Closer + Listing leaderboards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <TopCloserLeaderboard
-          closers={sortedClosers}
-          currentUserId={agent.id}
-          quarter={currentQuarter}
-          year={now.getFullYear()}
-        />
-        <ListingLeaderboard
-          agents={sortedListings}
-          currentUserId={agent.id}
-          month={String(now.getMonth() + 1).padStart(2, "0")}
-          year={now.getFullYear()}
-        />
-      </div>
     </div>
   )
 }
