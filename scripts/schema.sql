@@ -1353,6 +1353,7 @@ create policy "Agents can delete own leads" on public.leads for delete to {publi
 create policy "Agents can insert own leads" on public.leads for insert to {public} with check ((auth.uid() = agent_id));
 create policy "Agents can update own leads" on public.leads for update to {public} using ((auth.uid() = agent_id));
 create policy "Agents can view own leads" on public.leads for select to {public} using ((auth.uid() = agent_id));
+create policy "Admins and brokers can view all leads" on public.leads for select to {public} using (is_admin_or_broker());
 create policy "Agents can view own listing matches" on public.listing_matches for select to {public} using ((contact_id IN ( SELECT contacts.id
    FROM contacts
   WHERE (contacts.agent_id = auth.uid()))));
