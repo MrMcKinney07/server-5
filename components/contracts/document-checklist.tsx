@@ -133,7 +133,7 @@ function DocRow({
         ) : (
           <>
             {doc.file_url && <ViewFileLink fileUrl={doc.file_url} />}
-            {doc.status === "not_uploaded" && (
+            {(doc.status === "not_uploaded" || !doc.file_url) && (
               <>
                 <input ref={fileRef} type="file" className="hidden" onChange={handleFileChange} />
                 <Button
@@ -143,11 +143,11 @@ function DocRow({
                   className="h-7 px-2 text-xs border-white/10 text-slate-300 hover:text-white hover:bg-white/5"
                 >
                   <Upload className="h-3 w-3 mr-1" />
-                  Upload
+                  {doc.status === "not_uploaded" ? "Upload" : "Attach File"}
                 </Button>
               </>
             )}
-            {doc.status === "uploaded" && (
+            {doc.status === "uploaded" && doc.file_url && (
               <span className="text-[11px] px-2 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1">
                 <Clock className="h-3 w-3" />
                 Pending Review

@@ -151,7 +151,7 @@ function DocApprovalRow({ doc, contractId }: { doc: ContractDoc; contractId: str
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
-        {doc.file_url && (
+        {doc.file_url ? (
           <a
             href={doc.file_url}
             target="_blank"
@@ -162,7 +162,11 @@ function DocApprovalRow({ doc, contractId }: { doc: ContractDoc; contractId: str
             <ExternalLink className="h-3 w-3" />
             View
           </a>
-        )}
+        ) : doc.status !== "not_uploaded" ? (
+          <span className="text-[11px] text-rose-400" title="This document was uploaded before file storage was fixed and has no file attached. Ask the agent to re-attach it.">
+            No file attached
+          </span>
+        ) : null}
         <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full border flex items-center gap-1", badge.className)}>
           {badge.icon}
           {badge.label}
