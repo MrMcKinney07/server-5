@@ -278,8 +278,7 @@ export function MissionsView({ missions, templates, isNewAgent }: MissionsViewPr
               <div className="flex-1">
                 <h3 className="font-semibold text-white">Auto-Assigned Missions</h3>
                 <p className="text-sm text-slate-300">
-                  During your first 6 months, missions are automatically assigned daily to help you build momentum.
-                  After 6 months, you'll be able to choose your own missions!
+                  Your missions are automatically assigned daily to help you build momentum.
                 </p>
               </div>
             </div>

@@ -20,9 +20,10 @@ export async function GET(request: Request) {
     })
 
     return NextResponse.json({
-      success: true,
-      message: `Test email sent successfully to ${testEmail}`,
-      emailId: result?.id,
+      success: result,
+      message: result
+        ? `Test email sent successfully to ${testEmail}`
+        : `Failed to send test email to ${testEmail}`,
     })
   } catch (error: any) {
     return NextResponse.json(

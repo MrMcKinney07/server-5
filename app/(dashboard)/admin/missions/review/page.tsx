@@ -1,23 +1,10 @@
 import { createServerClient } from "@/lib/supabase/server"
-import { redirect } from "next/navigation"
-import { MissionReviewList } from "@/components/admin/missions/mission-review-list"
+import { requireAdmin } from "@/lib/auth"
+import { MissionReviewList, type MissionReview } from "@/components/admin/missions/mission-review-list"
 
 export default async function AdminMissionReviewPage() {
+  await requireAdmin()
   const supabase = await createServerClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    redirect("/auth/login")
-  }
-
-  // Check if user is an admin or broker
-  const { data: agent } = await supabase.from("agents").select("Role").eq("id", user.id).single()
-
-  if (!agent || (agent.Role !== "broker" && agent.Role !== "admin")) {
-    redirect("/dashboard")
-  }
 
   // Fetch all completed missions with photos
   const { data: completedMissions } = await supabase
@@ -58,7 +45,7 @@ export default async function AdminMissionReviewPage() {
         <p className="text-muted-foreground mt-2">Review photos submitted by agents for completed missions</p>
       </div>
 
-      <MissionReviewList missions={completedMissions || []} />
+      <MissionReviewList missions={(completedMissions as unknown as MissionReview[]) || []} />
     </div>
   )
 }

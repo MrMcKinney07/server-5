@@ -22,9 +22,9 @@ const statuses: { value: LeadStatus; label: string }[] = [
   { value: "assigned", label: "Assigned" },
   { value: "claimed", label: "Claimed" },
   { value: "contacted", label: "Contacted" },
-  { value: "nurture", label: "Nurture" },
-  { value: "closed", label: "Closed" },
-  { value: "lost", label: "Lost" },
+  { value: "nurturing", label: "Nurture" },
+  { value: "closed_won", label: "Closed" },
+  { value: "closed_lost", label: "Lost" },
 ]
 
 const statusColors: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -32,9 +32,9 @@ const statusColors: Record<string, "default" | "secondary" | "destructive" | "ou
   assigned: "secondary",
   claimed: "secondary",
   contacted: "secondary",
-  nurture: "outline",
-  closed: "default",
-  lost: "destructive",
+  nurturing: "outline",
+  closed_won: "default",
+  closed_lost: "destructive",
 }
 
 export function LeadStatusPanel({ lead, agents, currentAgentId }: LeadStatusPanelProps) {
@@ -71,7 +71,7 @@ export function LeadStatusPanel({ lead, agents, currentAgentId }: LeadStatusPane
         contact_id: lead.contact_id,
         lead_id: lead.id,
         agent_id: currentAgentId,
-        type: "status_change",
+        activity_type: "status_change",
         description: `Status changed from "${lead.status}" to "${status}"`,
       })
     }
@@ -82,7 +82,7 @@ export function LeadStatusPanel({ lead, agents, currentAgentId }: LeadStatusPane
         contact_id: lead.contact_id,
         lead_id: lead.id,
         agent_id: currentAgentId,
-        type: "note",
+        activity_type: "note",
         description: notes,
       })
     }

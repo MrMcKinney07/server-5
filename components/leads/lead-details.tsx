@@ -17,7 +17,7 @@ export function LeadDetails({ lead }: LeadDetailsProps) {
       <CardContent className="space-y-4">
         <div>
           <Link href={`/dashboard/contacts/${lead.contact_id}`} className="font-medium hover:underline">
-            {lead.contact.full_name}
+            {`${lead.contact.first_name} ${lead.contact.last_name}`}
           </Link>
         </div>
         {lead.contact.email && (
@@ -46,11 +46,11 @@ export function LeadDetails({ lead }: LeadDetailsProps) {
             {lead.source.replace("_", " ")}
           </Badge>
         </div>
-        {lead.contact.tags && lead.contact.tags.length > 0 && (
+        {lead.tags && lead.tags.length > 0 && (
           <div className="pt-2">
             <p className="text-xs text-muted-foreground mb-1">Tags</p>
             <div className="flex flex-wrap gap-1">
-              {lead.contact.tags.map((tag) => (
+              {lead.tags.map((tag) => (
                 <Badge key={tag} variant="secondary" className="text-xs">
                   {tag}
                 </Badge>

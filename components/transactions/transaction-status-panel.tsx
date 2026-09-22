@@ -22,7 +22,7 @@ const statusOptions: { value: TransactionStatus; label: string }[] = [
   { value: "cancelled", label: "Cancelled" },
 ]
 
-const statusColors: Record<TransactionStatus, "default" | "secondary" | "destructive" | "outline"> = {
+const statusColors: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   new: "default",
   in_progress: "secondary",
   pending_broker_review: "outline",

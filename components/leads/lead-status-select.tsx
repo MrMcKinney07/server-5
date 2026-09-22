@@ -83,7 +83,7 @@ export function LeadStatusSelect({ lead, agentId }: LeadStatusSelectProps) {
     <div className="space-y-4">
       <div className="space-y-2">
         <Label>Status</Label>
-        <Select value={status} onValueChange={setStatus}>
+        <Select value={status} onValueChange={(v) => setStatus(v as Lead["status"])}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
@@ -110,7 +110,7 @@ export function LeadStatusSelect({ lead, agentId }: LeadStatusSelectProps) {
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
-            <Calendar mode="single" selected={nextFollowUp} onSelect={setNextFollowUp} initialFocus />
+            <Calendar mode="single" selected={nextFollowUp} onSelect={setNextFollowUp} autoFocus />
           </PopoverContent>
         </Popover>
       </div>

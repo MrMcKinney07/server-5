@@ -442,7 +442,7 @@ export function LeadDetail({ lead, activities, agentId }: LeadDetailProps) {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Status</Label>
-              <Select value={status} onValueChange={setStatus}>
+              <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="new">New</SelectItem>

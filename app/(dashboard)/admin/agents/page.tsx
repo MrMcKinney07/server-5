@@ -1,5 +1,5 @@
 import { createServerClient } from "@/lib/supabase/server"
-import { redirect } from "next/navigation"
+import { requireAdmin } from "@/lib/auth"
 import { AgentManagementTable } from "@/components/admin/agent-management-table"
 import { CreateAgentDialog } from "@/components/admin/create-agent-dialog"
 import { Button } from "@/components/ui/button"
@@ -7,18 +7,8 @@ import { Mail } from "lucide-react"
 import Link from "next/link"
 
 export default async function AdminAgentsPage() {
+  await requireAdmin()
   const supabase = await createServerClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) redirect("/auth/login")
-
-  const { data: agent } = await supabase.from("agents").select("role").eq("id", user.id).single()
-
-  if (!agent || agent.role !== "broker") {
-    redirect("/dashboard")
-  }
 
   const { data: agents } = await supabase.from("agents").select("*").order("created_at", { ascending: false })
 

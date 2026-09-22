@@ -3,7 +3,8 @@
 import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
-import { useChat } from "ai/react"
+import { useChat } from "@ai-sdk/react"
+import { DefaultChatTransport } from "ai"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -25,10 +26,14 @@ export function CopilotPanel({ context, onClose }: CopilotPanelProps) {
   const [input, setInput] = useState("")
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  const { messages, append, isLoading } = useChat({
-    api: "/api/ai/copilot",
-    body: { context },
+  const { messages, sendMessage, status } = useChat({
+    transport: new DefaultChatTransport({
+      api: "/api/ai/copilot",
+      body: { context },
+    }),
   })
+
+  const isLoading = status === "streaming" || status === "submitted"
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -39,7 +44,7 @@ export function CopilotPanel({ context, onClose }: CopilotPanelProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || isLoading) return
-    append({ role: "user", content: input })
+    sendMessage({ text: input })
     setInput("")
   }
 
@@ -78,7 +83,7 @@ export function CopilotPanel({ context, onClose }: CopilotPanelProps) {
                     variant="outline"
                     size="sm"
                     className="w-full justify-start text-xs h-auto py-2 bg-transparent"
-                    onClick={() => append({ role: "user", content: prompt })}
+                    onClick={() => sendMessage({ text: prompt })}
                   >
                     {prompt}
                   </Button>
@@ -103,7 +108,10 @@ export function CopilotPanel({ context, onClose }: CopilotPanelProps) {
                   message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted",
                 )}
               >
-                {message.content}
+                {message.parts
+                  .filter((part) => part.type === "text")
+                  .map((part) => part.text)
+                  .join("")}
               </div>
             </div>
           ))}

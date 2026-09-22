@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import { requireAuth } from "@/lib/auth"
 import { TransactionsTable } from "@/components/transactions/transactions-table"
 import { AddTransactionDialog } from "@/components/transactions/add-transaction-dialog"
-import type { Transaction, Contact } from "@/lib/types/database"
+import type { Transaction, Contact, Property } from "@/lib/types/database"
 
 export default async function TransactionsPage() {
   const agent = await requireAuth()
@@ -10,7 +10,7 @@ export default async function TransactionsPage() {
 
   let query = supabase
     .from("transactions")
-    .select("*, contact:contacts(*), agent:agents(Name, Email)")
+    .select("*, contact:contacts(*), property:properties(*), agent:agents(full_name:Name, email:Email)")
     .order("created_at", { ascending: false })
 
   if (agent.Role !== "admin" && agent.Role !== "broker") {
@@ -47,7 +47,8 @@ export default async function TransactionsPage() {
         transactions={
           (transactions as (Transaction & {
             contact: Contact
-            agent: { Name: string; Email: string }
+            property: Property | null
+            agent: { full_name: string; email: string }
           })[]) || []
         }
         isAdmin={agent.Role === "admin" || agent.Role === "broker"}

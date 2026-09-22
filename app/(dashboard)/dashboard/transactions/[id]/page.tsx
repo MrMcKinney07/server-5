@@ -58,7 +58,8 @@ export default async function TransactionPage({ params }: TransactionPageProps) 
         <div className="flex-1">
           <h1 className="text-2xl font-semibold">Transaction #{id.slice(0, 8)}</h1>
           <p className="text-sm text-muted-foreground">
-            {typedTransaction.contact.full_name} • Created {new Date(typedTransaction.created_at).toLocaleDateString()}
+            {typedTransaction.contact.first_name} {typedTransaction.contact.last_name} • Created{" "}
+            {new Date(typedTransaction.created_at).toLocaleDateString()}
           </p>
         </div>
       </div>

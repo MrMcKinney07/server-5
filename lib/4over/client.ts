@@ -5,13 +5,7 @@ export function has4overCredentials(): boolean {
   return !!FOUROVER_API_KEY
 }
 
-interface FouroverHeaders {
-  Authorization: string
-  "Content-Type": string
-  Accept: string
-}
-
-function getHeaders(): FouroverHeaders {
+function getHeaders(): Record<string, string> {
   if (!FOUROVER_API_KEY) throw new Error("FOUROVER_API_KEY is not configured")
   return {
     Authorization: `Bearer ${FOUROVER_API_KEY}`,

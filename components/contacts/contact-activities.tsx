@@ -34,12 +34,12 @@ export function ContactActivities({ activities }: ContactActivitiesProps) {
             {activities.map((activity) => (
               <div key={activity.id} className="flex gap-3">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                  {typeIcons[activity.type] || <FileText className="h-4 w-4" />}
+                  {typeIcons[activity.activity_type] || <FileText className="h-4 w-4" />}
                 </div>
                 <div className="flex-1 space-y-1">
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-xs capitalize">
-                      {activity.type.replace("_", " ")}
+                      {activity.activity_type.replace("_", " ")}
                     </Badge>
                     <span className="text-xs text-muted-foreground">
                       by {activity.agent?.full_name || activity.agent?.email}

@@ -106,7 +106,14 @@ export function MissionTemplatesManager({ templates }: MissionTemplatesManagerPr
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this template?")) return
+    if (
+      !(await confirm({
+        title: "Delete template?",
+        description: "Are you sure you want to delete this template?",
+        destructive: true,
+      }))
+    )
+      return
     const supabase = createBrowserClient()
     await supabase.from("mission_templates").delete().eq("id", id)
     router.refresh()

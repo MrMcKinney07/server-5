@@ -11,6 +11,7 @@ import { ImportLeadsTool } from "@/components/admin/import-leads-tool"
 import { BrokerContractsFolder } from "@/components/admin/broker-contracts-folder"
 import { TemplateManager } from "@/components/admin/template-manager"
 import { Package } from "lucide-react"
+import type { Agent } from "@/lib/types/database"
 
 export default async function BrokerToolsPage() {
   const agent = await requireAdmin()
@@ -33,7 +34,16 @@ export default async function BrokerToolsPage() {
     .select("*, agent:agents(id, Name, Email)")
     .order("created_at", { ascending: false })
 
-  const { data: allAgents } = await supabase.from("agents").select("id, Name, Email, Role, lifetime_xp").order("Name")
+  const { data: rawAgents } = await supabase.from("agents").select("*").order("Name")
+
+  const allAgentsForTable = rawAgents?.map((a) => ({
+    id: a.id,
+    full_name: a.Name,
+    email: a.Email,
+    tier: 1,
+    is_active: a.is_active,
+  }))
+  const allAgents = rawAgents as unknown as Agent[] | null
 
   // Fetch all missions for this month
   const startOfMonth = new Date()
@@ -154,7 +164,7 @@ export default async function BrokerToolsPage() {
               <CardDescription>View and manage leads across all agents</CardDescription>
             </CardHeader>
             <CardContent>
-              <AllLeadsTable leads={allLeads || []} agents={allAgents || []} adminId={agent.id} />
+              <AllLeadsTable leads={allLeads || []} agents={allAgentsForTable || []} adminId={agent.id} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -171,14 +181,14 @@ export default async function BrokerToolsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <BrokerContractsFolder agents={allAgents || []} />
+              <BrokerContractsFolder agents={(allAgents as never) || []} />
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="analytics">
           <BrokerAnalytics
-            agents={allAgents || []}
+            agents={(allAgents as never) || []}
             leads={allLeads || []}
             transactions={allTransactions || []}
             missions={monthMissions || []}
@@ -186,7 +196,7 @@ export default async function BrokerToolsPage() {
         </TabsContent>
 
         <TabsContent value="export">
-          <ExportTools leads={allLeads || []} transactions={allTransactions || []} agents={allAgents || []} />
+          <ExportTools leads={allLeads || []} transactions={allTransactions || []} agents={(allAgents as never) || []} />
         </TabsContent>
 
         <TabsContent value="import">

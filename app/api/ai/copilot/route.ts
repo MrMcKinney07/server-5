@@ -1,4 +1,4 @@
-import { streamText } from "ai"
+import { streamText, convertToModelMessages, type UIMessage } from "ai"
 
 export const maxDuration = 30
 
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
   const {
     messages,
     context,
-  }: { messages: Array<{ role: string; content: string }>; context?: Record<string, unknown> } = await req.json()
+  }: { messages: UIMessage[]; context?: Record<string, unknown> } = await req.json()
 
   let contextualPrompt = SYSTEM_PROMPT
 
@@ -39,7 +39,8 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: "openai/gpt-4o-mini",
-    messages: [{ role: "system", content: contextualPrompt }, ...messages],
+    system: contextualPrompt,
+    messages: await convertToModelMessages(messages),
   })
 
   return result.toUIMessageStreamResponse()

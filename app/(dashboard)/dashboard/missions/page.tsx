@@ -31,7 +31,7 @@ export default async function MissionsPage() {
         hasSelectedMissions={hasSelectedMissions}
       />
 
-      <MissionsView missions={missions} templates={templates} isNewAgent={isNewAgent} />
+      <MissionsView missions={missions as never} templates={templates} isNewAgent={isNewAgent} />
     </div>
   )
 }
