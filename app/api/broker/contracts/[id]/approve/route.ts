@@ -90,7 +90,63 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     emailSent = await notifyAgentOfRejection(contractId, data.document_name ?? document_key, reason)
   }
 
-  return NextResponse.json({ ...data, progress, emailSent })
+  let completionEmailSent: boolean | null = null
+  if (action === "approved" && progress === 100) {
+    completionEmailSent = await notifyAgentOfCompletion(contractId)
+  }
+
+  return NextResponse.json({ ...data, progress, emailSent, completionEmailSent })
+}
+
+async function notifyAgentOfCompletion(contractId: string) {
+  const service = createServiceClient()
+
+  // Atomically claim the send so concurrent approvals can't double-send.
+  const { data: claimed } = await service
+    .from("executed_contracts")
+    .update({ completion_email_sent_at: new Date().toISOString() })
+    .eq("id", contractId)
+    .is("completion_email_sent_at", null)
+    .select("agent_id, property_address, client_name")
+    .maybeSingle()
+  if (!claimed?.agent_id) return null
+
+  const { data: agent } = await service
+    .from("agents")
+    .select("Name, Email")
+    .eq("id", claimed.agent_id)
+    .single()
+
+  const releaseClaim = () =>
+    service.from("executed_contracts").update({ completion_email_sent_at: null }).eq("id", contractId)
+
+  if (!agent?.Email) {
+    await releaseClaim()
+    return false
+  }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? ""
+  const contractUrl = `${appUrl}/dashboard/contracts/${contractId}`
+  const property = claimed.property_address || claimed.client_name || "your transaction"
+  const firstName = (agent.Name ?? "").split(" ")[0] || "there"
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111;max-width:560px">
+      <h1 style="font-size:24px;margin:0 0 16px">Congratulations, ${escapeHtml(firstName)}!</h1>
+      <p>Your file for <strong>${escapeHtml(property)}</strong> is officially <strong>100% complete</strong>, and every required document has been reviewed and approved.</p>
+      <p>That takes real care and follow-through. Every signature, disclosure, and detail matters, and you handled all of it. Your clients are lucky to have you in their corner, and we're proud to have you on the team.</p>
+      <p>Take a moment to celebrate this one. You earned it.</p>
+      ${appUrl ? `<p><a href="${contractUrl}" style="display:inline-block;padding:10px 16px;background:#0e7490;color:#fff;text-decoration:none;border-radius:6px">View your completed file</a></p>` : ""}
+      <p>With gratitude and congratulations,<br/>McKinney Realty Co</p>
+    </div>`
+
+  const sent = await sendEmail({
+    to: agent.Email,
+    subject: `Congratulations! Your file is 100% complete — ${property}`,
+    html,
+  })
+  if (!sent) await releaseClaim()
+  return sent
 }
 
 async function notifyAgentOfRejection(contractId: string, documentName: string, reason: string) {

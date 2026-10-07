@@ -128,7 +128,9 @@ function DocApprovalRow({ doc, contractId }: { doc: ContractDoc; contractId: str
   const [notice, setNotice] = useState<string | null>(null)
   const [justDenied, setJustDenied] = useState(false)
   const isDenied = doc.status === "not_uploaded" && (justDenied || Boolean(doc.rejected_at))
-  const canReview = !isDenied && (doc.status === "uploaded" || (!doc.is_required && doc.status === "not_uploaded"))
+  const canApprove = doc.status !== "approved"
+  const canDeny = doc.status !== "approved" && !isDenied
+  const hasFile = Boolean(doc.file_url)
 
   async function handle(action: "approved" | "rejected" | "not_uploaded") {
     setLoading(true)
@@ -148,6 +150,12 @@ function DocApprovalRow({ doc, contractId }: { doc: ContractDoc; contractId: str
         setJustDenied(true)
         setDenying(false)
         setReason("")
+      } else if (action === "approved" && json.completionEmailSent !== null && json.completionEmailSent !== undefined) {
+        setNotice(
+          json.completionEmailSent
+            ? "File 100% complete — congratulations email sent to agent"
+            : "File 100% complete — congratulations email could not be sent",
+        )
       }
       mutate("/api/broker/contracts")
     } finally {
@@ -175,21 +183,25 @@ function DocApprovalRow({ doc, contractId }: { doc: ContractDoc; contractId: str
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
-        {doc.file_url ? (
+        {hasFile ? (
           <button
             type="button"
             onClick={() => setViewerOpen(true)}
-            className="inline-flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
-            title="View file"
+            className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 transition-colors"
+            title="File attached — click to view"
           >
             <Eye className="h-3 w-3" />
-            View
+            File attached · View
           </button>
-        ) : doc.status !== "not_uploaded" ? (
-          <span className="text-[11px] text-rose-400" title="This document was uploaded before file storage was fixed and has no file attached. Ask the agent to re-attach it.">
-            No file attached
+        ) : (
+          <span
+            className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border border-rose-500/30 bg-rose-500/10 text-rose-300"
+            title="No file has been uploaded for this document"
+          >
+            <X className="h-3 w-3" />
+            No file
           </span>
-        ) : null}
+        )}
         <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full border flex items-center gap-1", badge.className)}>
           {badge.icon}
           {badge.label}
@@ -207,24 +219,31 @@ function DocApprovalRow({ doc, contractId }: { doc: ContractDoc; contractId: str
                 Denied — awaiting re-upload
               </span>
             )}
-            {canReview && (
+            {(canApprove || canDeny) && (
               <div className="flex gap-1">
-                <Button
-                  size="sm"
-                  onClick={() => handle("approved")}
-                  className="h-6 px-2 text-[11px] bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/20"
-                >
-                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                  Approve
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => setDenying((v) => !v)}
-                  className="h-6 px-2 text-[11px] bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20"
-                >
-                  <X className="h-3 w-3 mr-1" />
-                  Deny
-                </Button>
+                {canApprove && (
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      if (!hasFile && !window.confirm(`"${doc.document_name}" has no file attached. Approve anyway?`)) return
+                      handle("approved")
+                    }}
+                    className="h-6 px-2 text-[11px] bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/20"
+                  >
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    {hasFile ? "Approve" : "Approve (no file)"}
+                  </Button>
+                )}
+                {canDeny && (
+                  <Button
+                    size="sm"
+                    onClick={() => setDenying((v) => !v)}
+                    className="h-6 px-2 text-[11px] bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20"
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    Deny
+                  </Button>
+                )}
               </div>
             )}
             {doc.status === "approved" && (
