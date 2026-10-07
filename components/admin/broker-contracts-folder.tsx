@@ -6,6 +6,16 @@ import useSWR, { mutate } from "swr"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import Link from "next/link"
 import { BrokerAddContractDialog } from "@/components/admin/broker-add-contract-dialog"
 import { DocumentViewerDialog } from "@/components/contracts/document-viewer-dialog"
@@ -81,6 +91,17 @@ interface Contract {
   is_referral: boolean | null
   referral_agent_name: string | null
   referral_fee: number | null
+  check_number?: string | null
+  check_amount?: number | null
+  check_sent_at?: string | null
+  check_email_sent?: boolean | null
+}
+
+interface CheckDetails {
+  check_number: string | null
+  check_amount: number | null
+  check_sent_at: string | null
+  check_email_sent: boolean | null
 }
 
 interface AgentGroup {
@@ -344,52 +365,135 @@ function DealDocRow({ doc }: { doc: { id: string; document_name: string; file_ur
   )
 }
 
-function CheckSentButton({ contractId, onSuccess }: { contractId: string; onSuccess: () => void }) {
+function CheckSentButton({
+  contractId,
+  property,
+  onSuccess,
+}: {
+  contractId: string
+  property: string
+  onSuccess: (details: CheckDetails) => void
+}) {
+  const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [done, setDone] = useState(false)
+  const [checkNumber, setCheckNumber] = useState("")
+  const [checkAmount, setCheckAmount] = useState("")
+  const [note, setNote] = useState("")
   const router = useRouter()
 
-  async function handleCheckSent() {
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
     setLoading(true)
     try {
-      const res = await fetch(`/api/broker/contracts/${contractId}/check-sent`, { method: "POST", credentials: "include" })
-      if (res.ok) {
-        setDone(true)
-        onSuccess()
-        mutate("/api/broker/contracts")
-        // Invalidate earnings for any agentId
-        mutate((key: unknown) => typeof key === "string" && key.startsWith("/api/agent/earnings"), undefined, { revalidate: true })
-        router.refresh()
+      const res = await fetch(`/api/broker/contracts/${contractId}/check-sent`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ check_number: checkNumber, check_amount: checkAmount, note }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || "Could not mark check as sent")
+
+      if (data.already) {
+        toast.info("This check was already marked as sent")
+      } else if (data.emailSent) {
+        toast.success("Check recorded and the agent was emailed")
+      } else {
+        toast.warning("Check recorded, but the email to the agent failed to send")
       }
+
+      onSuccess({
+        check_number: checkNumber.trim() || null,
+        check_amount: typeof data.checkAmount === "number" ? data.checkAmount : null,
+        check_sent_at: new Date().toISOString(),
+        check_email_sent: data.emailSent ?? null,
+      })
+      setOpen(false)
+      mutate("/api/broker/contracts")
+      mutate((key: unknown) => typeof key === "string" && key.startsWith("/api/agent/earnings"), undefined, { revalidate: true })
+      router.refresh()
+    } catch (err: any) {
+      toast.error(err.message || "Could not mark check as sent")
     } finally {
       setLoading(false)
     }
   }
 
-  if (done) {
-    return (
-      <span className="text-[11px] text-cyan-400 flex items-center gap-1 shrink-0">
-        <Mail className="h-3 w-3" /> Sent
-      </span>
-    )
-  }
-
   return (
-    <Button
-      size="sm"
-      onClick={handleCheckSent}
-      disabled={loading}
-      className="h-7 px-3 text-xs bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 border border-cyan-500/20 gap-1.5 shrink-0"
-    >
-      {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Mail className="h-3 w-3" />}
-      Check Sent
-    </Button>
+    <Dialog open={open} onOpenChange={(o) => !loading && setOpen(o)}>
+      <Button
+        size="sm"
+        onClick={() => setOpen(true)}
+        className="h-7 px-3 text-xs bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 border border-cyan-500/20 gap-1.5 shrink-0"
+      >
+        <Mail className="h-3 w-3" />
+        Mark Check Sent
+      </Button>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Mark check as sent</DialogTitle>
+          <DialogDescription className="text-pretty">
+            {`This closes the transaction for ${property}, records the payout, and emails the agent that their check is on the way.`}
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={`check-number-${contractId}`}>Check number (optional)</Label>
+            <Input
+              id={`check-number-${contractId}`}
+              value={checkNumber}
+              onChange={(e) => setCheckNumber(e.target.value)}
+              maxLength={50}
+              placeholder="e.g. 10452"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={`check-amount-${contractId}`}>Check amount (optional)</Label>
+            <Input
+              id={`check-amount-${contractId}`}
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.01"
+              value={checkAmount}
+              onChange={(e) => setCheckAmount(e.target.value)}
+              placeholder="Leave blank to use the calculated agent net"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={`check-note-${contractId}`}>Note to agent (optional)</Label>
+            <Input
+              id={`check-note-${contractId}`}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              maxLength={1000}
+              placeholder="e.g. Mailed via USPS today"
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={loading}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={loading} className="gap-1.5">
+              {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
+              Confirm & Email Agent
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
 
 function TransactionFolder({ contract }: { contract: Contract }) {
   const [open, setOpen] = useState(false)
   const [paymentStatus, setPaymentStatus] = useState(contract.payment_status)
+  const [checkDetails, setCheckDetails] = useState<CheckDetails>({
+    check_number: contract.check_number ?? null,
+    check_amount: contract.check_amount != null ? Number(contract.check_amount) : null,
+    check_sent_at: contract.check_sent_at ?? null,
+    check_email_sent: contract.check_email_sent ?? null,
+  })
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -526,25 +630,69 @@ function TransactionFolder({ contract }: { contract: Contract }) {
           )}
 
           {/* Pay requested banner + Check Sent button */}
-          {paymentStatus === "pending" && (
-            <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.05] mb-3">
-              <div className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-emerald-400 shrink-0" />
-                <div>
-                  <p className="text-xs font-semibold text-emerald-400">Payment Requested</p>
-                  <p className="text-[11px] text-slate-500">Agent is awaiting disbursement.</p>
+          {paymentStatus !== "sent" && (
+            <div
+              className={cn(
+                "flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border mb-3",
+                paymentStatus === "pending"
+                  ? "border-emerald-500/20 bg-emerald-500/[0.05]"
+                  : "border-white/[0.06] bg-white/[0.02]"
+              )}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <DollarSign
+                  className={cn("h-4 w-4 shrink-0", paymentStatus === "pending" ? "text-emerald-400" : "text-slate-500")}
+                />
+                <div className="min-w-0">
+                  <p className={cn("text-xs font-semibold", paymentStatus === "pending" ? "text-emerald-400" : "text-slate-300")}>
+                    {paymentStatus === "pending" ? "Payment Requested" : "Commission Not Paid"}
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    {paymentStatus === "pending"
+                      ? "Agent is awaiting disbursement."
+                      : "Agent hasn't requested pay yet. You can still send the check."}
+                  </p>
                 </div>
               </div>
-              <CheckSentButton contractId={contract.id} onSuccess={() => setPaymentStatus("sent")} />
+              <CheckSentButton
+                contractId={contract.id}
+                property={contract.property_address || contract.client_name || "this transaction"}
+                onSuccess={(details) => {
+                  setCheckDetails(details)
+                  setPaymentStatus("sent")
+                }}
+              />
             </div>
           )}
 
           {paymentStatus === "sent" && (
-            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-cyan-500/20 bg-cyan-500/[0.05] mb-3">
-              <Mail className="h-4 w-4 text-cyan-400 shrink-0" />
-              <div>
+            <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg border border-cyan-500/20 bg-cyan-500/[0.05] mb-3">
+              <Mail className="h-4 w-4 text-cyan-400 shrink-0 mt-0.5" />
+              <div className="min-w-0">
                 <p className="text-xs font-semibold text-cyan-400">Check Sent</p>
-                <p className="text-[11px] text-slate-500">Agent has been notified their check is on the way.</p>
+                <p className="text-[11px] text-slate-400">
+                  {[
+                    checkDetails.check_amount != null
+                      ? checkDetails.check_amount.toLocaleString("en-US", { style: "currency", currency: "USD" })
+                      : null,
+                    checkDetails.check_number ? `Check #${checkDetails.check_number}` : null,
+                    checkDetails.check_sent_at ? new Date(checkDetails.check_sent_at).toLocaleDateString() : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ") || "Payout recorded."}
+                </p>
+                <p
+                  className={cn(
+                    "text-[11px]",
+                    checkDetails.check_email_sent === false ? "text-amber-400" : "text-slate-500"
+                  )}
+                >
+                  {checkDetails.check_email_sent === true
+                    ? "Agent was emailed that their check is on the way."
+                    : checkDetails.check_email_sent === false
+                      ? "Email to agent failed to send. Please let them know directly."
+                      : "No email record for this check."}
+                </p>
               </div>
             </div>
           )}
