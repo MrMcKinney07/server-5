@@ -1,5 +1,6 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server"
 import { requireAdmin } from "@/lib/auth"
+import { recordDocumentHistory } from "@/lib/contracts/document-history"
 import { sendEmail } from "@/lib/email/send-email"
 import { NextResponse } from "next/server"
 
@@ -32,6 +33,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         ? { status: "not_uploaded", uploaded_at: null, file_url: null, file_name: null }
         : { status: "not_uploaded", uploaded_at: null }
 
+  const { data: previous } = await supabase
+    .from("contract_documents")
+    .select("file_url, file_name")
+    .eq("contract_id", contractId)
+    .eq("document_key", document_key)
+    .maybeSingle()
+
   const { data, error } = await supabase
     .from("contract_documents")
     .update(update)
@@ -41,6 +49,18 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  await recordDocumentHistory({
+    contractId,
+    documentKey: document_key,
+    documentName: data.document_name,
+    action: action === "not_uploaded" ? "revoked" : action,
+    fileUrl: previous?.file_url ?? null,
+    fileName: previous?.file_name ?? null,
+    actorId: broker.id,
+    actorName: broker.Name ?? null,
+    reason,
+  })
 
   // Recalculate progress — only count required docs
   const { data: allDocs } = await supabase

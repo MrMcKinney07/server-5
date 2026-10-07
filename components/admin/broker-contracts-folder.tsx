@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import Link from "next/link"
 import { BrokerAddContractDialog } from "@/components/admin/broker-add-contract-dialog"
 import { DocumentViewerDialog } from "@/components/contracts/document-viewer-dialog"
+import { DocumentHistoryPanel } from "@/components/contracts/document-history-panel"
 import {
   ChevronRight,
   FolderOpen,
@@ -559,6 +560,8 @@ function TransactionFolder({ contract }: { contract: Contract }) {
               </div>
             )}
           </div>
+
+          <DocumentHistoryPanel contractId={contract.id} />
         </div>
       )}
     </div>

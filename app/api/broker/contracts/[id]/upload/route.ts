@@ -1,6 +1,7 @@
 import { put } from "@vercel/blob"
 import { createServiceClient } from "@/lib/supabase/server"
 import { requireAdmin } from "@/lib/auth"
+import { recordDocumentHistory } from "@/lib/contracts/document-history"
 import { NextResponse } from "next/server"
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -34,6 +35,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  await recordDocumentHistory({
+    contractId,
+    documentKey: data.id,
+    documentName: file.name,
+    docType: "deal_specific",
+    action: "uploaded",
+    fileUrl: blob.url,
+    fileName: file.name,
+    actorId: agent.id,
+    actorName: agent.Name ?? null,
+  })
 
   return NextResponse.json(data, { status: 201 })
 }
