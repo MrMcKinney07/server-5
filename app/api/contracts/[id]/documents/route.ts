@@ -45,6 +45,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       file_url: file_url || null,
       file_name: file_name || null,
       uploaded_at: status === "uploaded" || status === "approved" ? new Date().toISOString() : null,
+      ...(status === "uploaded" ? { rejected_at: null, rejection_reason: null } : {}),
     })
     .eq("contract_id", contractId)
     .eq("document_key", document_key)

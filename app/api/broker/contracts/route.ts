@@ -14,7 +14,8 @@ export async function GET() {
       agent:agents(id, Name, Email),
       contract_documents(
         id, document_key, document_name, category,
-        status, file_url, file_name, is_required, is_conditional, uploaded_at
+        status, file_url, file_name, is_required, is_conditional, uploaded_at,
+        rejected_at, rejection_reason
       ),
       contract_deal_specific_docs(
         id, document_name, status, file_url, file_name, uploaded_at
