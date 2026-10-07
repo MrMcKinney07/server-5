@@ -28,9 +28,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const update =
     action === "approved"
-      ? { status: "approved", uploaded_at: new Date().toISOString() }
+      ? { status: "approved", uploaded_at: new Date().toISOString(), rejected_at: null, rejection_reason: null }
       : action === "rejected"
-        ? { status: "not_uploaded", uploaded_at: null, file_url: null, file_name: null }
+        ? {
+            status: "not_uploaded",
+            uploaded_at: null,
+            file_url: null,
+            file_name: null,
+            rejected_at: new Date().toISOString(),
+            rejection_reason: reason || null,
+          }
         : { status: "not_uploaded", uploaded_at: null }
 
   const { data: previous } = await supabase

@@ -61,6 +61,8 @@ interface ContractDoc {
   file_name: string | null
   is_required: boolean
   uploaded_at: string | null
+  rejected_at?: string | null
+  rejection_reason?: string | null
 }
 
 interface Contract {
@@ -124,6 +126,9 @@ function DocApprovalRow({ doc, contractId }: { doc: ContractDoc; contractId: str
   const [denying, setDenying] = useState(false)
   const [reason, setReason] = useState("")
   const [notice, setNotice] = useState<string | null>(null)
+  const [justDenied, setJustDenied] = useState(false)
+  const isDenied = doc.status === "not_uploaded" && (justDenied || Boolean(doc.rejected_at))
+  const canReview = !isDenied && (doc.status === "uploaded" || (!doc.is_required && doc.status === "not_uploaded"))
 
   async function handle(action: "approved" | "rejected" | "not_uploaded") {
     setLoading(true)
@@ -140,6 +145,7 @@ function DocApprovalRow({ doc, contractId }: { doc: ContractDoc; contractId: str
         setNotice(json.error ?? "Something went wrong")
       } else if (action === "rejected") {
         setNotice(json.emailSent ? "Denied — agent emailed to re-upload" : "Denied — email could not be sent")
+        setJustDenied(true)
         setDenying(false)
         setReason("")
       }
@@ -193,7 +199,15 @@ function DocApprovalRow({ doc, contractId }: { doc: ContractDoc; contractId: str
           <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" />
         ) : (
           <>
-            {(doc.status === "uploaded" || (!doc.is_required && doc.status === "not_uploaded")) && (
+            {isDenied && (
+              <span
+                className="text-[10px] px-1.5 py-0.5 rounded-full border border-rose-500/20 bg-rose-500/10 text-rose-400"
+                title={doc.rejection_reason ? `Reason: ${doc.rejection_reason}` : undefined}
+              >
+                Denied — awaiting re-upload
+              </span>
+            )}
+            {canReview && (
               <div className="flex gap-1">
                 <Button
                   size="sm"
