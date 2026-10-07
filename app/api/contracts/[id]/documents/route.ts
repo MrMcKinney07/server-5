@@ -1,3 +1,4 @@
+import { put } from "@vercel/blob"
 import { createClient, createServiceClient } from "@/lib/supabase/server"
 import { getCurrentAgent } from "@/lib/auth"
 import { NextResponse } from "next/server"
@@ -8,8 +9,33 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!agent) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { id: contractId } = await params
-  const body = await req.json()
-  const { document_key, status, file_url, file_name } = body
+
+  let document_key: string
+  let status: string
+  let file_url: string | null = null
+  let file_name: string | null = null
+
+  const contentType = req.headers.get("content-type") || ""
+  if (contentType.includes("multipart/form-data")) {
+    const formData = await req.formData()
+    const file = formData.get("file") as File | null
+    document_key = formData.get("document_key") as string
+    status = (formData.get("status") as string) || "uploaded"
+
+    if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 })
+
+    const blob = await put(`contracts/${contractId}/${document_key}-${Date.now()}-${file.name}`, file, {
+      access: "public",
+    })
+    file_url = blob.url
+    file_name = file.name
+  } else {
+    const body = await req.json()
+    document_key = body.document_key
+    status = body.status
+    file_url = body.file_url || null
+    file_name = body.file_name || null
+  }
 
   const { data, error } = await supabase
     .from("contract_documents")
@@ -86,8 +112,30 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!agent) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { id: contractId } = await params
-  const body = await req.json()
-  const { document_name, file_url, file_name } = body
+
+  let document_name: string
+  let file_url: string | null = null
+  let file_name: string | null = null
+
+  const contentType = req.headers.get("content-type") || ""
+  if (contentType.includes("multipart/form-data")) {
+    const formData = await req.formData()
+    const file = formData.get("file") as File | null
+    document_name = (formData.get("document_name") as string) || file?.name || "Document"
+
+    if (file) {
+      const blob = await put(`contracts/${contractId}/deal-doc-${Date.now()}-${file.name}`, file, {
+        access: "public",
+      })
+      file_url = blob.url
+      file_name = file.name
+    }
+  } else {
+    const body = await req.json()
+    document_name = body.document_name
+    file_url = body.file_url || null
+    file_name = body.file_name || null
+  }
 
   const { data, error } = await supabase
     .from("contract_deal_specific_docs")

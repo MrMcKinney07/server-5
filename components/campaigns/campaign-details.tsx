@@ -351,17 +351,11 @@ export function CampaignDetails({ campaign }: CampaignDetailsProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
-            <span className="text-xs text-muted-foreground">Stop on Reply</span>
-            <Badge variant={campaign.stop_on_reply ? "default" : "secondary"} className="text-xs">
-              {campaign.stop_on_reply ? "Yes" : "No"}
-            </Badge>
-          </div>
-          <div className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
-            <span className="text-xs text-muted-foreground">Throttle</span>
-            <span className="text-xs font-medium">{campaign.throttle_per_minute || 10}/min</span>
-          </div>
+        <div className="flex items-center justify-between p-2 bg-muted/50 rounded-lg text-sm">
+          <span className="text-xs text-muted-foreground">Stop on Reply</span>
+          <Badge variant={campaign.stop_on_reply ? "default" : "secondary"} className="text-xs">
+            {campaign.stop_on_reply ? "Yes" : "No"}
+          </Badge>
         </div>
 
         <div className="space-y-1 pt-2 border-t">

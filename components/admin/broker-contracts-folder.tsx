@@ -6,7 +6,9 @@ import useSWR, { mutate } from "swr"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
+import Link from "next/link"
 import { BrokerAddContractDialog } from "@/components/admin/broker-add-contract-dialog"
+import { DocumentViewerDialog } from "@/components/contracts/document-viewer-dialog"
 import {
   ChevronRight,
   FolderOpen,
@@ -24,6 +26,7 @@ import {
   Plus,
   Upload,
   ExternalLink,
+  Eye,
   Home,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -114,6 +117,7 @@ const TYPE_COLORS: Record<string, string> = {
 
 function DocApprovalRow({ doc, contractId }: { doc: ContractDoc; contractId: string }) {
   const [loading, setLoading] = useState(false)
+  const [viewerOpen, setViewerOpen] = useState(false)
   const badge = STATUS_BADGE[doc.status]
 
   async function handle(action: "approved" | "not_uploaded") {
@@ -151,6 +155,21 @@ function DocApprovalRow({ doc, contractId }: { doc: ContractDoc; contractId: str
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
+        {doc.file_url ? (
+          <button
+            type="button"
+            onClick={() => setViewerOpen(true)}
+            className="inline-flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+            title="View file"
+          >
+            <Eye className="h-3 w-3" />
+            View
+          </button>
+        ) : doc.status !== "not_uploaded" ? (
+          <span className="text-[11px] text-rose-400" title="This document was uploaded before file storage was fixed and has no file attached. Ask the agent to re-attach it.">
+            No file attached
+          </span>
+        ) : null}
         <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full border flex items-center gap-1", badge.className)}>
           {badge.icon}
           {badge.label}
@@ -193,6 +212,46 @@ function DocApprovalRow({ doc, contractId }: { doc: ContractDoc; contractId: str
           </>
         )}
       </div>
+      {doc.file_url && (
+        <DocumentViewerDialog
+          open={viewerOpen}
+          onOpenChange={setViewerOpen}
+          title={doc.document_name}
+          fileUrl={doc.file_url}
+          fileName={doc.file_name}
+        />
+      )}
+    </div>
+  )
+}
+
+function DealDocRow({ doc }: { doc: { id: string; document_name: string; file_url: string | null; file_name?: string | null } }) {
+  const [viewerOpen, setViewerOpen] = useState(false)
+  return (
+    <div className="flex items-center gap-3 px-3 py-2 rounded-lg border border-white/[0.05] bg-white/[0.02]">
+      <FileText className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+      <span className="text-sm text-slate-300 truncate flex-1">{doc.document_name}</span>
+      {doc.file_url ? (
+        <>
+          <button
+            type="button"
+            onClick={() => setViewerOpen(true)}
+            className="shrink-0 inline-flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+          >
+            <Eye className="h-3 w-3" />
+            View
+          </button>
+          <DocumentViewerDialog
+            open={viewerOpen}
+            onOpenChange={setViewerOpen}
+            title={doc.document_name}
+            fileUrl={doc.file_url}
+            fileName={doc.file_name}
+          />
+        </>
+      ) : (
+        <span className="text-[11px] text-slate-500 shrink-0">No file</span>
+      )}
     </div>
   )
 }
@@ -347,6 +406,16 @@ function TransactionFolder({ contract }: { contract: Contract }) {
 
       {open && (
         <div className="border-t border-white/[0.04] px-4 pb-4 pt-3 space-y-2">
+          <div className="flex justify-end mb-2">
+            <Link
+              href={`/dashboard/contracts/${contract.id}`}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-cyan-400 hover:text-cyan-300 px-2.5 py-1.5 rounded-md border border-cyan-500/20 bg-cyan-500/10 transition-colors"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              Open Contract
+            </Link>
+          </div>
+
           {/* Progress bar */}
           <div className="flex items-center justify-between text-xs text-slate-500 mb-3">
             <span>Document Progress</span>
@@ -431,21 +500,7 @@ function TransactionFolder({ contract }: { contract: Contract }) {
             ) : (
               <div className="space-y-1.5">
                 {contract.contract_deal_specific_docs.map((doc: any) => (
-                  <div key={doc.id} className="flex items-center gap-3 px-3 py-2 rounded-lg border border-white/[0.05] bg-white/[0.02]">
-                    <FileText className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-                    <span className="text-sm text-slate-300 truncate flex-1">{doc.document_name}</span>
-                    {doc.file_url && (
-                      <a
-                        href={doc.file_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="shrink-0 text-cyan-400 hover:text-cyan-300 transition-colors"
-                        title="Open file"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
-                    )}
-                  </div>
+                  <DealDocRow key={doc.id} doc={doc} />
                 ))}
               </div>
             )}
