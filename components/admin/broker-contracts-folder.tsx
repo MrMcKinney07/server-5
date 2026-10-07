@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import Link from "next/link"
 import { BrokerAddContractDialog } from "@/components/admin/broker-add-contract-dialog"
 import { DocumentViewerDialog } from "@/components/contracts/document-viewer-dialog"
+import { DocumentHistoryPanel } from "@/components/contracts/document-history-panel"
 import {
   ChevronRight,
   FolderOpen,
@@ -120,16 +121,28 @@ function DocApprovalRow({ doc, contractId }: { doc: ContractDoc; contractId: str
   const [viewerOpen, setViewerOpen] = useState(false)
   const badge = STATUS_BADGE[doc.status]
 
-  async function handle(action: "approved" | "not_uploaded") {
+  const [denying, setDenying] = useState(false)
+  const [reason, setReason] = useState("")
+  const [notice, setNotice] = useState<string | null>(null)
+
+  async function handle(action: "approved" | "rejected" | "not_uploaded") {
     setLoading(true)
+    setNotice(null)
     try {
-      await fetch(`/api/broker/contracts/${contractId}/approve`, {
+      const res = await fetch(`/api/broker/contracts/${contractId}/approve`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ document_key: doc.document_key, action }),
+        body: JSON.stringify({ document_key: doc.document_key, action, reason: action === "rejected" ? reason : undefined }),
       })
-      // Revalidate broker contracts
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setNotice(json.error ?? "Something went wrong")
+      } else if (action === "rejected") {
+        setNotice(json.emailSent ? "Denied — agent emailed to re-upload" : "Denied — email could not be sent")
+        setDenying(false)
+        setReason("")
+      }
       mutate("/api/broker/contracts")
     } finally {
       setLoading(false)
@@ -137,6 +150,7 @@ function DocApprovalRow({ doc, contractId }: { doc: ContractDoc; contractId: str
   }
 
   return (
+    <div className="flex flex-col gap-2">
     <div className={cn(
       "flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all",
       doc.status === "approved" ? "border-emerald-500/10 bg-emerald-500/[0.03]" :
@@ -191,11 +205,11 @@ function DocApprovalRow({ doc, contractId }: { doc: ContractDoc; contractId: str
                 </Button>
                 <Button
                   size="sm"
-                  onClick={() => handle("not_uploaded")}
+                  onClick={() => setDenying((v) => !v)}
                   className="h-6 px-2 text-[11px] bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20"
                 >
                   <X className="h-3 w-3 mr-1" />
-                  {doc.status === "uploaded" ? "Reject" : "Deny"}
+                  Deny
                 </Button>
               </div>
             )}
@@ -221,6 +235,47 @@ function DocApprovalRow({ doc, contractId }: { doc: ContractDoc; contractId: str
           fileName={doc.file_name}
         />
       )}
+    </div>
+    {denying && (
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          handle("rejected")
+        }}
+        className="flex flex-col gap-2 rounded-lg border border-rose-500/20 bg-rose-500/[0.04] px-3 py-2.5 sm:flex-row sm:items-center"
+      >
+        <label htmlFor={`deny-${doc.document_key}`} className="sr-only">
+          Reason for denying {doc.document_name}
+        </label>
+        <input
+          id={`deny-${doc.document_key}`}
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="Reason (optional) — included in the email to the agent"
+          className="flex-1 rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-rose-400/50"
+        />
+        <div className="flex gap-1">
+          <Button
+            type="submit"
+            size="sm"
+            disabled={loading}
+            className="h-7 px-2.5 text-[11px] bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30"
+          >
+            Deny &amp; email agent
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => setDenying(false)}
+            className="h-7 px-2 text-[11px] text-slate-400"
+          >
+            Cancel
+          </Button>
+        </div>
+      </form>
+    )}
+    {notice && <p className="px-3 text-[11px] text-slate-400" role="status">{notice}</p>}
     </div>
   )
 }
@@ -505,6 +560,8 @@ function TransactionFolder({ contract }: { contract: Contract }) {
               </div>
             )}
           </div>
+
+          <DocumentHistoryPanel contractId={contract.id} />
         </div>
       )}
     </div>

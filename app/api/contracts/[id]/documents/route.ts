@@ -1,6 +1,7 @@
 import { put } from "@vercel/blob"
 import { createClient, createServiceClient } from "@/lib/supabase/server"
 import { getCurrentAgent } from "@/lib/auth"
+import { recordDocumentHistory } from "@/lib/contracts/document-history"
 import { NextResponse } from "next/server"
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -51,6 +52,19 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  if (status === "uploaded" && file_url) {
+    await recordDocumentHistory({
+      contractId,
+      documentKey: document_key,
+      documentName: data.document_name,
+      action: "uploaded",
+      fileUrl: file_url,
+      fileName: file_name,
+      actorId: agent.id,
+      actorName: agent.Name ?? agent.email ?? null,
+    })
+  }
 
   // Recalculate progress_percent — only count required docs
   const { data: allDocs } = await supabase
@@ -151,5 +165,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  if (file_url) {
+    await recordDocumentHistory({
+      contractId,
+      documentKey: data.id,
+      documentName: document_name,
+      docType: "deal_specific",
+      action: "uploaded",
+      fileUrl: file_url,
+      fileName: file_name,
+      actorId: agent.id,
+      actorName: agent.Name ?? agent.email ?? null,
+    })
+  }
+
   return NextResponse.json(data, { status: 201 })
 }
